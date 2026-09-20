@@ -14,6 +14,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Welcome'>;
 
 export function WelcomeScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
   return (
     <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
@@ -36,11 +37,20 @@ export function WelcomeScreen({ navigation }: Props) {
         style={styles.input}
       />
 
+      <Input
+        label="Password"
+        value={password}
+        onChangeText={setPassword}
+        placeholder="At least 8 characters"
+        secureTextEntry
+        style={styles.input}
+      />
+
       <Button
         label="Continue"
-        onPress={() => navigation.navigate('OnboardingVerification', { email: email.trim() })}
+        onPress={() => navigation.navigate('OnboardingVerification', { email: email.trim(), password })}
         variant="primary"
-        disabled={!email.trim()}
+        disabled={!email.trim() || password.length < 8}
         style={styles.continueButton}
       />
 

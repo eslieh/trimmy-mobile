@@ -1,0 +1,43 @@
+export interface User {
+  id: string;
+  email: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  phone: string | null;
+  auth_type: string;
+  verified: boolean;
+  created_at: string;
+}
+
+export interface Tokens {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+}
+
+export interface AuthResponse {
+  user: User;
+  tokens: Tokens;
+}
+
+export interface ApiError {
+  error: string;
+  message: string;
+}
+
+export interface RegisterRequest {
+  email: string;
+  password: string;
+  first_name: string;
+  last_name: string;
+  phone?: string;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface RefreshRequest {
+  refresh_token: string;
+}
