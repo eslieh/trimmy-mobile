@@ -1,0 +1,284 @@
+{
+  "domain": "business-setup",
+  "baseUrl": "/api/v1",
+  "auth": "All endpoints require a Bearer token for a user with role `owner`, unless noted as \"public\".",
+  "endpoints": [
+    {
+      "id": "create-business",
+      "screen": "Business Basics",
+      "story": "O1",
+      "method": "POST",
+      "path": "/businesses",
+      "description": "Creates a draft business record from onboarding step 1. Draft is not visible on the marketplace until published.",
+      "auth": "owner",
+      "request": {
+        "name": "Glow Beauty Lounge",
+        "category": "hair_salon",
+        "phone": "+254712345678",
+        "location": {
+          "address": "Kilimani, Nairobi",
+          "lat": -1.2921,
+          "lng": 36.7833
+        }
+      },
+      "response": {
+        "businessId": "biz_01hxyz",
+        "name": "Glow Beauty Lounge",
+        "category": "hair_salon",
+        "phone": "+254712345678",
+        "location": {
+          "address": "Kilimani, Nairobi",
+          "lat": -1.2921,
+          "lng": 36.7833
+        },
+        "status": "draft",
+        "onboardingStep": "business_basics",
+        "createdAt": "2026-09-20T09:00:00Z"
+      },
+      "errors": [
+        { "status": 400, "code": "validation_error", "message": "name is required" },
+        { "status": 409, "code": "phone_already_registered", "message": "A business already exists for this phone number" }
+      ]
+    },
+    {
+      "id": "get-business-draft",
+      "screen": "Onboarding wizard (resume)",
+      "story": "O1",
+      "method": "GET",
+      "path": "/businesses/{businessId}",
+      "description": "Fetches the current draft state so the onboarding wizard can resume at the correct step after the app is closed/reopened.",
+      "auth": "owner",
+      "request": null,
+      "response": {
+        "businessId": "biz_01hxyz",
+        "name": "Glow Beauty Lounge",
+        "category": "hair_salon",
+        "phone": "+254712345678",
+        "location": { "address": "Kilimani, Nairobi", "lat": -1.2921, "lng": 36.7833 },
+        "workingHours": null,
+        "services": [],
+        "policies": null,
+        "paymentDestination": null,
+        "teamMode": null,
+        "status": "draft",
+        "onboardingStep": "business_basics"
+      },
+      "errors": [
+        { "status": 404, "code": "not_found", "message": "No business found for this id" }
+      ]
+    },
+    {
+      "id": "set-working-hours",
+      "screen": "Working Hours",
+      "story": "O1",
+      "method": "PUT",
+      "path": "/businesses/{businessId}/working-hours",
+      "description": "Sets the default weekly working hours and closed days. Holidays/buffer time are edited later from Settings, not part of onboarding.",
+      "auth": "owner",
+      "request": {
+        "weeklyHours": {
+          "monday": { "open": "09:00", "close": "19:00" },
+          "tuesday": { "open": "09:00", "close": "19:00" },
+          "wednesday": { "open": "09:00", "close": "19:00" },
+          "thursday": { "open": "09:00", "close": "19:00" },
+          "friday": { "open": "09:00", "close": "20:00" },
+          "saturday": { "open": "09:00", "close": "20:00" },
+          "sunday": null
+        }
+      },
+      "response": {
+        "businessId": "biz_01hxyz",
+        "weeklyHours": {
+          "monday": { "open": "09:00", "close": "19:00" },
+          "tuesday": { "open": "09:00", "close": "19:00" },
+          "wednesday": { "open": "09:00", "close": "19:00" },
+          "thursday": { "open": "09:00", "close": "19:00" },
+          "friday": { "open": "09:00", "close": "20:00" },
+          "saturday": { "open": "09:00", "close": "20:00" },
+          "sunday": null
+        },
+        "onboardingStep": "working_hours"
+      },
+      "errors": [
+        { "status": 400, "code": "validation_error", "message": "close time must be after open time" }
+      ]
+    },
+    {
+      "id": "create-service",
+      "screen": "Services",
+      "story": "O1",
+      "method": "POST",
+      "path": "/businesses/{businessId}/services",
+      "description": "Adds one service. Onboarding requires at least one; more can be added later from Settings.",
+      "auth": "owner",
+      "request": {
+        "name": "Classic Haircut",
+        "category": "hair",
+        "durationMinutes": 45,
+        "price": { "amount": 800, "currency": "KES" }
+      },
+      "response": {
+        "serviceId": "svc_01a1",
+        "businessId": "biz_01hxyz",
+        "name": "Classic Haircut",
+        "category": "hair",
+        "durationMinutes": 45,
+        "price": { "amount": 800, "currency": "KES" },
+        "createdAt": "2026-09-20T09:05:00Z"
+      },
+      "errors": [
+        { "status": 400, "code": "validation_error", "message": "price.amount must be greater than 0" }
+      ]
+    },
+    {
+      "id": "list-services",
+      "screen": "Services",
+      "story": "O1",
+      "method": "GET",
+      "path": "/businesses/{businessId}/services",
+      "description": "Lists services added so far, so the Services screen can show what's already been entered and let onboarding proceed once at least one exists.",
+      "auth": "owner",
+      "request": null,
+      "response": {
+        "services": [
+          {
+            "serviceId": "svc_01a1",
+            "name": "Classic Haircut",
+            "category": "hair",
+            "durationMinutes": 45,
+            "price": { "amount": 800, "currency": "KES" }
+          }
+        ]
+      },
+      "errors": []
+    },
+    {
+      "id": "set-policies",
+      "screen": "Deposit & Cancellation Policy",
+      "story": "O1",
+      "method": "PUT",
+      "path": "/businesses/{businessId}/policies",
+      "description": "Sets deposit and cancellation/no-show rules. The screen pre-fills a sensible default the owner can accept with one tap or customize.",
+      "auth": "owner",
+      "request": {
+        "deposit": {
+          "required": false,
+          "type": "fixed",
+          "amount": { "amount": 0, "currency": "KES" },
+          "appliesTo": "all_services"
+        },
+        "cancellation": {
+          "freeCancellationHours": 24,
+          "lateFeePercent": 50
+        },
+        "noShow": {
+          "feePercent": 100
+        }
+      },
+      "response": {
+        "businessId": "biz_01hxyz",
+        "deposit": {
+          "required": false,
+          "type": "fixed",
+          "amount": { "amount": 0, "currency": "KES" },
+          "appliesTo": "all_services"
+        },
+        "cancellation": { "freeCancellationHours": 24, "lateFeePercent": 50 },
+        "noShow": { "feePercent": 100 },
+        "onboardingStep": "policies"
+      },
+      "errors": [
+        { "status": 400, "code": "validation_error", "message": "lateFeePercent must be between 0 and 100" }
+      ]
+    },
+    {
+      "id": "set-payment-destination",
+      "screen": "Payment Destination",
+      "story": "O1",
+      "method": "PUT",
+      "path": "/businesses/{businessId}/payment-destination",
+      "description": "Sets where customer payments land. Hard-gated: the business cannot be published (see publish-business) until this succeeds with a verified destination.",
+      "auth": "owner",
+      "request": {
+        "type": "mpesa_till",
+        "tillNumber": "174379"
+      },
+      "response": {
+        "businessId": "biz_01hxyz",
+        "type": "mpesa_till",
+        "tillNumber": "174379",
+        "verificationStatus": "verified",
+        "onboardingStep": "payment_destination"
+      },
+      "errors": [
+        { "status": 400, "code": "validation_error", "message": "tillNumber is required for type mpesa_till" },
+        { "status": 422, "code": "verification_failed", "message": "Could not verify till number with M-Pesa" }
+      ]
+    },
+    {
+      "id": "set-team-mode",
+      "screen": "Solo or Team?",
+      "story": "O1",
+      "method": "PATCH",
+      "path": "/businesses/{businessId}/team-mode",
+      "description": "Records whether this is a solo operator or a staffed team. Drives which fulfillment session (Staff vs. Front Desk) the app shows and whether the Team invite step appears.",
+      "auth": "owner",
+      "request": {
+        "teamMode": "solo"
+      },
+      "response": {
+        "businessId": "biz_01hxyz",
+        "teamMode": "solo",
+        "onboardingStep": "team_mode"
+      },
+      "errors": [
+        { "status": 400, "code": "validation_error", "message": "teamMode must be one of: solo, team" }
+      ]
+    },
+    {
+      "id": "invite-team-member",
+      "screen": "Team invite (conditional)",
+      "story": "O2",
+      "method": "POST",
+      "path": "/businesses/{businessId}/team/invitations",
+      "description": "Invites a Front Desk (or other) user during onboarding when teamMode is 'team'. Can be skipped and done later from Settings.",
+      "auth": "owner",
+      "request": {
+        "phone": "+254798765432",
+        "role": "front_desk"
+      },
+      "response": {
+        "invitationId": "inv_01xy",
+        "businessId": "biz_01hxyz",
+        "phone": "+254798765432",
+        "role": "front_desk",
+        "status": "pending",
+        "sentAt": "2026-09-20T09:10:00Z"
+      },
+      "errors": [
+        { "status": 409, "code": "already_invited", "message": "This phone number already has a pending invitation" }
+      ]
+    },
+    {
+      "id": "publish-business",
+      "screen": "Review & Publish",
+      "story": "O1",
+      "method": "PATCH",
+      "path": "/businesses/{businessId}/publish",
+      "description": "Flips marketplace visibility on. Manual, owner-initiated toggle — never automatic. Requires workingHours, at least one service, policies, and a verified paymentDestination to already be set.",
+      "auth": "owner",
+      "request": {
+        "visible": true
+      },
+      "response": {
+        "businessId": "biz_01hxyz",
+        "status": "published",
+        "visible": true,
+        "publishedAt": "2026-09-20T09:15:00Z"
+      },
+      "errors": [
+        { "status": 422, "code": "incomplete_setup", "message": "paymentDestination must be verified before publishing" }
+      ]
+    }
+  ]
+}

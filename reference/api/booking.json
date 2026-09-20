@@ -1,0 +1,7 @@
+{
+  "domain": "booking",
+  "baseUrl": "/api/v1",
+  "auth": "Requires a Bearer token for a user with role `customer`, unless noted.",
+  "note": "Stub — fill in when Phase 3 (Booking flow) starts. See business-setup.json for the expected format.",
+  "endpoints": []
+}
