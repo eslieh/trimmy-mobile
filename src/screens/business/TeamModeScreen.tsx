@@ -40,15 +40,7 @@ export function TeamModeScreen() {
       return;
     }
 
-    router.push({
-      pathname: '/success',
-      params: {
-        title: 'All set!',
-        subtitle: "We'll notify you as soon as the rest of setup (review & publish) is ready.",
-        ctaLabel: 'Done for now',
-        nextRoute: '/get-started',
-      },
-    });
+    router.push('/business-review');
   };
 
   return (

@@ -202,3 +202,29 @@ export function inviteTeamMember(businessId: string, input: InviteTeamMemberInpu
     body: input,
   });
 }
+
+export type PublishBusinessResult = {
+  businessId: string;
+  status: 'published';
+  visible: boolean;
+  publishedAt: string;
+};
+
+// See reference/api/business-setup.json#publish-business for the contract this implements.
+// Only call this when actually publishing — leaving a business as a draft
+// needs no API call at all.
+export function publishBusiness(businessId: string): Promise<PublishBusinessResult> {
+  if (USE_MOCK_API) {
+    return mockDelay<PublishBusinessResult>({
+      businessId,
+      status: 'published',
+      visible: true,
+      publishedAt: new Date().toISOString(),
+    });
+  }
+
+  return apiRequest<PublishBusinessResult>(`/businesses/${businessId}/publish`, {
+    method: 'PATCH',
+    body: { visible: true },
+  });
+}

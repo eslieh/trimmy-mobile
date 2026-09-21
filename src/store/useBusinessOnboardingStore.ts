@@ -4,6 +4,7 @@ import {
   createService,
   createServiceCategory,
   inviteTeamMember,
+  publishBusiness,
   setPaymentDestination,
   setPolicies,
   setTeamMode,
@@ -98,6 +99,8 @@ type BusinessOnboardingState = {
 
   invitations: TeamInvitation[];
   sendTeamInvite: (input: InviteTeamMemberInput) => Promise<TeamInvitation>;
+
+  submitReviewPublish: (publish: boolean) => Promise<Business>;
 };
 
 // Holds the draft business as the owner moves through the Business Basics
@@ -321,6 +324,33 @@ export const useBusinessOnboardingStore = create<BusinessOnboardingState>((set, 
       const invitation = await inviteTeamMember(business.businessId, input);
       set((state) => ({ invitations: [...state.invitations, invitation], isSubmitting: false }));
       return invitation;
+    } catch (err) {
+      set({ isSubmitting: false, error: err instanceof Error ? err.message : 'Something went wrong' });
+      throw err;
+    }
+  },
+
+  submitReviewPublish: async (publish) => {
+    const business = get().business;
+    if (!business) {
+      throw new Error('Business must be created before reviewing & publishing');
+    }
+    set({ isSubmitting: true, error: null });
+    try {
+      if (publish) {
+        const result = await publishBusiness(business.businessId);
+        const published: Business = {
+          ...business,
+          status: result.status,
+          onboardingStep: 'review_publish',
+        };
+        set({ business: published, isSubmitting: false });
+        return published;
+      }
+
+      const reviewed: Business = { ...business, onboardingStep: 'review_publish' };
+      set({ business: reviewed, isSubmitting: false });
+      return reviewed;
     } catch (err) {
       set({ isSubmitting: false, error: err instanceof Error ? err.message : 'Something went wrong' });
       throw err;

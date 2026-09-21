@@ -23,15 +23,7 @@ export function TeamInviteScreen() {
   const [addInviteVisible, setAddInviteVisible] = useState(false);
 
   const handleContinue = () => {
-    router.push({
-      pathname: '/success',
-      params: {
-        title: 'Invites sent!',
-        subtitle: "We'll notify you as soon as the rest of setup (review & publish) is ready.",
-        ctaLabel: 'Done for now',
-        nextRoute: '/get-started',
-      },
-    });
+    router.push('/business-review');
   };
 
   return (
