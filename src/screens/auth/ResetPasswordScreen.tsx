@@ -1,18 +1,21 @@
 import { useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { AuthScreenLayout } from '../../components/AuthScreenLayout';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { colors, typography } from '../../theme';
+import { authApi } from '../../api/auth';
 
 export function ResetPasswordScreen() {
   const router = useRouter();
+  const { email, otp } = useLocalSearchParams<{ email: string; otp: string }>();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (password.length < 8) {
       setError('Password must be at least 8 characters.');
       return;
@@ -22,15 +25,24 @@ export function ResetPasswordScreen() {
       return;
     }
     setError('');
-    router.push({
-      pathname: '/success',
-      params: {
-        title: 'Password updated',
-        subtitle: 'You can now log in with your new password.',
-        ctaLabel: 'Back to log in',
-        nextRoute: '/login',
-      },
-    });
+    setLoading(true);
+    try {
+      await authApi.resetPassword(otp!, password);
+      router.push({
+        pathname: '/success',
+        params: {
+          title: 'Password updated',
+          subtitle: 'You can now log in with your new password.',
+          ctaLabel: 'Back to log in',
+          nextRoute: '/login',
+        },
+      });
+    } catch (err: any) {
+      const detail = err.response?.data?.detail;
+      setError(detail?.message || 'Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -39,7 +51,14 @@ export function ResetPasswordScreen() {
       subtitle="Your new password must be different from previously used passwords."
       onBack={() => router.back()}
       footer={
-        <Button label="Reset password" disabled={!password || !confirmPassword} onPress={handleSubmit} />
+        <>
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          <Button
+            label={loading ? 'Resetting...' : 'Reset password'}
+            disabled={!password || !confirmPassword || loading}
+            onPress={handleSubmit}
+          />
+        </>
       }
     >
       <Input label="New password" value={password} onChangeText={setPassword} placeholder="Enter new password" secureTextEntry />
@@ -50,7 +69,6 @@ export function ResetPasswordScreen() {
         placeholder="Re-enter new password"
         secureTextEntry
       />
-      {error ? <Text style={styles.error}>{error}</Text> : null}
     </AuthScreenLayout>
   );
 }
@@ -59,5 +77,6 @@ const styles = StyleSheet.create({
   error: {
     ...typography.caption,
     color: colors.feedback.danger,
+    marginBottom: 8,
   },
 });
