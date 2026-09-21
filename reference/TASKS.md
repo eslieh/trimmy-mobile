@@ -61,15 +61,23 @@ Stack: Expo `~57.0.22`, React Native `0.86.3`, React `19.2.3`, TypeScript `~6.0.
   endpoints exist, switched via `EXPO_PUBLIC_API_BASE_URL` (unset = mock mode).
 - **State management** — Zustand.
 - **Maps** — `react-native-maps`, with `expo-location` for "use current location" + reverse geocoding.
+- **Date/time picker** — `@react-native-community/datetimepicker`. Only Working Hours (open/close
+  times) needs an actual native picker; the booking date/time screen (Phase 3) is a fully custom
+  horizontal scroller + slot grid, not a native-picker use case.
+- **Owner vs. customer entry point** — resolved as a **Get Started** screen shown right after
+  signup completes (`OnboardingName` → `Success` → `GetStarted`, replacing the old direct-to-`Welcome`
+  redirect). It checks for pending team invitations first (join someone else's business as
+  staff/front desk) and otherwise offers "Enroll your business today" (→ Business Basics) or
+  "Continue browsing" as a customer.
 
-## Open decisions (still open)
+## ⚠️ Native modules now required — Expo Go no longer works for this app
 
-- [ ] **Date/time picker** — pick a library once Working Hours (Phase 1) is scoped.
-- [ ] **Owner vs. customer entry point** — the existing signup/onboarding flow
-      (`Welcome` → `OnboardingMobile` → `OnboardingName`) never asks whether the person is a
-      customer or a business owner. Business Basics is wired up but currently only reachable
-      via a temporary dev link from `Welcome` — needs a real decision on where "list your
-      business" enters the flow relative to customer signup.
+`react-native-maps` and `@react-native-community/datetimepicker` are not included in Expo Go.
+Local development now requires a **custom dev client** (`npx expo run:ios` / `npx expo run:android`
+once, then `npx expo start --dev-client` day to day). This only means a native rebuild when a
+native dependency or `app.json` plugin config changes — ordinary JS/screen changes still hot-reload
+instantly through Fast Refresh same as before. `ios/`/`android/` are gitignored; each machine
+builds its own dev client locally (or via an EAS dev build later).
 
 ## API contracts
 
@@ -82,6 +90,8 @@ firm up; see [api/README.md](api/README.md) for the schema convention.
 
 - [x] Auth screens (login/signup)
 - [x] Splash screen
+- [x] **Get Started** screen — post-signup hub: pending invitations vs. "enroll your business"
+      vs. continue as customer (resolves the owner-vs-customer entry point decision above)
 - [ ] Session/role model: user can hold one or more of `owner` / `front_desk` / `staff` /
       `customer`; active-role context available app-wide (needed before role switching in O5,
       but a single hardcoded role is fine to start)
@@ -92,7 +102,8 @@ firm up; see [api/README.md](api/README.md) for the schema convention.
 Onboarding wizard, one step per screen, save-and-resume, progress indicator:
 
 - [ ] Data model: business, services, policies, payment destinations, `team_mode` (`solo` | `team`)
-- [ ] **Business Basics** screen — name, category, phone, location pin (creates draft business)
+- [x] **Business Basics** screen — name, categories (multi-select), phone, map location pin +
+      building/floor/shop-or-office number, submits to mock `createBusiness` (creates draft business)
 - [ ] **Working Hours** screen — default weekly hours + closed days (holidays/buffer deferred to Settings)
 - [ ] **Services** screen — at least 1 service (name, duration, price); more can be added later
 - [ ] **Deposit & Cancellation Policy** screen — sensible default pre-filled, one-tap accept or customize

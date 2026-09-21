@@ -9,6 +9,8 @@ import { OnboardingVerificationScreen } from '../screens/onboarding/OnboardingVe
 import { OnboardingMobileScreen } from '../screens/onboarding/OnboardingMobileScreen';
 import { OnboardingNameScreen } from '../screens/onboarding/OnboardingNameScreen';
 import { SuccessScreen } from '../screens/SuccessScreen';
+import { GetStartedScreen } from '../screens/GetStartedScreen';
+import { BusinessBasicsScreen } from '../screens/business/BusinessBasicsScreen';
 import { colors } from '../theme';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -32,6 +34,8 @@ export function RootNavigator() {
       <Stack.Screen name="OnboardingMobile" component={OnboardingMobileScreen} />
       <Stack.Screen name="OnboardingName" component={OnboardingNameScreen} />
       <Stack.Screen name="Success" component={SuccessScreen} />
+      <Stack.Screen name="GetStarted" component={GetStartedScreen} />
+      <Stack.Screen name="BusinessBasics" component={BusinessBasicsScreen} />
     </Stack.Navigator>
   );
 }

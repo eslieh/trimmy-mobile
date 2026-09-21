@@ -13,7 +13,7 @@ const CODE_LENGTH = 6;
 const TOTAL_STEPS = 4;
 
 export function OnboardingVerificationScreen({ navigation, route }: Props) {
-  const { email } = route.params;
+  const { email, password } = route.params;
   const [code, setCode] = useState('');
 
   return (
@@ -26,7 +26,7 @@ export function OnboardingVerificationScreen({ navigation, route }: Props) {
         <Button
           label="Continue"
           disabled={code.length !== CODE_LENGTH}
-          onPress={() => navigation.navigate('OnboardingMobile', { email })}
+          onPress={() => navigation.navigate('OnboardingMobile', { email, password })}
         />
       }
     >

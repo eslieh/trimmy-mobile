@@ -1,17 +1,44 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AuthScreenLayout } from '../../components/AuthScreenLayout';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { RootStackParamList } from '../../navigation/types';
 import { colors, typography } from '../../theme';
+import { useAuth } from '../../contexts/AuthContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
 export function LoginScreen({ navigation }: Props) {
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleLogin = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      await login({ email: email.trim(), password });
+      navigation.navigate('Success', {
+        title: 'Welcome back',
+        subtitle: 'You have successfully logged in.',
+        ctaLabel: 'Done',
+        nextRoute: 'Welcome',
+      });
+    } catch (err: any) {
+      const detail = err.response?.data?.detail;
+      if (detail?.error === 'not_verified') {
+        navigation.navigate('OnboardingVerification', { email: email.trim(), password });
+      } else {
+        setError(detail?.message || 'Invalid email or password.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <AuthScreenLayout
@@ -19,18 +46,18 @@ export function LoginScreen({ navigation }: Props) {
       subtitle="Welcome back! Enter your details to continue."
       onBack={() => navigation.goBack()}
       footer={
-        <Button
-          label="Log in"
-          disabled={!email.trim() || !password}
-          onPress={() =>
-            navigation.navigate('Success', {
-              title: 'Welcome back',
-              subtitle: 'You have successfully logged in.',
-              ctaLabel: 'Done',
-              nextRoute: 'Welcome',
-            })
-          }
-        />
+        <>
+          {error ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
+          <Button
+            label={loading ? 'Logging in...' : 'Log in'}
+            disabled={!email.trim() || !password || loading}
+            onPress={handleLogin}
+          />
+        </>
       }
     >
       <Input
@@ -63,5 +90,15 @@ const styles = StyleSheet.create({
   forgotLinkText: {
     ...typography.bodyMedium,
     color: colors.brand.purple,
+  },
+  errorContainer: {
+    marginBottom: 8,
+    padding: 12,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 8,
+  },
+  errorText: {
+    ...typography.caption,
+    color: colors.feedback.danger,
   },
 });

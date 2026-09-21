@@ -7,7 +7,8 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.eslieh.trimmy-mobile"
     },
     "android": {
       "adaptiveIcon": {
@@ -21,7 +22,11 @@
         "googleMaps": {
           "apiKey": "REPLACE_WITH_REAL_ANDROID_GOOGLE_MAPS_API_KEY"
         }
-      }
+      },
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -43,7 +48,8 @@
         {
           "locationWhenInUsePermission": "Trimyy uses your location to find businesses near you and to set your business's location."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ]
   }
 }

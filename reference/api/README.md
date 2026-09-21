@@ -20,7 +20,7 @@ shape) — they should stay accurate enough to hand to a backend engineer as-is.
 | [discovery.json](discovery.json) | Phase 2 — Discovery | stub |
 | [booking.json](booking.json) | Phase 3 — Booking flow | stub |
 | [fulfillment.json](fulfillment.json) | Phase 4 — Fulfillment view | stub |
-| [team.json](team.json) | Phase 5 — Team management | stub |
+| [team.json](team.json) | Phase 5 — Team management | drafted (invitation endpoints only, needed by Get Started) |
 
 A "stub" file just holds the `domain` and an empty `endpoints` array — fill it in when that
 phase actually starts, using `business-setup.json` as the template.

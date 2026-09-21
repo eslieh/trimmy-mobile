@@ -13,7 +13,7 @@ const TOTAL_STEPS = 4;
 const DEFAULT_COUNTRY = countries.find((c) => c.iso2 === 'US') ?? countries[0];
 
 export function OnboardingMobileScreen({ navigation, route }: Props) {
-  const { email } = route.params;
+  const { email, password } = route.params;
   const [country, setCountry] = useState(DEFAULT_COUNTRY);
   const [rawNumber, setRawNumber] = useState('');
 
@@ -30,6 +30,7 @@ export function OnboardingMobileScreen({ navigation, route }: Props) {
           onPress={() =>
             navigation.navigate('OnboardingName', {
               email,
+              password,
               mobile: normalizePhoneNumber(rawNumber, country),
             })
           }

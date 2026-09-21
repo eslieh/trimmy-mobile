@@ -13,23 +13,29 @@
       "auth": "owner",
       "request": {
         "name": "Glow Beauty Lounge",
-        "category": "hair_salon",
+        "categories": ["hair_salon", "nail_salon"],
         "phone": "+254712345678",
         "location": {
           "address": "Kilimani, Nairobi",
           "lat": -1.2921,
-          "lng": 36.7833
+          "lng": 36.7833,
+          "building": "Yaya Centre",
+          "floor": "2nd Floor",
+          "unit": "Shop 14"
         }
       },
       "response": {
         "businessId": "biz_01hxyz",
         "name": "Glow Beauty Lounge",
-        "category": "hair_salon",
+        "categories": ["hair_salon", "nail_salon"],
         "phone": "+254712345678",
         "location": {
           "address": "Kilimani, Nairobi",
           "lat": -1.2921,
-          "lng": 36.7833
+          "lng": 36.7833,
+          "building": "Yaya Centre",
+          "floor": "2nd Floor",
+          "unit": "Shop 14"
         },
         "status": "draft",
         "onboardingStep": "business_basics",
@@ -52,9 +58,16 @@
       "response": {
         "businessId": "biz_01hxyz",
         "name": "Glow Beauty Lounge",
-        "category": "hair_salon",
+        "categories": ["hair_salon", "nail_salon"],
         "phone": "+254712345678",
-        "location": { "address": "Kilimani, Nairobi", "lat": -1.2921, "lng": 36.7833 },
+        "location": {
+          "address": "Kilimani, Nairobi",
+          "lat": -1.2921,
+          "lng": 36.7833,
+          "building": "Yaya Centre",
+          "floor": "2nd Floor",
+          "unit": "Shop 14"
+        },
         "workingHours": null,
         "services": [],
         "policies": null,
