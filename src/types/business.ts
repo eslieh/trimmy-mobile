@@ -42,6 +42,9 @@ export type Business = {
   status: BusinessStatus;
   onboardingStep: OnboardingStep;
   workingHours?: WeeklyHours;
+  policies?: BusinessPolicies;
+  paymentDestination?: PaymentDestination;
+  teamMode?: TeamMode;
 };
 
 export type DayHours = { open: string; close: string } | null;
@@ -56,11 +59,20 @@ export type WeeklyHours = {
   sunday: DayHours;
 };
 
+// Owner-defined grouping for their service menu (e.g. "Haircuts", "Coloring") —
+// distinct from BusinessCategory, which categorizes the business itself for
+// marketplace discovery, not its individual services.
+export type ServiceCategory = {
+  categoryId: string;
+  businessId: string;
+  name: string;
+};
+
 export type Service = {
   serviceId: string;
   businessId: string;
+  categoryId: string;
   name: string;
-  category: BusinessCategory;
   durationMinutes: number;
   price: Money;
 };
@@ -89,9 +101,12 @@ export type BusinessPolicies = {
 
 export type PaymentDestination = {
   type: 'mpesa_till' | 'mpesa_paybill' | 'bank_account';
-  tillNumber?: string;
-  paybillNumber?: string;
-  accountNumber?: string;
+  tillNumber?: string; // mpesa_till
+  paybillNumber?: string; // mpesa_paybill
+  paybillAccountNumber?: string; // mpesa_paybill
+  bankName?: string; // bank_account
+  bankShortcode?: string; // bank_account
+  bankAccountNumber?: string; // bank_account
   verificationStatus: 'pending' | 'verified' | 'failed';
 };
 

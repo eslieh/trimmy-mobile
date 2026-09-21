@@ -9,7 +9,7 @@ import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingSto
 import { colors, spacing, typography } from '../../theme';
 import type { BusinessLocation } from '../../types/business';
 
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 10;
 
 export function BusinessLocationScreen() {
   const router = useRouter();
@@ -27,15 +27,7 @@ export function BusinessLocationScreen() {
 
     await submitBusinessBasics();
 
-    router.push({
-      pathname: '/success',
-      params: {
-        title: 'Business created!',
-        subtitle: "We'll notify you as soon as the rest of setup (hours, services, payments) is ready.",
-        ctaLabel: 'Done for now',
-        nextRoute: '/get-started',
-      },
-    });
+    router.push('/business-hours');
   };
 
   return (

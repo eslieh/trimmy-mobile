@@ -133,10 +133,24 @@ Onboarding wizard, one step per screen, save-and-resume, progress indicator:
   - [x] **Phone** (`/business-phone`) — business phone
   - [x] **Location** (`/business-location`) — map pin + building/floor/shop-or-office number,
         submits to mock `createBusiness` on continue (creates draft business)
-- [ ] **Working Hours** screen — default weekly hours + closed days (holidays/buffer deferred to Settings)
-- [ ] **Services** screen — at least 1 service (name, duration, price); more can be added later
-- [ ] **Deposit & Cancellation Policy** screen — sensible default pre-filled, one-tap accept or customize
-- [ ] **Payment Destination** screen — M-Pesa Till or Paybill; **hard-gate**: cannot publish without this
+- [x] **Working Hours** (`/business-hours`, 5/10) — 7-day open/closed toggle list with a sensible
+      09:00–19:00/20:00 default, native time pickers, submits via mock `setWorkingHours`
+- [x] **Services** (`/business-services`, 6/10) — two-level tree: owner-defined service categories
+      (e.g. "Haircuts", "Coloring") each containing services (name, duration, price). Add-category
+      and add-service bottom sheets; requires at least one service total. Submits on continue via
+      mock `createServiceCategory` + `createService` per category/service
+      (see `reference/api/business-setup.json#create-service-category`/`#create-service` — note
+      `Service.categoryId` now references an owner-defined `ServiceCategory`, not the business's
+      own marketplace `BusinessCategory`)
+- [x] **Deposit & Cancellation Policy** (`/business-policies`, 7/10) — pre-filled default (no
+      deposit, 24h free cancellation, 50% late fee, 100% no-show fee), one-tap accept or
+      customize (deposit required toggle + fixed/percent type, editable hours/percentages),
+      submits via mock `setPolicies`
+- [x] **Payment Destination** (`/business-payment`, 8/10) — M-Pesa Till, M-Pesa Paybill, or direct
+      Bank Account (picker of 10 Kenyan banks with their paybill-style shortcodes, `src/data/kenyaBanks.ts`),
+      submits via mock `setPaymentDestination`. **Still needs real hard-gating** — Review & Publish
+      (not built yet) is meant to block publishing without a verified destination; nothing enforces
+      that yet since there's no publish step to gate
 - [ ] **Solo or Team?** question screen — determines `team_mode`; drives which fulfillment
       session(s) this owner sees (see Phase 4) and whether the Team invite step is shown
 - [ ] **Team invite (conditional)** — shown only if `team_mode = team`; invite a Front Desk

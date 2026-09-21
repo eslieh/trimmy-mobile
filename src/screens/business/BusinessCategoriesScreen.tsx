@@ -4,19 +4,11 @@ import { useRouter } from 'expo-router';
 import { AuthScreenLayout } from '../../components/AuthScreenLayout';
 import { Button } from '../../components/Button';
 import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
+import { BUSINESS_CATEGORIES } from '../../data/businessCategories';
 import { colors, radii, spacing, typography } from '../../theme';
 import type { BusinessCategory } from '../../types/business';
 
-const TOTAL_STEPS = 4;
-
-const CATEGORIES: { value: BusinessCategory; label: string }[] = [
-  { value: 'hair_salon', label: 'Hair Salon' },
-  { value: 'barbershop', label: 'Barbershop' },
-  { value: 'nail_salon', label: 'Nail Salon' },
-  { value: 'spa', label: 'Spa' },
-  { value: 'beauty', label: 'Beauty' },
-  { value: 'other', label: 'Other' },
-];
+const TOTAL_STEPS = 10;
 
 export function BusinessCategoriesScreen() {
   const router = useRouter();
@@ -48,7 +40,7 @@ export function BusinessCategoriesScreen() {
       }
     >
       <View style={styles.pillRow}>
-        {CATEGORIES.map((option) => {
+        {BUSINESS_CATEGORIES.map((option) => {
           const selected = categories.includes(option.value);
           return (
             <Pressable

@@ -44,17 +44,19 @@ export function WelcomeScreen() {
 
       <Divider label="OR" />
 
+      {/* No real Google/Apple OAuth yet — temporarily jumps straight into
+          business setup so that flow can be tested without a full signup. */}
       <View style={styles.buttonGroup}>
         <Button label="Continue with mobile" onPress={() => {}} variant="secondary" icon={<PhoneIcon size={20} />} />
         <Button
           label="Continue with Google"
-          onPress={() => {}}
+          onPress={() => router.push('/business-name')}
           variant="secondary"
           icon={<GoogleIcon size={20} />}
         />
         <Button
           label="Continue with Apple"
-          onPress={() => {}}
+          onPress={() => router.push('/business-name')}
           variant="secondary"
           icon={<AppleIcon size={20} />}
         />
