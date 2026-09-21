@@ -14,8 +14,24 @@ export function OnboardingVerificationScreen() {
   const router = useRouter();
   const { email, password } = useLocalSearchParams<{ email: string; password: string }>();
   const [code, setCode] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [resending, setResending] = useState(false);
   const [resendMessage, setResendMessage] = useState('');
+
+  const handleVerify = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      await authApi.verifyEmail(code);
+      router.push({ pathname: '/onboarding-mobile', params: { email, password } });
+    } catch (err: any) {
+      const detail = err.response?.data?.detail;
+      setError(detail?.message || 'Invalid or expired code. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleResend = async () => {
     setResending(true);
@@ -37,11 +53,14 @@ export function OnboardingVerificationScreen() {
       progress={3 / TOTAL_STEPS}
       onBack={() => router.back()}
       footer={
-        <Button
-          label="Continue"
-          disabled={code.length !== CODE_LENGTH}
-          onPress={() => router.push({ pathname: '/onboarding-mobile', params: { email, password } })}
-        />
+        <>
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          <Button
+            label={loading ? 'Verifying...' : 'Continue'}
+            disabled={code.length !== CODE_LENGTH || loading}
+            onPress={handleVerify}
+          />
+        </>
       }
     >
       <OtpInput length={CODE_LENGTH} value={code} onChangeText={setCode} />
@@ -84,5 +103,10 @@ const styles = StyleSheet.create({
   resendMessageText: {
     ...typography.caption,
     color: '#166534',
+  },
+  error: {
+    ...typography.caption,
+    color: colors.feedback.danger,
+    marginBottom: 8,
   },
 });
