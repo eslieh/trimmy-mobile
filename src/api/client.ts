@@ -2,6 +2,47 @@ import axios from 'axios';
 import { config } from '../config/env';
 import { tokenStorage } from '../storage/tokenStorage';
 
+export class ApiError extends Error {
+  status: number;
+  code: string;
+
+  constructor(status: number, code: string, message: string) {
+    super(message);
+    this.status = status;
+    this.code = code;
+  }
+}
+
+type RequestOptions = {
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  body?: unknown;
+};
+
+// Fetch-based helper for endpoints the backend hasn't built yet (see
+// reference/api/*.json) — callers normally go through USE_MOCK_API instead
+// of calling this directly. Kept separate from apiClient below, which is
+// for the real, already-wired auth endpoints and needs the token-refresh
+// interceptors this doesn't.
+export async function apiRequest<TResponse>(path: string, options: RequestOptions = {}): Promise<TResponse> {
+  // FormData (file uploads) must not be JSON-stringified, and fetch needs to
+  // set its own multipart Content-Type (with boundary) — never set it manually.
+  const isFormData = options.body instanceof FormData;
+
+  const response = await fetch(`${config.apiBaseUrl}${path}`, {
+    method: options.method ?? 'GET',
+    headers: isFormData ? undefined : { 'Content-Type': 'application/json' },
+    body: isFormData ? (options.body as FormData) : options.body ? JSON.stringify(options.body) : undefined,
+  });
+
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new ApiError(response.status, data?.code ?? 'unknown_error', data?.message ?? 'Request failed');
+  }
+
+  return data as TResponse;
+}
+
 export const apiClient = axios.create({
   baseURL: `${config.apiBaseUrl}/api/v1`,
   timeout: 15000,

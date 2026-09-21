@@ -1,32 +1,30 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { AuthScreenLayout } from '../../components/AuthScreenLayout';
 import { OtpInput } from '../../components/OtpInput';
 import { Button } from '../../components/Button';
-import { RootStackParamList } from '../../navigation/types';
 import { colors, spacing, typography } from '../../theme';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'OnboardingVerification'>;
-
 const CODE_LENGTH = 6;
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 5;
 
-export function OnboardingVerificationScreen({ navigation, route }: Props) {
-  const { email, password } = route.params;
+export function OnboardingVerificationScreen() {
+  const router = useRouter();
+  const { email, password } = useLocalSearchParams<{ email: string; password: string }>();
   const [code, setCode] = useState('');
 
   return (
     <AuthScreenLayout
       title="Verify your email"
       subtitle={`Enter the 6-digit code we sent to ${email}`}
-      progress={2 / TOTAL_STEPS}
-      onBack={() => navigation.goBack()}
+      progress={3 / TOTAL_STEPS}
+      onBack={() => router.back()}
       footer={
         <Button
           label="Continue"
           disabled={code.length !== CODE_LENGTH}
-          onPress={() => navigation.navigate('OnboardingMobile', { email, password })}
+          onPress={() => router.push({ pathname: '/onboarding-mobile', params: { email, password } })}
         />
       }
     >

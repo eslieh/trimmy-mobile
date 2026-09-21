@@ -1,0 +1,50 @@
+{
+  "domain": "team",
+  "baseUrl": "/api/v1",
+  "auth": "Requires a Bearer token for the current authenticated user, unless noted.",
+  "endpoints": [
+    {
+      "id": "list-my-invitations",
+      "screen": "Get Started (post-signup)",
+      "story": "O2",
+      "method": "GET",
+      "path": "/me/invitations",
+      "description": "Lists pending team invitations addressed to the current user (matched by phone number), shown right after signup so an invited staff/front-desk member can join their business.",
+      "auth": "any authenticated user",
+      "request": null,
+      "response": {
+        "invitations": [
+          {
+            "invitationId": "inv_01xy",
+            "businessId": "biz_01hxyz",
+            "businessName": "Glow Beauty Lounge",
+            "role": "front_desk",
+            "status": "pending",
+            "sentAt": "2026-09-20T09:10:00Z"
+          }
+        ]
+      },
+      "errors": []
+    },
+    {
+      "id": "respond-to-invitation",
+      "screen": "Get Started (post-signup)",
+      "story": "O2",
+      "method": "POST",
+      "path": "/invitations/{invitationId}/respond",
+      "description": "Accepts or declines a pending team invitation. Accepting grants the responding user the invited role on that business.",
+      "auth": "any authenticated user",
+      "request": {
+        "action": "accept"
+      },
+      "response": {
+        "invitationId": "inv_01xy",
+        "status": "accepted"
+      },
+      "errors": [
+        { "status": 404, "code": "not_found", "message": "No pending invitation found for this id" },
+        { "status": 409, "code": "already_responded", "message": "This invitation has already been accepted or declined" }
+      ]
+    }
+  ]
+}

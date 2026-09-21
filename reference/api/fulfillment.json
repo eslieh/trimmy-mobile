@@ -1,0 +1,7 @@
+{
+  "domain": "fulfillment",
+  "baseUrl": "/api/v1",
+  "auth": "Requires a Bearer token for a user with role `staff` or `front_desk`, unless noted.",
+  "note": "Stub — fill in when Phase 4 (Fulfillment view) starts. See business-setup.json for the expected format.",
+  "endpoints": []
+}

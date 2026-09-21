@@ -1,0 +1,7 @@
+{
+  "domain": "discovery",
+  "baseUrl": "/api/v1",
+  "auth": "Public endpoints unless noted — a customer may browse before logging in.",
+  "note": "Stub — fill in when Phase 2 (Discovery) starts. See business-setup.json for the expected format.",
+  "endpoints": []
+}

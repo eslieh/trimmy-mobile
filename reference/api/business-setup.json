@@ -1,0 +1,356 @@
+{
+  "domain": "business-setup",
+  "baseUrl": "/api/v1",
+  "auth": "All endpoints require a Bearer token for a user with role `owner`, unless noted as \"public\".",
+  "endpoints": [
+    {
+      "id": "create-business",
+      "screen": "Business Basics (final step: Location)",
+      "story": "O1",
+      "method": "POST",
+      "path": "/businesses",
+      "description": "Creates a draft business record once the 4-step Business Basics wizard (name, categories, phone, location) completes. Fires on the Location step, not step 1. Draft is not visible on the marketplace until published.",
+      "auth": "owner",
+      "request": {
+        "name": "Glow Beauty Lounge",
+        "categories": ["hair_salon", "nail_salon"],
+        "phone": "+254712345678",
+        "location": {
+          "address": "Kilimani, Nairobi",
+          "lat": -1.2921,
+          "lng": 36.7833,
+          "building": "Yaya Centre",
+          "floor": "2nd Floor",
+          "unit": "Shop 14"
+        }
+      },
+      "response": {
+        "businessId": "biz_01hxyz",
+        "name": "Glow Beauty Lounge",
+        "categories": ["hair_salon", "nail_salon"],
+        "phone": "+254712345678",
+        "location": {
+          "address": "Kilimani, Nairobi",
+          "lat": -1.2921,
+          "lng": 36.7833,
+          "building": "Yaya Centre",
+          "floor": "2nd Floor",
+          "unit": "Shop 14"
+        },
+        "status": "draft",
+        "onboardingStep": "business_basics",
+        "createdAt": "2026-09-20T09:00:00Z"
+      },
+      "errors": [
+        { "status": 400, "code": "validation_error", "message": "name is required" },
+        { "status": 409, "code": "phone_already_registered", "message": "A business already exists for this phone number" }
+      ]
+    },
+    {
+      "id": "get-business-draft",
+      "screen": "Onboarding wizard (resume)",
+      "story": "O1",
+      "method": "GET",
+      "path": "/businesses/{businessId}",
+      "description": "Fetches the current draft state so the onboarding wizard can resume at the correct step after the app is closed/reopened.",
+      "auth": "owner",
+      "request": null,
+      "response": {
+        "businessId": "biz_01hxyz",
+        "name": "Glow Beauty Lounge",
+        "categories": ["hair_salon", "nail_salon"],
+        "phone": "+254712345678",
+        "location": {
+          "address": "Kilimani, Nairobi",
+          "lat": -1.2921,
+          "lng": 36.7833,
+          "building": "Yaya Centre",
+          "floor": "2nd Floor",
+          "unit": "Shop 14"
+        },
+        "photos": [],
+        "workingHours": null,
+        "serviceCategories": [],
+        "policies": null,
+        "paymentDestination": null,
+        "teamMode": null,
+        "status": "draft",
+        "onboardingStep": "business_basics"
+      },
+      "errors": [
+        { "status": 404, "code": "not_found", "message": "No business found for this id" }
+      ]
+    },
+    {
+      "id": "upload-business-photo",
+      "screen": "Photos",
+      "story": "O1",
+      "method": "POST",
+      "path": "/businesses/{businessId}/photos",
+      "description": "Uploads one cover/gallery photo. NOT a JSON request — this is a `multipart/form-data` body with a single `photo` file field (image/jpeg or image/png) plus an `isCover` form field (`\"true\"`/`\"false\"` as strings, since multipart fields are always strings). The `request` example below shows the form fields, not a JSON body. The first photo uploaded for a business should be sent with `isCover: true`; it's used as the thumbnail in search results (see Phase 2 Discovery). Called once per photo — the Photos screen requires at least one (the cover) before continuing.",
+      "auth": "owner",
+      "request": {
+        "photo": "(binary file data, form field name: photo)",
+        "isCover": "true"
+      },
+      "response": {
+        "photoId": "photo_01a1",
+        "businessId": "biz_01hxyz",
+        "url": "https://cdn.trimyy.app/businesses/biz_01hxyz/photo_01a1.jpg",
+        "isCover": true,
+        "createdAt": "2026-09-20T09:03:00Z"
+      },
+      "errors": [
+        { "status": 400, "code": "validation_error", "message": "photo file is required" },
+        { "status": 413, "code": "file_too_large", "message": "Photo exceeds the maximum upload size" }
+      ]
+    },
+    {
+      "id": "set-working-hours",
+      "screen": "Working Hours",
+      "story": "O1",
+      "method": "PUT",
+      "path": "/businesses/{businessId}/working-hours",
+      "description": "Sets the default weekly working hours and closed days. Holidays/buffer time are edited later from Settings, not part of onboarding.",
+      "auth": "owner",
+      "request": {
+        "weeklyHours": {
+          "monday": { "open": "09:00", "close": "19:00" },
+          "tuesday": { "open": "09:00", "close": "19:00" },
+          "wednesday": { "open": "09:00", "close": "19:00" },
+          "thursday": { "open": "09:00", "close": "19:00" },
+          "friday": { "open": "09:00", "close": "20:00" },
+          "saturday": { "open": "09:00", "close": "20:00" },
+          "sunday": null
+        }
+      },
+      "response": {
+        "businessId": "biz_01hxyz",
+        "weeklyHours": {
+          "monday": { "open": "09:00", "close": "19:00" },
+          "tuesday": { "open": "09:00", "close": "19:00" },
+          "wednesday": { "open": "09:00", "close": "19:00" },
+          "thursday": { "open": "09:00", "close": "19:00" },
+          "friday": { "open": "09:00", "close": "20:00" },
+          "saturday": { "open": "09:00", "close": "20:00" },
+          "sunday": null
+        },
+        "onboardingStep": "working_hours"
+      },
+      "errors": [
+        { "status": 400, "code": "validation_error", "message": "close time must be after open time" }
+      ]
+    },
+    {
+      "id": "create-service-category",
+      "screen": "Services",
+      "story": "O1",
+      "method": "POST",
+      "path": "/businesses/{businessId}/service-categories",
+      "description": "Creates one owner-defined service category (e.g. 'Haircuts', 'Coloring') to group services under — distinct from the business's own marketplace categories set in Business Basics. The Services screen is a two-level tree: categories, each containing services.",
+      "auth": "owner",
+      "request": {
+        "name": "Haircuts"
+      },
+      "response": {
+        "categoryId": "svccat_01a1",
+        "businessId": "biz_01hxyz",
+        "name": "Haircuts",
+        "createdAt": "2026-09-20T09:04:00Z"
+      },
+      "errors": [
+        { "status": 400, "code": "validation_error", "message": "name is required" }
+      ]
+    },
+    {
+      "id": "list-service-categories",
+      "screen": "Services",
+      "story": "O1",
+      "method": "GET",
+      "path": "/businesses/{businessId}/service-categories",
+      "description": "Lists service categories added so far, each with its services, so the Services screen can resume showing the tree as it was left.",
+      "auth": "owner",
+      "request": null,
+      "response": {
+        "categories": [
+          {
+            "categoryId": "svccat_01a1",
+            "name": "Haircuts",
+            "services": [
+              {
+                "serviceId": "svc_01a1",
+                "name": "Classic Haircut",
+                "durationMinutes": 45,
+                "price": { "amount": 800, "currency": "KES" }
+              }
+            ]
+          }
+        ]
+      },
+      "errors": []
+    },
+    {
+      "id": "create-service",
+      "screen": "Services",
+      "story": "O1",
+      "method": "POST",
+      "path": "/businesses/{businessId}/services",
+      "description": "Adds one service under a category created via create-service-category. Onboarding requires at least one category with at least one service; more can be added later from Settings.",
+      "auth": "owner",
+      "request": {
+        "categoryId": "svccat_01a1",
+        "name": "Classic Haircut",
+        "durationMinutes": 45,
+        "price": { "amount": 800, "currency": "KES" }
+      },
+      "response": {
+        "serviceId": "svc_01a1",
+        "businessId": "biz_01hxyz",
+        "categoryId": "svccat_01a1",
+        "name": "Classic Haircut",
+        "durationMinutes": 45,
+        "price": { "amount": 800, "currency": "KES" },
+        "createdAt": "2026-09-20T09:05:00Z"
+      },
+      "errors": [
+        { "status": 400, "code": "validation_error", "message": "price.amount must be greater than 0" },
+        { "status": 404, "code": "not_found", "message": "categoryId does not exist for this business" }
+      ]
+    },
+    {
+      "id": "set-policies",
+      "screen": "Deposit & Cancellation Policy",
+      "story": "O1",
+      "method": "PUT",
+      "path": "/businesses/{businessId}/policies",
+      "description": "Sets deposit and cancellation/no-show rules. The screen pre-fills a sensible default the owner can accept with one tap or customize.",
+      "auth": "owner",
+      "request": {
+        "deposit": {
+          "required": false,
+          "type": "fixed",
+          "amount": { "amount": 0, "currency": "KES" },
+          "appliesTo": "all_services"
+        },
+        "cancellation": {
+          "freeCancellationHours": 24,
+          "lateFeePercent": 50
+        },
+        "noShow": {
+          "feePercent": 100
+        }
+      },
+      "response": {
+        "businessId": "biz_01hxyz",
+        "deposit": {
+          "required": false,
+          "type": "fixed",
+          "amount": { "amount": 0, "currency": "KES" },
+          "appliesTo": "all_services"
+        },
+        "cancellation": { "freeCancellationHours": 24, "lateFeePercent": 50 },
+        "noShow": { "feePercent": 100 },
+        "onboardingStep": "policies"
+      },
+      "errors": [
+        { "status": 400, "code": "validation_error", "message": "lateFeePercent must be between 0 and 100" }
+      ]
+    },
+    {
+      "id": "set-payment-destination",
+      "screen": "Payment Destination",
+      "story": "O1",
+      "method": "PUT",
+      "path": "/businesses/{businessId}/payment-destination",
+      "description": "Sets where customer payments land. `type` is one of `mpesa_till` (requires `tillNumber`), `mpesa_paybill` (requires `paybillNumber` + `paybillAccountNumber`), or `bank_account` (requires `bankName` + `bankShortcode` + `bankAccountNumber` — `bankShortcode` is the bank's own Paybill-style shortcode used to route an M-Pesa payment straight into that bank account). Only the fields for the selected type are sent. Hard-gated: the business cannot be published (see publish-business) until this succeeds with a verified destination.",
+      "auth": "owner",
+      "request": {
+        "type": "bank_account",
+        "bankName": "Equity Bank Kenya",
+        "bankShortcode": "247247",
+        "bankAccountNumber": "1234567890"
+      },
+      "response": {
+        "businessId": "biz_01hxyz",
+        "type": "bank_account",
+        "bankName": "Equity Bank Kenya",
+        "bankShortcode": "247247",
+        "bankAccountNumber": "1234567890",
+        "verificationStatus": "verified",
+        "onboardingStep": "payment_destination"
+      },
+      "errors": [
+        { "status": 400, "code": "validation_error", "message": "bankAccountNumber is required for type bank_account" },
+        { "status": 422, "code": "verification_failed", "message": "Could not verify payment destination" }
+      ]
+    },
+    {
+      "id": "set-team-mode",
+      "screen": "Solo or Team?",
+      "story": "O1",
+      "method": "PATCH",
+      "path": "/businesses/{businessId}/team-mode",
+      "description": "Records whether this is a solo operator or a staffed team. Drives which fulfillment session (Staff vs. Front Desk) the app shows and whether the Team invite step appears.",
+      "auth": "owner",
+      "request": {
+        "teamMode": "solo"
+      },
+      "response": {
+        "businessId": "biz_01hxyz",
+        "teamMode": "solo",
+        "onboardingStep": "team_mode"
+      },
+      "errors": [
+        { "status": 400, "code": "validation_error", "message": "teamMode must be one of: solo, team" }
+      ]
+    },
+    {
+      "id": "invite-team-member",
+      "screen": "Team invite (conditional)",
+      "story": "O2",
+      "method": "POST",
+      "path": "/businesses/{businessId}/team/invitations",
+      "description": "Invites a team member by email or phone during onboarding when teamMode is 'team'. At least one of `email`/`phone` is required (both may be sent). `role` is `front_desk` or `staff`. Multiple invites can be sent before continuing; the step can also be skipped and done later from Settings.",
+      "auth": "owner",
+      "request": {
+        "email": "jane@example.com",
+        "phone": "+254798765432",
+        "role": "front_desk"
+      },
+      "response": {
+        "invitationId": "inv_01xy",
+        "businessId": "biz_01hxyz",
+        "email": "jane@example.com",
+        "phone": "+254798765432",
+        "role": "front_desk",
+        "status": "pending",
+        "sentAt": "2026-09-20T09:10:00Z"
+      },
+      "errors": [
+        { "status": 400, "code": "validation_error", "message": "email or phone is required" },
+        { "status": 409, "code": "already_invited", "message": "This email or phone already has a pending invitation" }
+      ]
+    },
+    {
+      "id": "publish-business",
+      "screen": "Review & Publish",
+      "story": "O1",
+      "method": "PATCH",
+      "path": "/businesses/{businessId}/publish",
+      "description": "Flips marketplace visibility on. Manual, owner-initiated toggle — never automatic. Requires workingHours, at least one service, policies, and a verified paymentDestination to already be set.",
+      "auth": "owner",
+      "request": {
+        "visible": true
+      },
+      "response": {
+        "businessId": "biz_01hxyz",
+        "status": "published",
+        "visible": true,
+        "publishedAt": "2026-09-20T09:15:00Z"
+      },
+      "errors": [
+        { "status": 422, "code": "incomplete_setup", "message": "paymentDestination must be verified before publishing" }
+      ]
+    }
+  ]
+}

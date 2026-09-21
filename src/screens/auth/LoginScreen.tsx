@@ -1,16 +1,14 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useRouter } from 'expo-router';
 import { AuthScreenLayout } from '../../components/AuthScreenLayout';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
-import { RootStackParamList } from '../../navigation/types';
 import { colors, typography } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
-
-export function LoginScreen({ navigation }: Props) {
+export function LoginScreen() {
+  const router = useRouter();
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -22,16 +20,19 @@ export function LoginScreen({ navigation }: Props) {
     setError('');
     try {
       await login({ email: email.trim(), password });
-      navigation.navigate('Success', {
-        title: 'Welcome back',
-        subtitle: 'You have successfully logged in.',
-        ctaLabel: 'Done',
-        nextRoute: 'Welcome',
+      router.push({
+        pathname: '/success',
+        params: {
+          title: 'Welcome back',
+          subtitle: 'You have successfully logged in.',
+          ctaLabel: 'Done',
+          nextRoute: '/',
+        },
       });
     } catch (err: any) {
       const detail = err.response?.data?.detail;
       if (detail?.error === 'not_verified') {
-        navigation.navigate('OnboardingVerification', { email: email.trim(), password });
+        router.push({ pathname: '/onboarding-verification', params: { email: email.trim(), password } });
       } else {
         setError(detail?.message || 'Invalid email or password.');
       }
@@ -44,7 +45,7 @@ export function LoginScreen({ navigation }: Props) {
     <AuthScreenLayout
       title="Log in"
       subtitle="Welcome back! Enter your details to continue."
-      onBack={() => navigation.goBack()}
+      onBack={() => router.back()}
       footer={
         <>
           {error ? (
@@ -76,7 +77,7 @@ export function LoginScreen({ navigation }: Props) {
         placeholder="Enter your password"
         secureTextEntry
       />
-      <Pressable onPress={() => navigation.navigate('ForgotPassword')} hitSlop={8} style={styles.forgotLink}>
+      <Pressable onPress={() => router.push('/forgot-password')} hitSlop={8} style={styles.forgotLink}>
         <Text style={styles.forgotLinkText}>Forgot password?</Text>
       </Pressable>
     </AuthScreenLayout>

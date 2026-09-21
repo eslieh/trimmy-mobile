@@ -1,30 +1,28 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { AuthScreenLayout } from '../../components/AuthScreenLayout';
 import { OtpInput } from '../../components/OtpInput';
 import { Button } from '../../components/Button';
-import { RootStackParamList } from '../../navigation/types';
 import { colors, spacing, typography } from '../../theme';
-
-type Props = NativeStackScreenProps<RootStackParamList, 'ForgotPasswordVerification'>;
 
 const CODE_LENGTH = 6;
 
-export function ForgotPasswordVerificationScreen({ navigation, route }: Props) {
-  const { email } = route.params;
+export function ForgotPasswordVerificationScreen() {
+  const router = useRouter();
+  const { email } = useLocalSearchParams<{ email: string }>();
   const [code, setCode] = useState('');
 
   return (
     <AuthScreenLayout
       title="Enter the code"
       subtitle={`We sent a 6-digit code to ${email}`}
-      onBack={() => navigation.goBack()}
+      onBack={() => router.back()}
       footer={
         <Button
           label="Continue"
           disabled={code.length !== CODE_LENGTH}
-          onPress={() => navigation.navigate('ResetPassword', { email })}
+          onPress={() => router.push({ pathname: '/reset-password', params: { email } })}
         />
       }
     >

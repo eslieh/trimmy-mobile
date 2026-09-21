@@ -1,19 +1,17 @@
 import { useState } from 'react';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { AuthScreenLayout } from '../../components/AuthScreenLayout';
 import { PhoneInput } from '../../components/PhoneInput';
 import { Button } from '../../components/Button';
-import { RootStackParamList } from '../../navigation/types';
 import { countries } from '../../data/countries';
 import { normalizePhoneNumber } from '../../utils/phone';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'OnboardingMobile'>;
-
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 5;
 const DEFAULT_COUNTRY = countries.find((c) => c.iso2 === 'US') ?? countries[0];
 
-export function OnboardingMobileScreen({ navigation, route }: Props) {
-  const { email, password } = route.params;
+export function OnboardingMobileScreen() {
+  const router = useRouter();
+  const { email, password } = useLocalSearchParams<{ email: string; password: string }>();
   const [country, setCountry] = useState(DEFAULT_COUNTRY);
   const [rawNumber, setRawNumber] = useState('');
 
@@ -21,17 +19,20 @@ export function OnboardingMobileScreen({ navigation, route }: Props) {
     <AuthScreenLayout
       title="What's your mobile number?"
       subtitle="We'll use this to send booking updates and reminders."
-      progress={3 / TOTAL_STEPS}
-      onBack={() => navigation.goBack()}
+      progress={4 / TOTAL_STEPS}
+      onBack={() => router.back()}
       footer={
         <Button
           label="Continue"
           disabled={rawNumber.length < 4}
           onPress={() =>
-            navigation.navigate('OnboardingName', {
-              email,
-              password,
-              mobile: normalizePhoneNumber(rawNumber, country),
+            router.push({
+              pathname: '/onboarding-name',
+              params: {
+                email,
+                password,
+                mobile: normalizePhoneNumber(rawNumber, country),
+              },
             })
           }
         />

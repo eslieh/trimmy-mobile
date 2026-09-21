@@ -1,19 +1,17 @@
 import { useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { AuthScreenLayout } from '../../components/AuthScreenLayout';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
-import { RootStackParamList } from '../../navigation/types';
 import { useAuth } from '../../contexts/AuthContext';
 import { colors, typography } from '../../theme';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'OnboardingName'>;
+const TOTAL_STEPS = 5;
 
-const TOTAL_STEPS = 4;
-
-export function OnboardingNameScreen({ navigation, route }: Props) {
-  const { email, password, mobile } = route.params;
+export function OnboardingNameScreen() {
+  const router = useRouter();
+  const { email, password, mobile } = useLocalSearchParams<{ email: string; password: string; mobile: string }>();
   const { register } = useAuth();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -31,11 +29,14 @@ export function OnboardingNameScreen({ navigation, route }: Props) {
         last_name: lastName.trim(),
         phone: mobile || undefined,
       });
-      navigation.navigate('Success', {
-        title: "You're all set!",
-        subtitle: 'Your account is ready to go. Check your email for a verification code.',
-        ctaLabel: 'Get started',
-        nextRoute: 'Welcome',
+      router.push({
+        pathname: '/success',
+        params: {
+          title: "You're all set!",
+          subtitle: 'Your account is ready to go. Check your email for a verification code.',
+          ctaLabel: 'Get started',
+          nextRoute: '/get-started',
+        },
       });
     } catch (err: any) {
       const detail = err.response?.data?.detail;
@@ -49,8 +50,8 @@ export function OnboardingNameScreen({ navigation, route }: Props) {
     <AuthScreenLayout
       title="What's your name?"
       subtitle="This is how you'll appear to your stylist."
-      progress={4 / TOTAL_STEPS}
-      onBack={() => navigation.goBack()}
+      progress={5 / TOTAL_STEPS}
+      onBack={() => router.back()}
       footer={
         <>
           {error ? <Text style={styles.error}>{error}</Text> : null}

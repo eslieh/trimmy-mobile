@@ -1,15 +1,13 @@
 import { useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useRouter } from 'expo-router';
 import { AuthScreenLayout } from '../../components/AuthScreenLayout';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
-import { RootStackParamList } from '../../navigation/types';
 import { colors, typography } from '../../theme';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'ResetPassword'>;
-
-export function ResetPasswordScreen({ navigation }: Props) {
+export function ResetPasswordScreen() {
+  const router = useRouter();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -24,11 +22,14 @@ export function ResetPasswordScreen({ navigation }: Props) {
       return;
     }
     setError('');
-    navigation.navigate('Success', {
-      title: 'Password updated',
-      subtitle: 'You can now log in with your new password.',
-      ctaLabel: 'Back to log in',
-      nextRoute: 'Login',
+    router.push({
+      pathname: '/success',
+      params: {
+        title: 'Password updated',
+        subtitle: 'You can now log in with your new password.',
+        ctaLabel: 'Back to log in',
+        nextRoute: '/login',
+      },
     });
   };
 
@@ -36,7 +37,7 @@ export function ResetPasswordScreen({ navigation }: Props) {
     <AuthScreenLayout
       title="Set a new password"
       subtitle="Your new password must be different from previously used passwords."
-      onBack={() => navigation.goBack()}
+      onBack={() => router.back()}
       footer={
         <Button label="Reset password" disabled={!password || !confirmPassword} onPress={handleSubmit} />
       }

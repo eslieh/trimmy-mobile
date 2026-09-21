@@ -1,18 +1,26 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { CheckIcon } from '../components/icons/CheckIcon';
 import { Button } from '../components/Button';
-import { RootStackParamList } from '../navigation/types';
 import { colors, spacing, typography } from '../theme';
-
-type Props = NativeStackScreenProps<RootStackParamList, 'Success'>;
 
 // Shared terminal screen for any flow that ends in "you're done" — onboarding
 // completion, login, password reset — so those don't need near-identical
-// one-off screens.
-export function SuccessScreen({ navigation, route }: Props) {
-  const { title, subtitle, ctaLabel, nextRoute } = route.params;
+// one-off screens. nextRoute is a Href path (e.g. '/', '/login', '/get-started').
+export function SuccessScreen() {
+  const router = useRouter();
+  const { title, subtitle, ctaLabel, nextRoute } = useLocalSearchParams<{
+    title: string;
+    subtitle: string;
+    ctaLabel: string;
+    nextRoute: string;
+  }>();
+
+  const handleDone = () => {
+    router.dismissAll();
+    router.replace(nextRoute as Href);
+  };
 
   return (
     <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
@@ -22,10 +30,7 @@ export function SuccessScreen({ navigation, route }: Props) {
         <Text style={styles.subtitle}>{subtitle}</Text>
       </View>
       <View style={styles.footer}>
-        <Button
-          label={ctaLabel}
-          onPress={() => navigation.reset({ index: 0, routes: [{ name: nextRoute }] })}
-        />
+        <Button label={ctaLabel} onPress={handleDone} />
       </View>
     </SafeAreaView>
   );
