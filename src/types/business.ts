@@ -46,6 +46,7 @@ export type BusinessPhoto = {
 export type Business = {
   businessId: string;
   name: string;
+  description: string;
   categories: BusinessCategory[];
   phone: string;
   location: BusinessLocation;

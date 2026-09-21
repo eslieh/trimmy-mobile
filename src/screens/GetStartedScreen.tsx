@@ -86,7 +86,7 @@ export function GetStartedScreen() {
           variant="secondary"
           onPress={() => {
             router.dismissAll();
-            router.replace('/');
+            router.replace('/discover');
           }}
         />
       </View>

@@ -10,8 +10,10 @@ const TOTAL_STEPS = 11;
 export function BusinessNameScreen() {
   const router = useRouter();
   const draftName = useBusinessOnboardingStore((s) => s.draft.name);
+  const draftDescription = useBusinessOnboardingStore((s) => s.draft.description);
   const updateDraft = useBusinessOnboardingStore((s) => s.updateDraft);
   const [name, setName] = useState(draftName);
+  const [description, setDescription] = useState(draftDescription);
 
   return (
     <AuthScreenLayout
@@ -22,15 +24,23 @@ export function BusinessNameScreen() {
       footer={
         <Button
           label="Continue"
-          disabled={!name.trim()}
+          disabled={!name.trim() || !description.trim()}
           onPress={() => {
-            updateDraft({ name: name.trim() });
+            updateDraft({ name: name.trim(), description: description.trim() });
             router.push('/business-categories');
           }}
         />
       }
     >
       <Input label="Business name" value={name} onChangeText={setName} placeholder="Glow Beauty Lounge" autoFocus />
+      <Input
+        label="Description"
+        value={description}
+        onChangeText={setDescription}
+        placeholder="Tell customers what makes your business special…"
+        multiline
+        numberOfLines={4}
+      />
     </AuthScreenLayout>
   );
 }

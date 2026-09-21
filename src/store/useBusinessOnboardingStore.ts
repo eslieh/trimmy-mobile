@@ -30,6 +30,7 @@ import type { TeamInvitation } from '../types/team';
 
 type BusinessBasicsDraft = {
   name: string;
+  description: string;
   categories: BusinessCategory[];
   phone: string;
   location: BusinessLocation | null;
@@ -37,6 +38,7 @@ type BusinessBasicsDraft = {
 
 const initialDraft: BusinessBasicsDraft = {
   name: '',
+  description: '',
   categories: [],
   phone: '',
   location: null,
@@ -117,11 +119,11 @@ export const useBusinessOnboardingStore = create<BusinessOnboardingState>((set, 
   submitBusinessBasics: async () => {
     set({ isSubmitting: true, error: null });
     try {
-      const { name, categories, phone, location } = get().draft;
+      const { name, description, categories, phone, location } = get().draft;
       if (!location) {
         throw new Error('Business location is required');
       }
-      const business = await createBusiness({ name, categories, phone, location });
+      const business = await createBusiness({ name, description, categories, phone, location });
       set({ business, isSubmitting: false, draft: initialDraft });
       return business;
     } catch (err) {

@@ -13,6 +13,7 @@
       "auth": "owner",
       "request": {
         "name": "Glow Beauty Lounge",
+        "description": "A cosy beauty lounge in the heart of Kilimani offering hair styling, coloring, and nail care in a relaxed, welcoming space.",
         "categories": ["hair_salon", "nail_salon"],
         "phone": "+254712345678",
         "location": {
@@ -27,6 +28,7 @@
       "response": {
         "businessId": "biz_01hxyz",
         "name": "Glow Beauty Lounge",
+        "description": "A cosy beauty lounge in the heart of Kilimani offering hair styling, coloring, and nail care in a relaxed, welcoming space.",
         "categories": ["hair_salon", "nail_salon"],
         "phone": "+254712345678",
         "location": {
@@ -58,6 +60,7 @@
       "response": {
         "businessId": "biz_01hxyz",
         "name": "Glow Beauty Lounge",
+        "description": "A cosy beauty lounge in the heart of Kilimani offering hair styling, coloring, and nail care in a relaxed, welcoming space.",
         "categories": ["hair_salon", "nail_salon"],
         "phone": "+254712345678",
         "location": {

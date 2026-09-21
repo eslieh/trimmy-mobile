@@ -163,32 +163,52 @@ Onboarding wizard, one step per screen, save-and-resume, progress indicator:
       submits via mock `setPolicies`
 - [x] **Payment Destination** (`/business-payment`, 9/11) — M-Pesa Till, M-Pesa Paybill, or direct
       Bank Account (picker of 10 Kenyan banks with their paybill-style shortcodes, `src/data/kenyaBanks.ts`),
-      submits via mock `setPaymentDestination`. **Still needs real hard-gating** — Review & Publish
-      (not built yet) is meant to block publishing without a verified destination; nothing enforces
-      that yet since there's no publish step to gate
+      submits via mock `setPaymentDestination`
 - [x] **Solo or Team?** (`/business-team-mode`, 10/11) — two selectable cards ("Just me" /
       "I have a team"), submits via mock `setTeamMode`; determines `team_mode`, which will
       drive which fulfillment session(s) this owner sees (Phase 4). If "Team" is chosen, continues
-      to Team invite below; if "Solo", skips straight past it
+      to Team invite below; if "Solo", skips straight to Review & Publish
 - [x] **Team invite** (`/business-team-invite`, 10.5/11, conditional — only reached when
       `team_mode = team`) — invite by email or phone, choose role (Front Desk or Staff), send
       multiple invites via a bottom-sheet form; sent list shown on the page; Continue always
       enabled (skippable, per spec). Submits each invite immediately via mock `inviteTeamMember`
       ([O2](business-owner.md#o2--team-management))
-- [ ] **Review & Publish** screen (11/11) — summary of all steps, manual **"Publish to
-      marketplace"** toggle (off by default, owner explicitly flips it on) — **last piece of
-      Phase 1**; every other step above currently dead-ends at a temporary Success screen instead
-      of continuing here
-- [ ] Changes propagate immediately to the (future) customer-facing profile
+- [x] **Review & Publish** (`/business-review`, 11/11) — **last piece of Phase 1, wizard is now
+      fully wired end to end**. Summary cards (photos, name/categories/phone/location, hours,
+      services, policy, payment, team), client-side hard-gate (checks workingHours set, ≥1
+      service, policies set, payment `verificationStatus === 'verified'` before allowing the
+      toggle — mirrors the real backend's 422 `incomplete_setup` gate on `publish-business`,
+      though in practice every prior step is mandatory so this never actually blocks yet),
+      manual **"Publish to marketplace"** toggle (off by default). Publishing calls mock
+      `publishBusiness`; saving as a draft (toggle off) makes no API call at all — nothing to
+      publish yet
+- [x] Every step from Business Basics through Review & Publish now chains together — no more
+      steps dead-ending at a temporary Success screen
 
 ## Phase 2 — Discovery ([C1](customer.md#c1--search--discovery))
 
-- [ ] **Home / Discover** screen — search bar, location chip, quick filter chips,
-      near-me results
-- [ ] **Search Results** screen — list/map toggle, sort, result cards, empty state
-- [ ] **Filter Sheet** modal — category, price range, rating, distance
-- [ ] **Business Profile** (customer-facing) — photos, services, policies, staff, reviews, map
-- [ ] **Staff Profile** (customer-facing) — bio, specialties, services, availability preview
+New mock domain: since business onboarding's mock calls are stateless (nothing persists across
+app reloads), `src/api/mock/discoveryData.ts` seeds 6 dummy published businesses (Nairobi
+salons/barbershops/spas) to search over — a real backend would query its published-businesses
+table instead. See `reference/api/discovery.json` (`search-businesses`, `get-business-profile`).
+
+- [x] **Home / Discover** (`/discover`) — location chip (tap to use device location via
+      `expo-location`, reverse-geocoded), text search, horizontal category filter pills, vertical
+      results list (thumbnail, name, distance, rating, starting price). **Currently also stands in
+      for Search Results** — query/category filtering happens live on this same screen via
+      `searchBusinesses`; see the two unchecked items below for what's still a dedicated screen
+- [ ] **Search Results** screen — list/map toggle, sort control (distance/price/rating), loading
+      skeleton — Home currently covers the "filtered list" part of this but not map view or sort
+- [ ] **Filter Sheet** modal — price range slider, rating minimum, distance radius (category is
+      already a quick filter chip on Home; price/rating/distance aren't filterable yet)
+- [x] **Business Profile** (`/business/[businessId]`, customer-facing) — photo carousel, name,
+      categories, rating, plain-language deposit/cancellation summary, services grouped by the
+      owner's own service categories, staff list, reviews, sticky "Book with [name]" CTA (routes
+      to a temporary Success screen — Phase 3 booking flow doesn't exist yet). No map view yet
+      (address is shown as text only)
+- [ ] **Staff Profile** (customer-facing) — bio, specialties, services they perform, availability
+      preview, "Book with [name]" CTA — not built; Business Profile's staff section is name/role/
+      rating only, no tap-through yet
 
 ## Phase 3 — Booking flow ([C2](customer.md#c2--booking-flow))
 
@@ -225,7 +245,8 @@ Both are in scope for MVP; build whichever matches the first real test business'
 
 ## MVP done when
 
-- [ ] An owner can set up a business end-to-end (Phase 1)
+- [x] An owner can set up a business end-to-end (Phase 1) — done against mocks; still needs the
+      real backend swapped in per endpoint once it exists (see USE_MOCK_API)
 - [ ] A customer can find that business and complete a paid booking (Phases 2–3)
 - [ ] The business side can see and act on that booking (Phase 4)
 - [ ] The owner can staff the business with real team members (Phase 5)

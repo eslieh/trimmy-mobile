@@ -19,6 +19,7 @@ import type { TeamInvitation, TeamRole } from '../types/team';
 // See reference/api/business-setup.json#create-business for the contract this implements.
 export type CreateBusinessInput = {
   name: string;
+  description: string;
   categories: BusinessCategory[];
   phone: string;
   location: BusinessLocation;
@@ -32,6 +33,7 @@ export function createBusiness(input: CreateBusinessInput): Promise<Business> {
     return mockDelay<Business>({
       businessId: `biz_mock_${mockBusinessSequence}`,
       name: input.name,
+      description: input.description,
       categories: input.categories,
       phone: input.phone,
       location: input.location,
