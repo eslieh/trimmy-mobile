@@ -26,12 +26,22 @@ export type BusinessStatus = 'draft' | 'published';
 
 export type OnboardingStep =
   | 'business_basics'
+  | 'photos'
   | 'working_hours'
   | 'services'
   | 'policies'
   | 'payment_destination'
   | 'team_mode'
   | 'review_publish';
+
+// The first photo (by array order) is the cover/thumbnail shown in search
+// results; the rest form the gallery on the business's full profile.
+export type BusinessPhoto = {
+  photoId: string;
+  businessId: string;
+  url: string;
+  isCover: boolean;
+};
 
 export type Business = {
   businessId: string;
@@ -41,6 +51,7 @@ export type Business = {
   location: BusinessLocation;
   status: BusinessStatus;
   onboardingStep: OnboardingStep;
+  photos?: BusinessPhoto[];
   workingHours?: WeeklyHours;
   policies?: BusinessPolicies;
   paymentDestination?: PaymentDestination;

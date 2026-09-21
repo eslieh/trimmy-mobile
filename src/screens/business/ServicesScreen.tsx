@@ -11,7 +11,7 @@ import {
 } from '../../store/useBusinessOnboardingStore';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 
-const TOTAL_STEPS = 10;
+const TOTAL_STEPS = 11;
 
 export function ServicesScreen() {
   const router = useRouter();
@@ -38,7 +38,7 @@ export function ServicesScreen() {
     <AuthScreenLayout
       title="Organize your services"
       subtitle="Group your services into categories, like Haircuts or Coloring."
-      progress={6 / TOTAL_STEPS}
+      progress={7 / TOTAL_STEPS}
       onBack={() => router.back()}
       footer={
         <>

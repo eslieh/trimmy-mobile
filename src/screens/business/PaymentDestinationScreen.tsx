@@ -9,7 +9,7 @@ import { KENYA_BANKS, KenyaBank } from '../../data/kenyaBanks';
 import { colors, radii, spacing, typography } from '../../theme';
 import type { PaymentDestination } from '../../types/business';
 
-const TOTAL_STEPS = 10;
+const TOTAL_STEPS = 11;
 
 type DestinationType = PaymentDestination['type'];
 
@@ -57,22 +57,14 @@ export function PaymentDestinationScreen() {
 
     await submitPaymentDestination(input);
 
-    router.push({
-      pathname: '/success',
-      params: {
-        title: 'Payment destination saved!',
-        subtitle: "We'll notify you as soon as the rest of setup is ready.",
-        ctaLabel: 'Done for now',
-        nextRoute: '/get-started',
-      },
-    });
+    router.push('/business-team-mode');
   };
 
   return (
     <AuthScreenLayout
       title="How will you get paid?"
       subtitle="Choose where customer payments should land."
-      progress={8 / TOTAL_STEPS}
+      progress={9 / TOTAL_STEPS}
       onBack={() => router.back()}
       footer={
         <>

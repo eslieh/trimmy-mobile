@@ -96,12 +96,19 @@ Stack: Expo `~57.0.22`, React Native `0.86.3`, React `19.2.3`, TypeScript `~6.0.
 
 ## ⚠️ Native modules now required — Expo Go no longer works for this app
 
-`react-native-maps` and `@react-native-community/datetimepicker` are not included in Expo Go.
-Local development now requires a **custom dev client** (`npx expo run:ios` / `npx expo run:android`
-once, then `npx expo start --dev-client` day to day). This only means a native rebuild when a
-native dependency or `app.json` plugin config changes — ordinary JS/screen changes still hot-reload
-instantly through Fast Refresh same as before. `ios/`/`android/` are gitignored; each machine
-builds its own dev client locally (or via an EAS dev build later).
+`react-native-maps`, `@react-native-community/datetimepicker`, and `expo-image-picker` (added for
+the Photos step) are not included in Expo Go. Local development now requires a **custom dev
+client** (`npx expo run:ios` / `npx expo run:android` once, then `npx expo start --dev-client` day
+to day). This only means a native rebuild when a native dependency or `app.json` plugin config
+changes — ordinary JS/screen changes still hot-reload instantly through Fast Refresh same as
+before. `ios/`/`android/` are gitignored; each machine builds its own dev client locally (or via
+an EAS dev build later).
+
+Also note: installing `expo-image-picker` required `npm install ... --legacy-peer-deps` — there's
+a pre-existing, unrelated peer-dependency conflict in the tree (an optional `react-dom` peer
+pulled in transitively by `expo-router`'s web support, not a direct project dependency). Any
+future `npm install` that hits an ERESOLVE error from this should use the same flag rather than
+`--force`; it doesn't indicate an actual problem with the packages being installed.
 
 ## API contracts
 
@@ -126,37 +133,52 @@ firm up; see [api/README.md](api/README.md) for the schema convention.
 Onboarding wizard, one step per screen, save-and-resume, progress indicator:
 
 - [ ] Data model: business, services, policies, payment destinations, `team_mode` (`solo` | `team`)
-- [x] **Business Basics**, now split into 4 step screens (`app/(business)/`, progress 1–4/4,
-      draft accumulated in `useBusinessOnboardingStore`, submits on the last step):
-  - [x] **Business Name** (`/business-name`) — name
-  - [x] **Categories** (`/business-categories`) — multi-select
-  - [x] **Phone** (`/business-phone`) — business phone
-  - [x] **Location** (`/business-location`) — map pin + building/floor/shop-or-office number,
+
+11-step wizard, all in `app/(business)/`, progress shown out of 11, draft accumulated in
+`useBusinessOnboardingStore`:
+
+- [x] **Business Basics** (steps 1–4, submits on step 4):
+  - [x] **Business Name** (`/business-name`, 1/11) — name
+  - [x] **Categories** (`/business-categories`, 2/11) — multi-select
+  - [x] **Phone** (`/business-phone`, 3/11) — business phone
+  - [x] **Location** (`/business-location`, 4/11) — map pin + building/floor/shop-or-office number,
         submits to mock `createBusiness` on continue (creates draft business)
-- [x] **Working Hours** (`/business-hours`, 5/10) — 7-day open/closed toggle list with a sensible
+- [x] **Photos** (`/business-photos`, 5/11) — grid picker via `expo-image-picker`, first photo
+      picked = cover/thumbnail (badged), requires at least one; uploads via mock
+      `uploadBusinessPhoto` (real contract is `multipart/form-data`, not JSON — see
+      `reference/api/business-setup.json#upload-business-photo`). Added because Phase 2 Discovery
+      needs a thumbnail per business — there was no way to add one before this
+- [x] **Working Hours** (`/business-hours`, 6/11) — 7-day open/closed toggle list with a sensible
       09:00–19:00/20:00 default, native time pickers, submits via mock `setWorkingHours`
-- [x] **Services** (`/business-services`, 6/10) — two-level tree: owner-defined service categories
+- [x] **Services** (`/business-services`, 7/11) — two-level tree: owner-defined service categories
       (e.g. "Haircuts", "Coloring") each containing services (name, duration, price). Add-category
       and add-service bottom sheets; requires at least one service total. Submits on continue via
       mock `createServiceCategory` + `createService` per category/service
       (see `reference/api/business-setup.json#create-service-category`/`#create-service` — note
       `Service.categoryId` now references an owner-defined `ServiceCategory`, not the business's
       own marketplace `BusinessCategory`)
-- [x] **Deposit & Cancellation Policy** (`/business-policies`, 7/10) — pre-filled default (no
+- [x] **Deposit & Cancellation Policy** (`/business-policies`, 8/11) — pre-filled default (no
       deposit, 24h free cancellation, 50% late fee, 100% no-show fee), one-tap accept or
       customize (deposit required toggle + fixed/percent type, editable hours/percentages),
       submits via mock `setPolicies`
-- [x] **Payment Destination** (`/business-payment`, 8/10) — M-Pesa Till, M-Pesa Paybill, or direct
+- [x] **Payment Destination** (`/business-payment`, 9/11) — M-Pesa Till, M-Pesa Paybill, or direct
       Bank Account (picker of 10 Kenyan banks with their paybill-style shortcodes, `src/data/kenyaBanks.ts`),
       submits via mock `setPaymentDestination`. **Still needs real hard-gating** — Review & Publish
       (not built yet) is meant to block publishing without a verified destination; nothing enforces
       that yet since there's no publish step to gate
-- [ ] **Solo or Team?** question screen — determines `team_mode`; drives which fulfillment
-      session(s) this owner sees (see Phase 4) and whether the Team invite step is shown
-- [ ] **Team invite (conditional)** — shown only if `team_mode = team`; invite a Front Desk
-      user now or skip and do it later from Settings ([O2](business-owner.md#o2--team-management))
-- [ ] **Review & Publish** screen — summary of all steps, manual **"Publish to marketplace"**
-      toggle (off by default, owner explicitly flips it on)
+- [x] **Solo or Team?** (`/business-team-mode`, 10/11) — two selectable cards ("Just me" /
+      "I have a team"), submits via mock `setTeamMode`; determines `team_mode`, which will
+      drive which fulfillment session(s) this owner sees (Phase 4). If "Team" is chosen, continues
+      to Team invite below; if "Solo", skips straight past it
+- [x] **Team invite** (`/business-team-invite`, 10.5/11, conditional — only reached when
+      `team_mode = team`) — invite by email or phone, choose role (Front Desk or Staff), send
+      multiple invites via a bottom-sheet form; sent list shown on the page; Continue always
+      enabled (skippable, per spec). Submits each invite immediately via mock `inviteTeamMember`
+      ([O2](business-owner.md#o2--team-management))
+- [ ] **Review & Publish** screen (11/11) — summary of all steps, manual **"Publish to
+      marketplace"** toggle (off by default, owner explicitly flips it on) — **last piece of
+      Phase 1**; every other step above currently dead-ends at a temporary Success screen instead
+      of continuing here
 - [ ] Changes propagate immediately to the (future) customer-facing profile
 
 ## Phase 2 — Discovery ([C1](customer.md#c1--search--discovery))

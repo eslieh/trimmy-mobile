@@ -5,7 +5,7 @@ import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
 
-const TOTAL_STEPS = 10;
+const TOTAL_STEPS = 11;
 
 export function BusinessNameScreen() {
   const router = useRouter();

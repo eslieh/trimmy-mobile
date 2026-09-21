@@ -5,6 +5,7 @@ import type {
   Business,
   BusinessCategory,
   BusinessLocation,
+  BusinessPhoto,
   BusinessPolicies,
   Money,
   PaymentDestination,
@@ -13,6 +14,7 @@ import type {
   TeamMode,
   WeeklyHours,
 } from '../types/business';
+import type { TeamInvitation, TeamRole } from '../types/team';
 
 // See reference/api/business-setup.json#create-business for the contract this implements.
 export type CreateBusinessInput = {
@@ -39,6 +41,40 @@ export function createBusiness(input: CreateBusinessInput): Promise<Business> {
   }
 
   return apiRequest<Business>('/businesses', { method: 'POST', body: input });
+}
+
+export type UploadBusinessPhotoInput = {
+  uri: string; // local file URI from the image picker
+  isCover: boolean;
+};
+
+let mockPhotoSequence = 0;
+
+// See reference/api/business-setup.json#upload-business-photo for the contract this implements.
+// Multipart upload, not JSON — see that contract entry for why.
+export function uploadBusinessPhoto(businessId: string, input: UploadBusinessPhotoInput): Promise<BusinessPhoto> {
+  if (USE_MOCK_API) {
+    mockPhotoSequence += 1;
+    return mockDelay<BusinessPhoto>({
+      photoId: `photo_mock_${mockPhotoSequence}`,
+      businessId,
+      url: input.uri,
+      isCover: input.isCover,
+    });
+  }
+
+  const formData = new FormData();
+  formData.append('photo', {
+    uri: input.uri,
+    name: `photo_${Date.now()}.jpg`,
+    type: 'image/jpeg',
+  } as unknown as Blob);
+  formData.append('isCover', String(input.isCover));
+
+  return apiRequest<BusinessPhoto>(`/businesses/${businessId}/photos`, {
+    method: 'POST',
+    body: formData,
+  });
 }
 
 // See reference/api/business-setup.json#set-working-hours for the contract this implements.
@@ -136,4 +172,33 @@ export function setTeamMode(businessId: string, teamMode: TeamMode): Promise<Tea
     method: 'PATCH',
     body: { teamMode },
   }).then((res) => res.teamMode);
+}
+
+export type InviteTeamMemberInput = {
+  email?: string;
+  phone?: string;
+  role: TeamRole;
+};
+
+let mockInvitationSequence = 0;
+
+// See reference/api/business-setup.json#invite-team-member for the contract this implements.
+export function inviteTeamMember(businessId: string, input: InviteTeamMemberInput): Promise<TeamInvitation> {
+  if (USE_MOCK_API) {
+    mockInvitationSequence += 1;
+    return mockDelay<TeamInvitation>({
+      invitationId: `inv_mock_${mockInvitationSequence}`,
+      businessId,
+      email: input.email,
+      phone: input.phone,
+      role: input.role,
+      status: 'pending',
+      sentAt: new Date().toISOString(),
+    });
+  }
+
+  return apiRequest<TeamInvitation>(`/businesses/${businessId}/team/invitations`, {
+    method: 'POST',
+    body: input,
+  });
 }

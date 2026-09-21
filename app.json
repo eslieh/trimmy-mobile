@@ -51,7 +51,13 @@
         }
       ],
       "@react-native-community/datetimepicker",
-      "expo-router"
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Trimyy uses your photo library so you can add cover photos for your business."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

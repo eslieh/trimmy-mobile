@@ -68,6 +68,7 @@
           "floor": "2nd Floor",
           "unit": "Shop 14"
         },
+        "photos": [],
         "workingHours": null,
         "serviceCategories": [],
         "policies": null,
@@ -78,6 +79,30 @@
       },
       "errors": [
         { "status": 404, "code": "not_found", "message": "No business found for this id" }
+      ]
+    },
+    {
+      "id": "upload-business-photo",
+      "screen": "Photos",
+      "story": "O1",
+      "method": "POST",
+      "path": "/businesses/{businessId}/photos",
+      "description": "Uploads one cover/gallery photo. NOT a JSON request — this is a `multipart/form-data` body with a single `photo` file field (image/jpeg or image/png) plus an `isCover` form field (`\"true\"`/`\"false\"` as strings, since multipart fields are always strings). The `request` example below shows the form fields, not a JSON body. The first photo uploaded for a business should be sent with `isCover: true`; it's used as the thumbnail in search results (see Phase 2 Discovery). Called once per photo — the Photos screen requires at least one (the cover) before continuing.",
+      "auth": "owner",
+      "request": {
+        "photo": "(binary file data, form field name: photo)",
+        "isCover": "true"
+      },
+      "response": {
+        "photoId": "photo_01a1",
+        "businessId": "biz_01hxyz",
+        "url": "https://cdn.trimyy.app/businesses/biz_01hxyz/photo_01a1.jpg",
+        "isCover": true,
+        "createdAt": "2026-09-20T09:03:00Z"
+      },
+      "errors": [
+        { "status": 400, "code": "validation_error", "message": "photo file is required" },
+        { "status": 413, "code": "file_too_large", "message": "Photo exceeds the maximum upload size" }
       ]
     },
     {
@@ -285,22 +310,25 @@
       "story": "O2",
       "method": "POST",
       "path": "/businesses/{businessId}/team/invitations",
-      "description": "Invites a Front Desk (or other) user during onboarding when teamMode is 'team'. Can be skipped and done later from Settings.",
+      "description": "Invites a team member by email or phone during onboarding when teamMode is 'team'. At least one of `email`/`phone` is required (both may be sent). `role` is `front_desk` or `staff`. Multiple invites can be sent before continuing; the step can also be skipped and done later from Settings.",
       "auth": "owner",
       "request": {
+        "email": "jane@example.com",
         "phone": "+254798765432",
         "role": "front_desk"
       },
       "response": {
         "invitationId": "inv_01xy",
         "businessId": "biz_01hxyz",
+        "email": "jane@example.com",
         "phone": "+254798765432",
         "role": "front_desk",
         "status": "pending",
         "sentAt": "2026-09-20T09:10:00Z"
       },
       "errors": [
-        { "status": 409, "code": "already_invited", "message": "This phone number already has a pending invitation" }
+        { "status": 400, "code": "validation_error", "message": "email or phone is required" },
+        { "status": 409, "code": "already_invited", "message": "This email or phone already has a pending invitation" }
       ]
     },
     {

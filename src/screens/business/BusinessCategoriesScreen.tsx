@@ -8,7 +8,7 @@ import { BUSINESS_CATEGORIES } from '../../data/businessCategories';
 import { colors, radii, spacing, typography } from '../../theme';
 import type { BusinessCategory } from '../../types/business';
 
-const TOTAL_STEPS = 10;
+const TOTAL_STEPS = 11;
 
 export function BusinessCategoriesScreen() {
   const router = useRouter();

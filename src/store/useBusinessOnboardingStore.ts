@@ -3,16 +3,20 @@ import {
   createBusiness,
   createService,
   createServiceCategory,
+  inviteTeamMember,
   setPaymentDestination,
   setPolicies,
   setTeamMode,
   setWorkingHours,
+  uploadBusinessPhoto,
+  type InviteTeamMemberInput,
   type SetPaymentDestinationInput,
 } from '../api/businessSetup';
 import type {
   Business,
   BusinessCategory,
   BusinessLocation,
+  BusinessPhoto,
   BusinessPolicies,
   Money,
   PaymentDestination,
@@ -21,6 +25,7 @@ import type {
   TeamMode,
   WeeklyHours,
 } from '../types/business';
+import type { TeamInvitation } from '../types/team';
 
 type BusinessBasicsDraft = {
   name: string;
@@ -52,6 +57,14 @@ export type ServiceCategoryDraft = {
 
 let localCategoryIdSequence = 0;
 
+// A picked photo not yet uploaded — localId is only for React keys.
+export type PhotoDraftItem = {
+  localId: string;
+  uri: string;
+};
+
+let localPhotoIdSequence = 0;
+
 type BusinessOnboardingState = {
   draft: BusinessBasicsDraft;
   updateDraft: (patch: Partial<BusinessBasicsDraft>) => void;
@@ -59,6 +72,13 @@ type BusinessOnboardingState = {
   isSubmitting: boolean;
   error: string | null;
   submitBusinessBasics: () => Promise<Business>;
+
+  photoDrafts: PhotoDraftItem[];
+  addPhotoDraft: (uri: string) => void;
+  removePhotoDraft: (localId: string) => void;
+  photos: BusinessPhoto[];
+  submitPhotos: () => Promise<void>;
+
   submitWorkingHours: (weeklyHours: WeeklyHours) => Promise<WeeklyHours>;
 
   serviceCategoryDrafts: ServiceCategoryDraft[];
@@ -73,6 +93,11 @@ type BusinessOnboardingState = {
   submitPolicies: (policies: BusinessPolicies) => Promise<BusinessPolicies>;
 
   submitPaymentDestination: (input: SetPaymentDestinationInput) => Promise<PaymentDestination>;
+
+  submitTeamMode: (teamMode: TeamMode) => Promise<TeamMode>;
+
+  invitations: TeamInvitation[];
+  sendTeamInvite: (input: InviteTeamMemberInput) => Promise<TeamInvitation>;
 };
 
 // Holds the draft business as the owner moves through the Business Basics
@@ -101,6 +126,43 @@ export const useBusinessOnboardingStore = create<BusinessOnboardingState>((set, 
       throw err;
     }
   },
+  photoDrafts: [],
+  addPhotoDraft: (uri) =>
+    set((state) => {
+      localPhotoIdSequence += 1;
+      return { photoDrafts: [...state.photoDrafts, { localId: `local_photo_${localPhotoIdSequence}`, uri }] };
+    }),
+  removePhotoDraft: (localId) =>
+    set((state) => ({ photoDrafts: state.photoDrafts.filter((p) => p.localId !== localId) })),
+  photos: [],
+  submitPhotos: async () => {
+    const { business, photoDrafts } = get();
+    if (!business) {
+      throw new Error('Business must be created before adding photos');
+    }
+    set({ isSubmitting: true, error: null });
+    try {
+      const savedPhotos: BusinessPhoto[] = [];
+      for (let i = 0; i < photoDrafts.length; i += 1) {
+        const saved = await uploadBusinessPhoto(business.businessId, {
+          uri: photoDrafts[i].uri,
+          isCover: i === 0,
+        });
+        savedPhotos.push(saved);
+      }
+
+      set({
+        business: { ...business, photos: savedPhotos, onboardingStep: 'photos' },
+        photos: savedPhotos,
+        photoDrafts: [],
+        isSubmitting: false,
+      });
+    } catch (err) {
+      set({ isSubmitting: false, error: err instanceof Error ? err.message : 'Something went wrong' });
+      throw err;
+    }
+  },
+
   submitWorkingHours: async (weeklyHours) => {
     const business = get().business;
     if (!business) {
@@ -223,6 +285,42 @@ export const useBusinessOnboardingStore = create<BusinessOnboardingState>((set, 
         isSubmitting: false,
       });
       return saved;
+    } catch (err) {
+      set({ isSubmitting: false, error: err instanceof Error ? err.message : 'Something went wrong' });
+      throw err;
+    }
+  },
+
+  submitTeamMode: async (teamMode) => {
+    const business = get().business;
+    if (!business) {
+      throw new Error('Business must be created before setting team mode');
+    }
+    set({ isSubmitting: true, error: null });
+    try {
+      const saved = await setTeamMode(business.businessId, teamMode);
+      set({
+        business: { ...business, teamMode: saved, onboardingStep: 'team_mode' },
+        isSubmitting: false,
+      });
+      return saved;
+    } catch (err) {
+      set({ isSubmitting: false, error: err instanceof Error ? err.message : 'Something went wrong' });
+      throw err;
+    }
+  },
+
+  invitations: [],
+  sendTeamInvite: async (input) => {
+    const business = get().business;
+    if (!business) {
+      throw new Error('Business must be created before inviting team members');
+    }
+    set({ isSubmitting: true, error: null });
+    try {
+      const invitation = await inviteTeamMember(business.businessId, input);
+      set((state) => ({ invitations: [...state.invitations, invitation], isSubmitting: false }));
+      return invitation;
     } catch (err) {
       set({ isSubmitting: false, error: err instanceof Error ? err.message : 'Something went wrong' });
       throw err;

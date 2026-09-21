@@ -8,7 +8,7 @@ import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingSto
 import { colors, radii, spacing, typography } from '../../theme';
 import type { BusinessPolicies } from '../../types/business';
 
-const TOTAL_STEPS = 10;
+const TOTAL_STEPS = 11;
 
 // Sensible default the owner can accept with one tap — no deposit, a day's
 // notice for a free cancellation, and standard late/no-show fees.
@@ -74,7 +74,7 @@ export function PoliciesScreen() {
     <AuthScreenLayout
       title="Deposit & cancellation policy"
       subtitle="We've pre-filled sensible defaults — customize if you'd like."
-      progress={7 / TOTAL_STEPS}
+      progress={8 / TOTAL_STEPS}
       onBack={() => router.back()}
       footer={
         <>

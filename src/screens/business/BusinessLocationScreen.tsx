@@ -9,7 +9,7 @@ import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingSto
 import { colors, spacing, typography } from '../../theme';
 import type { BusinessLocation } from '../../types/business';
 
-const TOTAL_STEPS = 10;
+const TOTAL_STEPS = 11;
 
 export function BusinessLocationScreen() {
   const router = useRouter();
@@ -27,7 +27,7 @@ export function BusinessLocationScreen() {
 
     await submitBusinessBasics();
 
-    router.push('/business-hours');
+    router.push('/business-photos');
   };
 
   return (

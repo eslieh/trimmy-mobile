@@ -7,7 +7,7 @@ import { countries } from '../../data/countries';
 import { normalizePhoneNumber } from '../../utils/phone';
 import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
 
-const TOTAL_STEPS = 10;
+const TOTAL_STEPS = 11;
 const DEFAULT_COUNTRY = countries.find((c) => c.iso2 === 'KE') ?? countries[0];
 
 export function BusinessPhoneScreen() {

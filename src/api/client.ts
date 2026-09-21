@@ -24,10 +24,14 @@ type RequestOptions = {
 // for the real, already-wired auth endpoints and needs the token-refresh
 // interceptors this doesn't.
 export async function apiRequest<TResponse>(path: string, options: RequestOptions = {}): Promise<TResponse> {
+  // FormData (file uploads) must not be JSON-stringified, and fetch needs to
+  // set its own multipart Content-Type (with boundary) — never set it manually.
+  const isFormData = options.body instanceof FormData;
+
   const response = await fetch(`${config.apiBaseUrl}${path}`, {
     method: options.method ?? 'GET',
-    headers: { 'Content-Type': 'application/json' },
-    body: options.body ? JSON.stringify(options.body) : undefined,
+    headers: isFormData ? undefined : { 'Content-Type': 'application/json' },
+    body: isFormData ? (options.body as FormData) : options.body ? JSON.stringify(options.body) : undefined,
   });
 
   const data = await response.json().catch(() => null);

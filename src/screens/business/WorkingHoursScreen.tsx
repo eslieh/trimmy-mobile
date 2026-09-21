@@ -8,7 +8,7 @@ import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingSto
 import { colors, radii, spacing, typography } from '../../theme';
 import type { DayHours, WeeklyHours } from '../../types/business';
 
-const TOTAL_STEPS = 10;
+const TOTAL_STEPS = 11;
 
 const DAYS: { key: keyof WeeklyHours; label: string }[] = [
   { key: 'monday', label: 'Monday' },
@@ -67,7 +67,7 @@ export function WorkingHoursScreen() {
     <AuthScreenLayout
       title="Set your working hours"
       subtitle="Customers can only book during these times. You can change this anytime."
-      progress={5 / TOTAL_STEPS}
+      progress={6 / TOTAL_STEPS}
       onBack={() => router.back()}
       footer={
         <>
