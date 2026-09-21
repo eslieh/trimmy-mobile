@@ -8,6 +8,18 @@ import {
   User,
 } from './types';
 
+export interface ForgotPasswordResponse {
+  message: string;
+}
+
+export interface ResetPasswordResponse {
+  message: string;
+}
+
+export interface ResendOtpResponse {
+  message: string;
+}
+
 // Remembered across calls within a session so a mock login/register followed
 // by getMe() returns a consistent user, without needing a real backend.
 let mockUser: User | null = null;
@@ -75,6 +87,33 @@ export const authApi = {
       return mockDelay(mockUser ?? mockAuthResponse({}).user);
     }
     const response = await apiClient.get<User>('/auth/me');
+    return response.data;
+  },
+
+  async forgotPassword(email: string): Promise<ForgotPasswordResponse> {
+    if (USE_MOCK_API) {
+      return mockDelay({ message: 'If an account exists, a reset code has been sent.' });
+    }
+    const response = await apiClient.post<ForgotPasswordResponse>('/auth/forgot-password', { email });
+    return response.data;
+  },
+
+  async resetPassword(otp: string, newPassword: string): Promise<ResetPasswordResponse> {
+    if (USE_MOCK_API) {
+      return mockDelay({ message: 'Password updated successfully' });
+    }
+    const response = await apiClient.post<ResetPasswordResponse>('/auth/reset-password', {
+      otp,
+      new_password: newPassword,
+    });
+    return response.data;
+  },
+
+  async resendOtp(email: string, purpose: 'verification' | 'password_reset'): Promise<ResendOtpResponse> {
+    if (USE_MOCK_API) {
+      return mockDelay({ message: 'If an account exists, a new code has been sent.' });
+    }
+    const response = await apiClient.post<ResendOtpResponse>('/auth/resend-otp', { email, purpose });
     return response.data;
   },
 };
