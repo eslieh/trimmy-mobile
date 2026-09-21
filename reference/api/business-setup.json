@@ -5,11 +5,11 @@
   "endpoints": [
     {
       "id": "create-business",
-      "screen": "Business Basics",
+      "screen": "Business Basics (final step: Location)",
       "story": "O1",
       "method": "POST",
       "path": "/businesses",
-      "description": "Creates a draft business record from onboarding step 1. Draft is not visible on the marketplace until published.",
+      "description": "Creates a draft business record once the 4-step Business Basics wizard (name, categories, phone, location) completes. Fires on the Location step, not step 1. Draft is not visible on the marketplace until published.",
       "auth": "owner",
       "request": {
         "name": "Glow Beauty Lounge",

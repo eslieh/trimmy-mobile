@@ -1,25 +1,23 @@
 import { useState } from 'react';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useRouter } from 'expo-router';
 import { AuthScreenLayout } from '../../components/AuthScreenLayout';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
-import { RootStackParamList } from '../../navigation/types';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'ForgotPassword'>;
-
-export function ForgotPasswordScreen({ navigation }: Props) {
+export function ForgotPasswordScreen() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
 
   return (
     <AuthScreenLayout
       title="Forgot password?"
       subtitle="Enter the email linked to your account and we'll send you a code to reset your password."
-      onBack={() => navigation.goBack()}
+      onBack={() => router.back()}
       footer={
         <Button
           label="Send code"
           disabled={!email.trim()}
-          onPress={() => navigation.navigate('ForgotPasswordVerification', { email: email.trim() })}
+          onPress={() => router.push({ pathname: '/forgot-password-verification', params: { email: email.trim() } })}
         />
       }
     >

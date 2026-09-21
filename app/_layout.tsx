@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer } from '@react-navigation/native';
+import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import {
@@ -13,12 +13,12 @@ import {
   Manrope_700Bold,
   Manrope_800ExtraBold,
 } from '@expo-google-fonts/manrope';
-import { RootNavigator } from './src/navigation/RootNavigator';
-import { AuthProvider } from './src/contexts/AuthContext';
+import { AuthProvider } from '../src/contexts/AuthContext';
+import { colors } from '../src/theme';
 
 SplashScreen.preventAutoHideAsync();
 
-export default function App() {
+export default function RootLayout() {
   const [fontsLoaded] = useFonts({
     Manrope_400Regular,
     Manrope_500Medium,
@@ -41,9 +41,13 @@ export default function App() {
     <GestureHandlerRootView style={styles.flex}>
       <SafeAreaProvider>
         <AuthProvider>
-          <NavigationContainer>
-            <RootNavigator />
-          </NavigationContainer>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              animation: 'slide_from_right',
+              contentStyle: { backgroundColor: colors.background.primary },
+            }}
+          />
         </AuthProvider>
         <StatusBar style="dark" />
       </SafeAreaProvider>

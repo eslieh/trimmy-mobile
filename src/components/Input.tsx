@@ -1,11 +1,15 @@
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
+import { StyleProp, StyleSheet, Text, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { colors, durations, radii, spacing, typography } from '../theme';
 
-interface InputProps extends TextInputProps {
+// `style` positions the outer wrapper (e.g. layout in a row), not the
+// TextInput itself — that always uses styles.input — so it's typed as
+// ViewStyle rather than inheriting TextInputProps' TextStyle-typed style.
+interface InputProps extends Omit<TextInputProps, 'style'> {
   label: string;
   helperText?: string;
+  style?: StyleProp<ViewStyle>;
 }
 
 // Rounded, thin-bordered field like the reference auth screen, with the

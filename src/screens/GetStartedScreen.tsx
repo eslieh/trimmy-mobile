@@ -1,14 +1,11 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useRouter } from 'expo-router';
 import { Button } from '../components/Button';
-import { RootStackParamList } from '../navigation/types';
 import { listMyInvitations, respondToInvitation } from '../api/team';
 import { colors, radii, shadows, spacing, typography } from '../theme';
 import type { MyInvitation, TeamRole } from '../types/team';
-
-type Props = NativeStackScreenProps<RootStackParamList, 'GetStarted'>;
 
 const ROLE_LABEL: Record<TeamRole, string> = {
   front_desk: 'Front Desk',
@@ -19,7 +16,8 @@ const ROLE_LABEL: Record<TeamRole, string> = {
 // question from reference/TASKS.md: check for a pending team invite first
 // (they're joining someone else's business), otherwise offer to enroll a
 // business or continue as a customer.
-export function GetStartedScreen({ navigation }: Props) {
+export function GetStartedScreen() {
+  const router = useRouter();
   const [invitations, setInvitations] = useState<MyInvitation[] | null>(null);
   const [respondingId, setRespondingId] = useState<string | null>(null);
 
@@ -76,7 +74,7 @@ export function GetStartedScreen({ navigation }: Props) {
           <Text style={styles.cardBody}>List your business on Trimyy and start taking bookings today.</Text>
           <Button
             label="Enroll your business today"
-            onPress={() => navigation.navigate('BusinessBasics')}
+            onPress={() => router.push('/business-name')}
             style={styles.enrollButton}
           />
         </View>
@@ -86,7 +84,10 @@ export function GetStartedScreen({ navigation }: Props) {
         <Button
           label="Continue browsing"
           variant="secondary"
-          onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] })}
+          onPress={() => {
+            router.dismissAll();
+            router.replace('/');
+          }}
         />
       </View>
     </SafeAreaView>

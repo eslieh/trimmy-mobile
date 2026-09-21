@@ -1,20 +1,17 @@
 import { useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useRouter } from 'expo-router';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { Divider } from '../../components/Divider';
 import { GoogleIcon } from '../../components/icons/GoogleIcon';
 import { AppleIcon } from '../../components/icons/AppleIcon';
 import { PhoneIcon } from '../../components/icons/PhoneIcon';
-import { RootStackParamList } from '../../navigation/types';
 import { colors, spacing, typography } from '../../theme';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Welcome'>;
-
-export function WelcomeScreen({ navigation }: Props) {
+export function WelcomeScreen() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
 
   return (
     <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
@@ -37,20 +34,11 @@ export function WelcomeScreen({ navigation }: Props) {
         style={styles.input}
       />
 
-      <Input
-        label="Password"
-        value={password}
-        onChangeText={setPassword}
-        placeholder="At least 8 characters"
-        secureTextEntry
-        style={styles.input}
-      />
-
       <Button
         label="Continue"
-        onPress={() => navigation.navigate('OnboardingVerification', { email: email.trim(), password })}
+        onPress={() => router.push({ pathname: '/onboarding-password', params: { email: email.trim() } })}
         variant="primary"
-        disabled={!email.trim() || password.length < 8}
+        disabled={!email.trim()}
         style={styles.continueButton}
       />
 
@@ -72,7 +60,7 @@ export function WelcomeScreen({ navigation }: Props) {
         />
       </View>
 
-      <Pressable style={styles.loginLink} onPress={() => navigation.navigate('Login')} hitSlop={8}>
+      <Pressable style={styles.loginLink} onPress={() => router.push('/login')} hitSlop={8}>
         <Text style={styles.loginLinkText}>
           Already have an account? <Text style={styles.loginLinkTextStrong}>Log in</Text>
         </Text>

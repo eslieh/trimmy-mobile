@@ -3,6 +3,7 @@
     "name": "trimmy-mobile",
     "slug": "trimmy-mobile",
     "version": "1.0.0",
+    "scheme": "trimmy",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -49,7 +50,11 @@
           "locationWhenInUsePermission": "Trimyy uses your location to find businesses near you and to set your business's location."
         }
       ],
-      "@react-native-community/datetimepicker"
-    ]
+      "@react-native-community/datetimepicker",
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
   }
 }

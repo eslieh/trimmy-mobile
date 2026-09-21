@@ -21,6 +21,30 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
   This means **both** Phase 4 views are in scope for MVP (gated by this answer), not an
   either/or choice — see updated Phase 4 below.
 
+## Resolved decisions (routing)
+
+- **Navigation library** — migrated from React Navigation's manually-wired `RootNavigator`/
+  `RootStackParamList` to **Expo Router** (file-based routing), per team preference for a
+  cross-platform-first setup. `App.tsx`, `index.ts`, and `src/navigation/` are gone; the app now
+  boots via `app/_layout.tsx` (root layout: fonts, splash, `AuthProvider`, `Stack`).
+- **Folder convention** — routes are organized into module route groups under `app/` that mirror
+  `src/screens/`, using Expo Router's `(group)` syntax (invisible in the URL, so paths stay flat:
+  `/login`, `/business-basics`, etc.):
+  - `app/(auth)/` — Welcome (`index`), Login, ForgotPassword, ForgotPasswordVerification, ResetPassword
+  - `app/(onboarding)/` — OnboardingVerification, OnboardingMobile, OnboardingName (customer signup)
+  - `app/(business)/` — BusinessBasics and future Phase 1 wizard screens (WorkingHours, Services, etc. land here)
+  - `app/success.tsx`, `app/get-started.tsx` — shared/cross-module screens stay ungrouped at the `app/` root
+  - Each route file is a thin re-export (`export { XScreen as default } from '../../src/screens/...'`) —
+    actual screen implementations still live in `src/screens/`, only the routing wrapper moved.
+  - Screen components use `useRouter()` / `useLocalSearchParams()` instead of navigation props;
+    `router.push({ pathname, params })` for forward nav, `router.back()` for back, and
+    `router.dismissAll(); router.replace(path)` for a full stack reset (replaces the old
+    `navigation.reset(...)` used after signup/business-creation success).
+- **Native modules still require a dev client** — this is unchanged by the router switch.
+  `react-native-maps` and `@react-native-community/datetimepicker` are still not in Expo Go;
+  Expo Router is only a routing-layer change, orthogonal to that requirement (see the native
+  modules note below — keeping these was a deliberate choice, not something the router fixes).
+
 ## Codebase audit — current state (as of `e60b0ee`)
 
 Stack: Expo `~57.0.22`, React Native `0.86.3`, React `19.2.3`, TypeScript `~6.0.3` (`strict: true`).
@@ -102,8 +126,13 @@ firm up; see [api/README.md](api/README.md) for the schema convention.
 Onboarding wizard, one step per screen, save-and-resume, progress indicator:
 
 - [ ] Data model: business, services, policies, payment destinations, `team_mode` (`solo` | `team`)
-- [x] **Business Basics** screen — name, categories (multi-select), phone, map location pin +
-      building/floor/shop-or-office number, submits to mock `createBusiness` (creates draft business)
+- [x] **Business Basics**, now split into 4 step screens (`app/(business)/`, progress 1–4/4,
+      draft accumulated in `useBusinessOnboardingStore`, submits on the last step):
+  - [x] **Business Name** (`/business-name`) — name
+  - [x] **Categories** (`/business-categories`) — multi-select
+  - [x] **Phone** (`/business-phone`) — business phone
+  - [x] **Location** (`/business-location`) — map pin + building/floor/shop-or-office number,
+        submits to mock `createBusiness` on continue (creates draft business)
 - [ ] **Working Hours** screen — default weekly hours + closed days (holidays/buffer deferred to Settings)
 - [ ] **Services** screen — at least 1 service (name, duration, price); more can be added later
 - [ ] **Deposit & Cancellation Policy** screen — sensible default pre-filled, one-tap accept or customize

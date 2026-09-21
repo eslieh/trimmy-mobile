@@ -41,6 +41,7 @@ export type Business = {
   location: BusinessLocation;
   status: BusinessStatus;
   onboardingStep: OnboardingStep;
+  workingHours?: WeeklyHours;
 };
 
 export type DayHours = { open: string; close: string } | null;
