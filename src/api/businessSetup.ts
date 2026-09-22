@@ -45,6 +45,20 @@ export function createBusiness(input: CreateBusinessInput): Promise<Business> {
   return apiRequest<Business>('/businesses', { method: 'POST', body: input });
 }
 
+// No corresponding reference/api contract entry yet — onboarding's
+// create-business is the only Business Basics endpoint. Added for post-
+// publish editing (see EditBusinessInfoScreen); a real backend would need
+// a PATCH endpoint here.
+export type UpdateBusinessInfoInput = CreateBusinessInput;
+
+export function updateBusinessInfo(businessId: string, input: UpdateBusinessInfoInput): Promise<UpdateBusinessInfoInput> {
+  if (USE_MOCK_API) {
+    return mockDelay<UpdateBusinessInfoInput>(input);
+  }
+
+  return apiRequest<UpdateBusinessInfoInput>(`/businesses/${businessId}`, { method: 'PATCH', body: input });
+}
+
 export type UploadBusinessPhotoInput = {
   uri: string; // local file URI from the image picker
   isCover: boolean;
@@ -77,6 +91,17 @@ export function uploadBusinessPhoto(businessId: string, input: UploadBusinessPho
     method: 'POST',
     body: formData,
   });
+}
+
+// No corresponding reference/api contract entry yet — onboarding never
+// removes a photo, only adds. Added for post-publish photo management (see
+// ManagePhotosScreen).
+export function deleteBusinessPhoto(businessId: string, photoId: string): Promise<void> {
+  if (USE_MOCK_API) {
+    return mockDelay(undefined);
+  }
+
+  return apiRequest<void>(`/businesses/${businessId}/photos/${photoId}`, { method: 'DELETE' });
 }
 
 // See reference/api/business-setup.json#set-working-hours for the contract this implements.
@@ -133,6 +158,49 @@ export function createService(businessId: string, input: CreateServiceInput): Pr
   }
 
   return apiRequest<Service>(`/businesses/${businessId}/services`, { method: 'POST', body: input });
+}
+
+export type UpdateServiceInput = {
+  name: string;
+  durationMinutes: number;
+  price: Money;
+};
+
+// No corresponding reference/api contract entry yet — onboarding's contracts
+// only cover create. Added for post-publish service management (see
+// ManageServicesScreen); a real backend would need a PATCH endpoint here.
+export function updateService(
+  businessId: string,
+  serviceId: string,
+  input: UpdateServiceInput,
+): Promise<Service> {
+  if (USE_MOCK_API) {
+    return mockDelay<Service>({ serviceId, businessId, categoryId: '', ...input });
+  }
+
+  return apiRequest<Service>(`/businesses/${businessId}/services/${serviceId}`, {
+    method: 'PATCH',
+    body: input,
+  });
+}
+
+export function deleteService(businessId: string, serviceId: string): Promise<void> {
+  if (USE_MOCK_API) {
+    return mockDelay(undefined);
+  }
+
+  return apiRequest<void>(`/businesses/${businessId}/services/${serviceId}`, { method: 'DELETE' });
+}
+
+// Mock-only note: cascading removal of the category's services from state
+// is handled by the store action, not here — this just simulates the
+// backend call succeeding.
+export function deleteServiceCategory(businessId: string, categoryId: string): Promise<void> {
+  if (USE_MOCK_API) {
+    return mockDelay(undefined);
+  }
+
+  return apiRequest<void>(`/businesses/${businessId}/service-categories/${categoryId}`, { method: 'DELETE' });
 }
 
 // See reference/api/business-setup.json#set-policies for the contract this implements.

@@ -5,6 +5,8 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserIcon } from '../../components/icons/UserIcon';
 import { CalendarIcon } from '../../components/icons/CalendarIcon';
+import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
+import { seedOwnedBusinessForTesting } from '../../utils/devSeed';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 
 type Row = {
@@ -17,11 +19,29 @@ type Row = {
 export function ProfileScreen() {
   const router = useRouter();
   const { user, logout } = useAuth();
+  const ownedBusiness = useOwnedBusinessStore((s) => s.business);
+  const setOwnedBusiness = useOwnedBusinessStore((s) => s.setOwnedBusiness);
+  const setActiveMode = useOwnedBusinessStore((s) => s.setActiveMode);
 
   const handleLogout = async () => {
     await logout();
     router.dismissAll();
     router.replace('/');
+  };
+
+  // The real path into business mode is publishing a business through the
+  // full setup wizard (ReviewPublishScreen sets the owned business there).
+  // If nothing's been published yet this session, this seeds from the first
+  // mock discovery business instead (same businessId real customer bookings
+  // already use) — a stand-in for "you don't have a listing yet" rather
+  // than a dead end, since there's no real backend to check against.
+  const handleSwitchToHosting = () => {
+    if (!ownedBusiness) {
+      setOwnedBusiness(seedOwnedBusinessForTesting(0, 'solo'));
+    }
+    setActiveMode('business');
+    router.dismissAll();
+    router.replace('/today');
   };
 
   const displayName = user ? [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Guest' : 'Guest';
@@ -48,6 +68,10 @@ export function ProfileScreen() {
       </View>
 
       <View style={styles.content}>
+        <Pressable style={styles.switchButton} onPress={handleSwitchToHosting}>
+          <Text style={styles.switchButtonText}>Switch to hosting</Text>
+        </Pressable>
+
         <RowGroup rows={accountRows} />
         <RowGroup rows={supportRows} />
 
@@ -106,6 +130,18 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xl,
     paddingBottom: spacing.xxl,
     gap: spacing.lg,
+  },
+  switchButton: {
+    alignSelf: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: radii.pill,
+    backgroundColor: colors.button.primaryBg,
+    ...shadows.raised,
+  },
+  switchButtonText: {
+    ...typography.button,
+    color: colors.button.primaryText,
   },
   group: {
     borderRadius: radii.lg,

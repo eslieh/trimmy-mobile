@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { AuthScreenLayout } from '../../components/AuthScreenLayout';
 import { Button } from '../../components/Button';
 import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
+import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { BUSINESS_CATEGORIES } from '../../data/businessCategories';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import type { WeeklyHours } from '../../types/business';
@@ -33,6 +34,8 @@ export function ReviewPublishScreen() {
   const submitReviewPublish = useBusinessOnboardingStore((s) => s.submitReviewPublish);
   const isSubmitting = useBusinessOnboardingStore((s) => s.isSubmitting);
   const error = useBusinessOnboardingStore((s) => s.error);
+  const setOwnedBusiness = useOwnedBusinessStore((s) => s.setOwnedBusiness);
+  const setActiveMode = useOwnedBusinessStore((s) => s.setActiveMode);
 
   const [publish, setPublish] = useState(false);
 
@@ -61,6 +64,18 @@ export function ReviewPublishScreen() {
 
   const handleContinue = async () => {
     await submitReviewPublish(publish && canPublish);
+
+    if (publish && canPublish) {
+      // canPublish guarantees workingHours is set (checked in `missing` above).
+      setOwnedBusiness({
+        businessId: business.businessId,
+        name: business.name,
+        teamMode: business.teamMode ?? 'solo',
+        workingHours: business.workingHours!,
+      });
+      setActiveMode('business');
+    }
+
     router.push({
       pathname: '/success',
       params: publish && canPublish
@@ -68,7 +83,7 @@ export function ReviewPublishScreen() {
             title: "You're live!",
             subtitle: 'Your business is now visible on the Trimyy marketplace.',
             ctaLabel: 'Done',
-            nextRoute: '/get-started',
+            nextRoute: '/today',
           }
         : {
             title: 'Saved as draft',

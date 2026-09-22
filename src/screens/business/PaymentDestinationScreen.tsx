@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { AuthScreenLayout } from '../../components/AuthScreenLayout';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
@@ -22,16 +22,21 @@ const TYPE_OPTIONS: { value: DestinationType; label: string }[] = [
 
 export function PaymentDestinationScreen() {
   const router = useRouter();
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const isEditMode = mode === 'edit';
+  const existing = useBusinessOnboardingStore((s) => s.business?.paymentDestination);
   const submitPaymentDestination = useBusinessOnboardingStore((s) => s.submitPaymentDestination);
   const isSubmitting = useBusinessOnboardingStore((s) => s.isSubmitting);
   const error = useBusinessOnboardingStore((s) => s.error);
 
-  const [type, setType] = useState<DestinationType>('mpesa_till');
-  const [tillNumber, setTillNumber] = useState('');
-  const [paybillNumber, setPaybillNumber] = useState('');
-  const [paybillAccountNumber, setPaybillAccountNumber] = useState('');
-  const [selectedBank, setSelectedBank] = useState<KenyaBank | null>(null);
-  const [bankAccountNumber, setBankAccountNumber] = useState('');
+  const [type, setType] = useState<DestinationType>(existing?.type ?? 'mpesa_till');
+  const [tillNumber, setTillNumber] = useState(existing?.tillNumber ?? '');
+  const [paybillNumber, setPaybillNumber] = useState(existing?.paybillNumber ?? '');
+  const [paybillAccountNumber, setPaybillAccountNumber] = useState(existing?.paybillAccountNumber ?? '');
+  const [selectedBank, setSelectedBank] = useState<KenyaBank | null>(
+    existing?.bankShortcode ? KENYA_BANKS.find((b) => b.shortcode === existing.bankShortcode) ?? null : null,
+  );
+  const [bankAccountNumber, setBankAccountNumber] = useState(existing?.bankAccountNumber ?? '');
   const [bankPickerVisible, setBankPickerVisible] = useState(false);
 
   const canContinue =
@@ -58,20 +63,24 @@ export function PaymentDestinationScreen() {
 
     await submitPaymentDestination(input);
 
-    router.push('/business-team-mode');
+    if (isEditMode) {
+      router.back();
+    } else {
+      router.push('/business-team-mode');
+    }
   };
 
   return (
     <AuthScreenLayout
       title="How will you get paid?"
       subtitle="Choose where customer payments should land."
-      progress={9 / TOTAL_STEPS}
+      progress={isEditMode ? undefined : 9 / TOTAL_STEPS}
       onBack={() => router.back()}
       footer={
         <>
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <Button
-            label={isSubmitting ? 'Saving…' : 'Continue'}
+            label={isSubmitting ? 'Saving…' : isEditMode ? 'Save' : 'Continue'}
             disabled={!canContinue || isSubmitting}
             onPress={handleContinue}
           />

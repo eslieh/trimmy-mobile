@@ -3,15 +3,22 @@ import {
   createBusiness,
   createService,
   createServiceCategory,
+  deleteBusinessPhoto,
+  deleteService,
+  deleteServiceCategory,
   inviteTeamMember,
   publishBusiness,
   setPaymentDestination,
   setPolicies,
   setTeamMode,
   setWorkingHours,
+  updateBusinessInfo as updateBusinessInfoApi,
+  updateService,
   uploadBusinessPhoto,
   type InviteTeamMemberInput,
   type SetPaymentDestinationInput,
+  type UpdateBusinessInfoInput,
+  type UpdateServiceInput,
 } from '../api/businessSetup';
 import type {
   Business,
@@ -76,11 +83,21 @@ type BusinessOnboardingState = {
   error: string | null;
   submitBusinessBasics: () => Promise<Business>;
 
+  // Post-publish management (EditBusinessInfoScreen) — same "call the API
+  // immediately" pattern as the services/photos "Now" actions below.
+  updateBusinessInfo: (businessId: string, input: UpdateBusinessInfoInput) => Promise<Business>;
+
   photoDrafts: PhotoDraftItem[];
   addPhotoDraft: (uri: string) => void;
   removePhotoDraft: (localId: string) => void;
   photos: BusinessPhoto[];
   submitPhotos: () => Promise<void>;
+
+  // Post-publish management (ManagePhotosScreen) — distinct from the draft
+  // actions above: these call the API immediately against the live
+  // business.photos, not a batched wizard submit.
+  addPhotoNow: (businessId: string, uri: string) => Promise<BusinessPhoto>;
+  removePhotoNow: (businessId: string, photoId: string) => Promise<void>;
 
   submitWorkingHours: (weeklyHours: WeeklyHours) => Promise<WeeklyHours>;
 
@@ -92,6 +109,16 @@ type BusinessOnboardingState = {
   serviceCategories: ServiceCategory[];
   services: Service[];
   submitServices: () => Promise<void>;
+
+  // Post-publish management (ManageServicesScreen) — distinct from the
+  // draft actions above: these call the API immediately, one action at a
+  // time, against already-live services/serviceCategories, not a batched
+  // wizard submit.
+  addServiceCategoryNow: (businessId: string, name: string) => Promise<ServiceCategory>;
+  addServiceNow: (businessId: string, categoryId: string, input: ServiceDraftItem) => Promise<Service>;
+  editService: (businessId: string, serviceId: string, input: UpdateServiceInput) => Promise<Service>;
+  removeService: (businessId: string, serviceId: string) => Promise<void>;
+  removeServiceCategory: (businessId: string, categoryId: string) => Promise<void>;
 
   submitPolicies: (policies: BusinessPolicies) => Promise<BusinessPolicies>;
 
@@ -131,6 +158,23 @@ export const useBusinessOnboardingStore = create<BusinessOnboardingState>((set, 
       throw err;
     }
   },
+  updateBusinessInfo: async (businessId, input) => {
+    const business = get().business;
+    if (!business) {
+      throw new Error('Business must be created before editing its info');
+    }
+    set({ isSubmitting: true, error: null });
+    try {
+      const saved = await updateBusinessInfoApi(businessId, input);
+      const updated: Business = { ...business, ...saved };
+      set({ business: updated, isSubmitting: false });
+      return updated;
+    } catch (err) {
+      set({ isSubmitting: false, error: err instanceof Error ? err.message : 'Something went wrong' });
+      throw err;
+    }
+  },
+
   photoDrafts: [],
   addPhotoDraft: (uri) =>
     set((state) => {
@@ -166,6 +210,25 @@ export const useBusinessOnboardingStore = create<BusinessOnboardingState>((set, 
       set({ isSubmitting: false, error: err instanceof Error ? err.message : 'Something went wrong' });
       throw err;
     }
+  },
+
+  addPhotoNow: async (businessId, uri) => {
+    const business = get().business;
+    if (!business) {
+      throw new Error('Business must be created before adding photos');
+    }
+    const existing = business.photos ?? [];
+    const saved = await uploadBusinessPhoto(businessId, { uri, isCover: existing.length === 0 });
+    set({ business: { ...business, photos: [...existing, saved] } });
+    return saved;
+  },
+  removePhotoNow: async (businessId, photoId) => {
+    const business = get().business;
+    if (!business) {
+      throw new Error('Business must be created before removing photos');
+    }
+    await deleteBusinessPhoto(businessId, photoId);
+    set({ business: { ...business, photos: (business.photos ?? []).filter((p) => p.photoId !== photoId) } });
   },
 
   submitWorkingHours: async (weeklyHours) => {
@@ -256,6 +319,39 @@ export const useBusinessOnboardingStore = create<BusinessOnboardingState>((set, 
       set({ isSubmitting: false, error: err instanceof Error ? err.message : 'Something went wrong' });
       throw err;
     }
+  },
+
+  addServiceCategoryNow: async (businessId, name) => {
+    const saved = await createServiceCategory(businessId, name);
+    set((state) => ({ serviceCategories: [...state.serviceCategories, saved] }));
+    return saved;
+  },
+  addServiceNow: async (businessId, categoryId, input) => {
+    const saved = await createService(businessId, { categoryId, ...input });
+    set((state) => ({ services: [...state.services, saved] }));
+    return saved;
+  },
+  editService: async (businessId, serviceId, input) => {
+    const saved = await updateService(businessId, serviceId, input);
+    set((state) => ({
+      services: state.services.map((service) =>
+        service.serviceId === serviceId
+          ? { ...service, name: saved.name, durationMinutes: saved.durationMinutes, price: saved.price }
+          : service,
+      ),
+    }));
+    return saved;
+  },
+  removeService: async (businessId, serviceId) => {
+    await deleteService(businessId, serviceId);
+    set((state) => ({ services: state.services.filter((s) => s.serviceId !== serviceId) }));
+  },
+  removeServiceCategory: async (businessId, categoryId) => {
+    await deleteServiceCategory(businessId, categoryId);
+    set((state) => ({
+      serviceCategories: state.serviceCategories.filter((c) => c.categoryId !== categoryId),
+      services: state.services.filter((s) => s.categoryId !== categoryId),
+    }));
   },
 
   submitPolicies: async (policies) => {

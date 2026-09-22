@@ -8,22 +8,10 @@ import { Button } from '../../components/Button';
 import { SegmentedTabs } from '../../components/SegmentedTabs';
 import { useBookingsStore } from '../../store/useBookingsStore';
 import { colors, durations, radii, shadows, spacing, typography } from '../../theme';
+import { BOOKING_STATUS_COLOR, BOOKING_STATUS_LABEL } from '../../utils/bookingStatus';
 import { formatBookingDate, getBookingDateTime, isUpcomingBooking } from '../../utils/date';
-import type { Booking } from '../../types/booking';
 
 type ActivityTab = 'upcoming' | 'past';
-
-const STATUS_LABEL: Record<Booking['status'], string> = {
-  pending_payment: 'Payment pending',
-  confirmed: 'Confirmed',
-  cancelled: 'Cancelled',
-};
-
-const STATUS_COLOR: Record<Booking['status'], string> = {
-  pending_payment: colors.feedback.warning,
-  confirmed: colors.feedback.success,
-  cancelled: colors.feedback.danger,
-};
 
 // No "my bookings" endpoint or reschedule/cancel actions yet (that's C3,
 // sequenced separately) — this just lists and classifies what
@@ -97,8 +85,8 @@ export function ActivityScreen() {
                 <Pressable style={styles.card} onPress={() => router.push(`/booking/${booking.bookingId}`)}>
                   <View style={styles.cardHeader}>
                     <Text style={styles.businessName}>{booking.businessName}</Text>
-                    <Text style={[styles.status, { color: STATUS_COLOR[booking.status] }]}>
-                      {STATUS_LABEL[booking.status]}
+                    <Text style={[styles.status, { color: BOOKING_STATUS_COLOR[booking.status] }]}>
+                      {BOOKING_STATUS_LABEL[booking.status]}
                     </Text>
                   </View>
                   <Text style={styles.metaLine}>{booking.staffName}</Text>

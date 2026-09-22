@@ -24,7 +24,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Avatar } from '../../components/Avatar';
 import { Button } from '../../components/Button';
 import { ChevronLeftIcon } from '../../components/icons/ChevronLeftIcon';
-import { AnimatedFavoriteHeart } from '../../components/AnimatedFavoriteHeart';
+import { HeartIcon } from '../../components/icons/HeartIcon';
 import { LocationPinIcon } from '../../components/icons/LocationPinIcon';
 import { ShareIcon } from '../../components/icons/ShareIcon';
 import { PhotoGridModal } from '../../components/PhotoGridModal';
@@ -264,7 +264,7 @@ export function BusinessProfileScreen() {
               <ShareIcon size={18} />
             </Pressable>
             <Pressable style={styles.circleButton} onPress={() => toggleFavorite(businessId)} hitSlop={8}>
-              <AnimatedFavoriteHeart filled={isFavorite} size={18} inactiveColor={colors.text.primary} />
+              <HeartIcon size={18} color={isFavorite ? colors.brand.pink : colors.text.primary} filled={isFavorite} />
             </Pressable>
           </View>
         </View>

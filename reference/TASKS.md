@@ -248,11 +248,9 @@ in the same pass.
       5, only non-empty text queries recorded) with a Clear link, a 2-column category grid, and a
       full-width Search button. This is genuinely a separate, dedicated search *experience* now,
       not just an inline text field
-- [ ] **Search Results** map/sort — list/map toggle, sort control (distance/price/rating) —
-      Explore's active-search results list covers the filtered-list part but not map view or sort
-- [ ] **Filter Sheet** modal — price range slider, rating minimum, distance radius (category is
-      already a quick filter chip, both on Explore and in SearchSheet's category grid;
-      price/rating/distance aren't filterable yet)
+- [x] **Search Results** map/sort and **Filter Sheet** modal — done, see the "Search Results sort +
+      map view" and "Search Results redesign" entries further down (near the end of this Phase 2
+      section) for details
 - [x] **Explore polish pass**: `BusinessResultCard` reworked to be flex-based (`flex: 1` +
       `aspectRatio: 1` image) instead of a fixed 220px width, so it works correctly in a real
       2-column grid — used by both Explore's browse sections (`FlatList numColumns={2}
@@ -345,15 +343,18 @@ in the same pass.
       marker↔list selection sync — no bottom-sheet/gesture library is installed, and a from-scratch
       `PanResponder` implementation risked a half-working gesture; the floating toggle covers the
       same "switch view" need without it
-- [ ] **Business Profile tabbed redesign** (next up) — the single-scroll layout below the hero
-      (About/Services/Team/Reviews all still one long scroll) hasn't been restructured into
-      Fresha's segmented in-page tabs yet. Live open/closed status and amenities (above) and
-      `SegmentedTabs`/`MasonryPhotoGrid`/`ImageGalleryViewer` (built for Staff Profile) were meant
-      to feed into this — the pieces exist, the restructuring itself doesn't yet. Still needed:
-      category-pill filtering within a real Services tab, an embedded map in an Other tab
-      (react-native-maps already installed, used elsewhere now via `SearchResultsMap`/
-      `LocationPicker`), "Venues nearby" (reuse `searchBusinesses` filtered by category, excluding
-      the current business)
+- [ ] **Business Profile tabbed redesign** — attempted, then explicitly declined: built the full
+      About/Services/Team/Reviews/Other `SegmentedTabs` restructure (category-pill filtering in
+      Services, an embedded map + amenities + "Venues nearby" in Other, all against a real plan
+      the user approved), but the user reverted it back to the single-long-scroll version and said
+      to keep it that way. **Do not redo this** without being asked again — the single-scroll
+      layout is the intended state, not a stopgap. Two pieces from that attempt were kept because
+      they're pure refactors with no behavior change: `src/components/EmbeddedLocationMap.tsx`
+      (address row + non-interactive map + "Get directions", extracted out of
+      `BookingDetailScreen.tsx`'s Location card, still used there) and `SegmentedTabs`/
+      `MasonryPhotoGrid`/`ImageGalleryViewer` (already in use by Staff Profile, untouched). Live
+      open/closed status and amenities (still shown inline on Business Profile, not moved) are also
+      still in place from before this attempt.
 
 **Motion pass**: user asked about adopting Framer Motion app-wide — it's web/DOM-only, no React
 Native support, so instead this expanded actual usage of `react-native-reanimated` (already a
@@ -493,17 +494,246 @@ alive in the background, a reactive effect can fire an unwanted navigation.
 
 ## Phase 4 — Fulfillment view (gated by `team_mode` from Phase 1)
 
-`team_mode = solo` → owner sees Staff-style view ([S1](staff.md#s1--daily-schedule)):
-- [ ] **Today Timeline** — single-column schedule, live from Phase 3 bookings
-- [ ] **Appointment Detail** — client history, preferences, reference images, status stepper
+**New: the business-owner app is now a real, separate mode** — not just a screen or two reached by
+a special-case route. Modeled explicitly on Airbnb's traveling/hosting switch: `useOwnedBusinessStore`
+(new) holds `activeMode: 'customer' | 'business'` alongside the `OwnedBusiness` data (a slim
+`{businessId, name, teamMode, workingHours}` projection — not the full wizard `Business` type,
+since that's all the business-owner app needs so far). Switching is bidirectional and explicit, not
+automatic: customer `ProfileScreen` has a "Switch to hosting" button, the new business-owner
+`Menu` tab has "Switch to browsing" — both do a full `dismissAll()`+`replace()` reset (same pattern
+already used for logout and for the booking flow's terminal screens), not a plain push, so no stale
+screens from the other mode linger in the stack. **Mode is session-only** (resets on app restart,
+same caveat as every other store here) — it does not decide where you land at login; every fresh
+session starts in customer mode, matching how the rest of the app already behaves. Real persistence
+of mode/business-ownership across restarts would need a backend and is out of scope.
 
-`team_mode = team` → business gets a Front Desk view ([F1](front-desk.md#f1--live-calendar)):
+**New route group `app/(business-app)/`** — sibling to `(tabs)`/`(discover)`/`(business)`, own
+`_layout.tsx` with a `<Tabs>` shell using the *exact* same docked/blurred tab bar styling as
+`(tabs)/_layout.tsx` (same `screenOptions`, same `BlurView` background) per explicit request — this
+should look like the same app, not a bolted-on admin panel. Two tabs for this original pass:
+**Today** (`today.tsx` → `TodayTimelineScreen`) and **Menu** (`menu.tsx` → `BusinessMenuScreen`,
+mirrors `ProfileScreen`'s shape) — since grown to 4 tabs (Business, Calendar added later; see their
+own sections below). **Appointment Detail** (`AppointmentDetailScreen`) deliberately lives
+*outside* this group, as a top-level `app/appointment/[bookingId].tsx` — same reasoning as the
+customer side's `app/booking/[bookingId].tsx`: routes inside a `<Tabs>` group's own folder stay
+part of that tab's stack, so pushing to Appointment Detail from a sibling top-level route is what
+correctly slides over and hides the tab bar.
+
+**Data bridges this needed** (none of this existed before):
+- `Booking` gained `customerName: string` — bookings previously only recorded staff/business, not
+  who booked. Populated in `ReviewPoliciesScreen` from `useAuth()`'s user (same
+  `[first_name, last_name].filter(Boolean).join(' ')` pattern `ProfileScreen`'s `displayName`
+  already used).
+- `BookingStatus` extended: `pending_payment | confirmed | cancelled` → added `in_progress`,
+  `completed`, `no_show` (S1 needs a real status stepper, not just the 3 states the booking flow
+  itself used).
+- New `src/utils/bookingStatus.ts` (`BOOKING_STATUS_LABEL`/`BOOKING_STATUS_COLOR`) — this was
+  copy-pasted in `ActivityScreen`/`BookingDetailScreen` already; extending the status union would
+  have made both local copies incomplete, so this was the moment to dedupe rather than a third
+  copy in the new business-app screens.
+- Bookings-for-a-business: no new store — `useBookingsStore`'s flat array already carries
+  `businessId`, `TodayTimelineScreen` just filters client-side. Not worth a dedicated selector for
+  one filter.
+
+`team_mode = solo` → owner's own session gets Staff-style view ([S1](staff.md#s1--daily-schedule)):
+- [x] **Today Timeline** — single-column schedule (day-switcher pills: today/tomorrow — was
+      yesterday/today/tomorrow, "Yesterday" dropped once the Calendar tab took over past-date
+      browsing, see its section below), live from `useBookingsStore` filtered to the owned business.
+      **Not built**: pull-to-refresh (nothing to refresh against — mock data), current-time
+      indicator line (deferred, not essential for a first pass)
+- [x] **Appointment Detail** — customer name, services + duration + price, time, staff, and a
+      status stepper (`confirmed → in_progress → completed`, or terminal `no_show`/`cancelled`).
+      **Deliberately not built**: client history, preferences, reference images, special-
+      instructions callout, post-service notes modal — **none of that data is modeled anywhere in
+      the app** (no per-client profile concept exists at all yet); inventing it wholesale is a
+      separate, much bigger feature, not a gap in this pass specifically
+- [ ] **Testing convenience**: `ProfileScreen`'s "Switch to hosting" seeds a mock `OwnedBusiness`
+      from `MOCK_BUSINESS_PROFILES[0]` if nothing's been published this session — lets Today
+      Timeline be tested against real bookings (make one as a customer against that business, then
+      switch) without redoing the 11-step wizard every time. Not a gap, a deliberate dev aid — flagged
+      here so it isn't mistaken for a real "check if the user owns a business" auth flow.
+      `seedOwnedBusinessForTesting()` (`src/utils/devSeed.ts`) also seeds
+      `useBusinessOnboardingStore`'s `business`/`serviceCategories`/`services` (converting the mock
+      discovery profile's customer-facing services shape — `categoryName` strings — into the owner-
+      side shape — `ServiceCategory` records + `categoryId`-linked `Service` records) — without this,
+      the seeded business would land on Today but **Manage Business would stay disabled**, since its
+      guard checks that both stores' `businessId` match. Found and fixed after first landing this:
+      the guard was correct, but nothing populated the store it guards against
+- [ ] **`WelcomeScreen`'s social buttons repurposed as a role-testing shortcut**, per explicit
+      request: "Continue with Google" → customer (`/explore`), "Continue with Apple" → business
+      solo (`/today`, seeded `teamMode: 'solo'`), "Continue with mobile" → business team (`/today`,
+      seeded `teamMode: 'team'`). **This is not real auth** — none of Google/Apple/phone OAuth is
+      wired up (unchanged from before; these buttons already did nothing real), and there is no
+      actual relationship between login method and business role in a real product. Both seeding
+      paths share the new `seedOwnedBusinessForTesting()` helper (`src/utils/devSeed.ts`) with
+      `ProfileScreen`'s "Switch to hosting", rather than three copies of the same projection logic.
+      Landing on Today with `teamMode: 'team'` now shows a small banner explaining Front Desk isn't
+      built yet, since this shortcut can reach that state and the screen would otherwise silently
+      show the solo view with no indication anything's missing
+
+`team_mode = team` → business gets a Front Desk view ([F1](front-desk.md#f1--live-calendar)) — not
+started, separate follow-up (this pass was explicitly scoped to solo/S1 only):
 - [ ] **Day Calendar (Grid)** — staff rows × time columns, live from Phase 3 bookings
 - [ ] **Appointment Detail** modal — status stepper (check-in → in progress → complete/no-show/cancel)
 - [ ] Double-booking warning on create/move
+- [ ] Would also need its own tab (or the Today/Menu shell's `today` tab conditionally swapping to
+      a calendar view based on `ownedBusiness.teamMode`) — not decided yet
 
-Both are in scope for MVP; build whichever matches the first real test business's
-`team_mode`, then build the other before wider rollout.
+## Manage Business ([O1](business-owner.md#o1--business-setup), post-publish)
+
+The 11-step wizard was previously the *only* way to touch a business's services/hours/policies —
+once published there was no way back in. This adds ongoing management inside the business-owner
+app's Menu tab, reusing `useBusinessOnboardingStore`'s `business`/`services`/`serviceCategories`
+(confirmed these never reset after publish — same lifecycle as everything else in that store)
+rather than introducing a new data source.
+
+- [x] **Manage Business hub** (`ManageBusinessScreen`) — business identity card + rows for all 6
+      management areas (Services, Working hours, Policies, Business info, Payment destination,
+      Photos), each with a leading icon (new `ListIcon`/`ClockIcon`/`ShieldIcon`/`InfoIcon`/
+      `WalletIcon`/`ImageIcon`) and a trailing `ChevronRightIcon` — all rows are now live, the
+      earlier disabled "Coming soon" state is gone (see the Business info/Payment/Photos entry
+      below). **Promoted to its own "Business" tab**
+      (`app/(business-app)/business.tsx`, between Today and Menu) after a design discussion about
+      the app's role/session model surfaced that burying it 3 taps deep under Menu → "Manage
+      business" → push was exactly the "everything is everywhere" problem — it was originally a
+      pushed screen reached from a guarded Menu row; that row and its guard logic are gone now that
+      it's a tab (the guard's *reasoning* still matters, see next point, it just isn't a visible gate
+      anymore — see empty-state handling below). `BusinessMenuScreen` is back to purely
+      account-level (name/email, "Switch to browsing", Log out)
+- [x] Still reads straight from `useBusinessOnboardingStore` (not `useOwnedBusinessStore`'s slim
+      projection), so it only shows real content when that store has data — which now happens both
+      for a real trip through onboarding *and* for the dev-seed shortcuts (`ProfileScreen`'s "Switch
+      to hosting", `WelcomeScreen`'s repurposed social buttons — see `src/utils/devSeed.ts`, which
+      seeds both stores together as of the fix noted further down). If `business` is somehow still
+      null (shouldn't happen via either normal path), the tab just renders an empty `SafeAreaView`
+      rather than a dead-end screen
+- [x] **Manage Services** (`ManageServicesScreen`, route `/manage-business/services`) — full add/
+      edit/delete for services and categories, not just onboarding's add-only flow. Visually mirrors
+      onboarding's `ServicesScreen` (category cards, Add Category/Add Service sheets) but operates
+      on the live `services`/`serviceCategories` arrays with immediate per-action API calls, not a
+      batched wizard submit. **New**: `updateService`/`deleteService`/`deleteServiceCategory` in
+      `src/api/businessSetup.ts` (no update/delete endpoint existed before — onboarding was purely
+      additive, confirmed by grep) and matching `addServiceCategoryNow`/`addServiceNow`/
+      `editService`/`removeService`/`removeServiceCategory` actions in the store (distinct from the
+      existing `*Draft` actions, which stay untouched for onboarding). Deleting a category cascades
+      removal of its services. Documented in `business-setup.json` (`update-service`,
+      `delete-service`, `delete-service-category` — no reference PRD entry existed for these, added
+      fresh)
+- [x] **Working hours + Policies editing** — reused `WorkingHoursScreen`/`PoliciesScreen` directly
+      (both already read their initial values from persistent `business.workingHours`/
+      `business.policies`, not the wizard's transient `draft`) via a `?mode=edit` query param: the
+      footer button reads "Save" instead of "Continue", the step-progress bar is hidden, and on
+      submit it does `router.back()` instead of advancing to the next wizard step. No new screens.
+- [x] **Business info editing** (`EditBusinessInfoScreen`, route `/manage-business/info`) — combined
+      name/description/categories/phone/location edit screen, styled like `ManageServicesScreen`
+      (`BackButton` + h2 header + `ScrollView`, not the wizard's `AuthScreenLayout`) rather than
+      patching the 4 separate onboarding screens (`BusinessNameScreen`/`BusinessCategoriesScreen`/
+      `BusinessPhoneScreen`/`BusinessLocationScreen`), which all read from the wizard's `draft` —
+      empty post-publish, so unsafe to reuse as-is. Prefills every field straight from `business`;
+      phone is recovered from the stored E.164 string via `parsePhoneNumberFromString`
+      (`libphonenumber-js`), falling back to the Kenya default country if parsing fails. Single
+      "Save" button → new `updateBusinessInfo(businessId, input)` action (store) → new
+      `updateBusinessInfo` mock API call (`src/api/businessSetup.ts`, PATCH-equivalent, documented as
+      `update-business-info` in `business-setup.json` — no prior contract entry existed since
+      onboarding's Business Basics is a single combined POST)
+- [x] **Payment destination editing** — fixed `PaymentDestinationScreen` to actually prefill (it
+      previously never read `business.paymentDestination` at all, always starting blank) and added
+      the same `?mode=edit` branch as Working hours/Policies ("Save" vs "Continue", progress bar
+      hidden, `router.back()` vs advancing the wizard). No new API — `submitPaymentDestination` was
+      already a plain idempotent PUT
+- [x] **Photos management** (`ManagePhotosScreen`, route `/manage-business/photos`) — the real gap:
+      onboarding's `PhotosScreen` only ever showed local pre-upload drafts, never existing
+      `business.photos`. Visually mirrors that grid (thumbnails, "Cover" badge on the first photo,
+      dashed "+ Add" tile, per-photo remove button) but reads/writes the live `business.photos`
+      immediately per action instead of a batched submit — same shape as `ManageServicesScreen`'s
+      live actions. New `addPhotoNow`/`removePhotoNow` store actions (reuses existing
+      `uploadBusinessPhoto`; new `deleteBusinessPhoto` mock API call, documented as
+      `delete-business-photo` in `business-setup.json`). No minimum-photo guard — a business can go
+      to zero photos through this screen
+
+## Calendar + walk-in/scheduled appointments + charge customer (solo, post-publish)
+
+The "record a service and charge the customer" idea from Phase 4 planning, deferred at the time as
+"business management now, walk-ins later" — this pass builds it. Also promoted browsing other dates
+out of the Today tab into its own **Calendar** tab (`app/(business-app)/calendar.tsx` →
+`CalendarScreen`) after explicit request — Today stays "what's happening today, plus starting a
+walk-in", Calendar is "browse other dates and schedule something for later". `(business-app)` is now
+4 tabs: Today (`ListIcon`), Calendar (`CalendarIcon` — freed up since Today no longer uses it),
+Business, Menu.
+
+- [x] **`CalendarScreen`** — new `MonthCalendar` component (`src/components/MonthCalendar.tsx`,
+      plain month grid, prev/next chevrons, dot under any day with a booking, no multi-month
+      swipe/scroll) + the selected day's appointment list below it (using the same card as Today —
+      extracted to `src/components/AppointmentCard.tsx` since it's now shared by two screens rather
+      than duplicated). Below that, a Google Calendar-style **"Available times"** row: open slots for
+      the selected day at a fixed 30-min browse granularity (`getTimeSlots` against
+      `ownedBusiness.workingHours`, filtered against that day's already-booked times — this is a
+      rough "what's open" preview, not the real availability check, which happens once actual
+      service durations are known) — tapping a slot jumps straight into `ScheduleAppointmentScreen`
+      with that date/time pre-filled. Header "+" → `/schedule` with no preset (pick everything from
+      scratch). `TodayTimelineScreen`'s day pills dropped "Yesterday" (Calendar now owns past-date
+      browsing; Today only needs Today/Tomorrow)
+- [x] **Walk-in and scheduling are deliberately two separate screens/entry points**, not one screen
+      with a mode toggle (an earlier pass merged them; split back apart per explicit request):
+  - **`StartWalkInScreen`** (route `/walk-in`, reached from Today's "+") — customer is physically
+        present: service picker, starts the appointment immediately as `in_progress`, no date/time
+        picking (uses right now).
+  - **`ScheduleAppointmentScreen`** (route `/schedule`, reached from Calendar's "+" or by tapping an
+        open slot on a Calendar day) — customer fields + service picker + date/time. When reached
+        with a preset `?date=&time=` (from tapping a slot), the date/time shows as a locked summary
+        row ("Tue, Sep 23 · 2:30 PM") with a "Change" link instead of the full picker, so the common
+        case (you already know when) is one tap away from done; the full day-strip + time-slot-grid
+        picker (reused pattern from the customer-facing `SelectDateTimeScreen`, backed by
+        `getUpcomingDays`/`getTimeSlots` against the business's `workingHours`) still opens via
+        "Change" or when reached with no preset at all. Picking a slot inside the picker also
+        auto-locks it the same way. Creates a `confirmed` booking (`createScheduledBooking`) rather
+        than `in_progress` — the owner still has to check the customer in from Appointment Detail
+        when they actually arrive, same as an online booking. Requires a customer name (walk-in
+        doesn't, since "Walk-in customer" is a reasonable fallback for someone standing right there;
+        a scheduled appointment needs a real name to be useful later).
+      Both screens collect phone (`PhoneInput`) and email (plain `Input`), and save whatever's
+      entered to the new **customer store** (see below) before creating the booking.
+- [x] **New customer store** (`src/types/customer.ts`, `src/store/useCustomersStore.ts`) — the
+      first "customer" concept in the app (bookings previously only stored a `customerName` string).
+      Client-only/in-memory, same caveat as every other mock store here. `saveCustomer(businessId,
+      {name, phone, email})` dedupes by phone within a business — re-entering an existing customer's
+      phone updates their name/email instead of creating a duplicate row. Not yet surfaced as its own
+      "customer list" screen anywhere — this pass only writes to it, nothing reads it back yet
+- [x] **`Booking` gained `customerEmail: string | null`** (alongside the existing `customerPhone`,
+      which used to only ever get set by the charge flow — now also set up front for walk-in/
+      scheduled appointments). `source: 'online' | 'walk_in'` already existed; scheduled
+      appointments reuse `'walk_in'` (owner-recorded) rather than adding a third value, since the
+      only real difference from an instant walk-in is starting `confirmed` instead of `in_progress`
+- [x] **Charge customer** (`AppointmentDetailScreen`, shown once a booking is `in_progress`) — the
+      "Mark completed" button became "Charge customer", opening a sheet with a method toggle:
+  - **M-Pesa**: enter the customer's phone, "Send payment request" simulates an STK push
+        (`chargeBookingPayment`, same `mockDelay`-based simulation pattern as the existing
+        `confirmBookingPayment`) — pending state shows "Check their phone".
+  - **Cash**: single "Mark as paid (cash)" tap, no phone needed (`chargeBookingCash`).
+      Either way the booking gets `paymentStatus: 'paid'`, `paymentMethod` set, and `status:
+      'completed'`. New `PaymentStatus`/`PaymentMethod` types on `Booking`. A success state (spring-
+      in `CheckIcon`, "M-Pesa payment received" / "Cash payment recorded") shows in the same sheet
+      for ~1.6s before auto-dismissing, rather than just snapping the sheet closed. The Appointment
+      Detail summary card shows a "Paid · M-Pesa"/"Paid · Cash" badge once charged. Both charge
+      functions and `createScheduledBooking`/`createWalkInBooking` (renamed from
+      `CreateWalkInBookingInput` to `CreateOwnerBookingInput` now that it's shared) documented inline
+      in `src/api/booking.ts` as having **no reference/api contract entry yet** — same as the other
+      owner-side additions this session
+- [x] **Today's Upcoming section split from Completed, and given a timeline rail** — per explicit
+      request. `TodayTimelineScreen` now splits the day's bookings into "Upcoming" (`confirmed`/
+      `in_progress` — shown first, unconditionally) and "Completed" (`completed`/`no_show`/
+      `cancelled` — collapsed behind a "Completed (N)" toggle, since those no longer need action).
+      Upcoming renders as a vertical timeline (time-pill node + connecting line per row, same visual
+      language as the customer-facing `ActivityScreen`'s day-rail, adapted to show time-of-day
+      instead of day-of-month since everything here is already the same day) — `AppointmentCard`
+      gained a `showTime` prop (default `true`) so the in-card time column doesn't repeat what the
+      rail node already shows.
+- [x] **Appointment Detail shows customer phone/email + a "Call" button** — new card (only rendered
+      when either is present) between the status summary and Date & time, with a purple "Call"
+      pill (`PhoneIcon`) that does `Linking.openURL('tel:' + customerPhone)`. Only bookings created
+      through the walk-in/schedule flows (or ones already charged, which sets `customerPhone`) have
+      this — online bookings never collect a phone up front, so this card simply doesn't render for
+      those until/unless charged.
 
 ## Phase 5 — Team management ([O2](business-owner.md#o2--team-management))
 

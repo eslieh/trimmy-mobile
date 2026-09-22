@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { AuthScreenLayout } from '../../components/AuthScreenLayout';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
@@ -30,6 +30,8 @@ const DEFAULT_POLICIES: BusinessPolicies = {
 
 export function PoliciesScreen() {
   const router = useRouter();
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const isEditMode = mode === 'edit';
   const draftPolicies = useBusinessOnboardingStore((s) => s.business?.policies);
   const submitPolicies = useBusinessOnboardingStore((s) => s.submitPolicies);
   const isSubmitting = useBusinessOnboardingStore((s) => s.isSubmitting);
@@ -67,19 +69,27 @@ export function PoliciesScreen() {
 
     await submitPolicies(finalPolicies);
 
-    router.push('/business-payment');
+    if (isEditMode) {
+      router.back();
+    } else {
+      router.push('/business-payment');
+    }
   };
 
   return (
     <AuthScreenLayout
       title="Deposit & cancellation policy"
       subtitle="We've pre-filled sensible defaults — customize if you'd like."
-      progress={8 / TOTAL_STEPS}
+      progress={isEditMode ? undefined : 8 / TOTAL_STEPS}
       onBack={() => router.back()}
       footer={
         <>
           {error ? <Text style={styles.error}>{error}</Text> : null}
-          <Button label={isSubmitting ? 'Saving…' : 'Continue'} disabled={isSubmitting} onPress={handleContinue} />
+          <Button
+            label={isSubmitting ? 'Saving…' : isEditMode ? 'Save' : 'Continue'}
+            disabled={isSubmitting}
+            onPress={handleContinue}
+          />
         </>
       }
     >

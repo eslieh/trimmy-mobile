@@ -7,6 +7,7 @@ import { BackButton } from '../../../components/BackButton';
 import { Button } from '../../../components/Button';
 import { createBooking } from '../../../api/booking';
 import { getBusinessProfile } from '../../../api/discovery';
+import { useAuth } from '../../../contexts/AuthContext';
 import { useBookingDraftStore } from '../../../store/useBookingDraftStore';
 import { useBookingsStore } from '../../../store/useBookingsStore';
 import { useCartStore } from '../../../store/useCartStore';
@@ -33,6 +34,8 @@ export function ReviewPoliciesScreen() {
   const draft = useBookingDraftStore();
   const addBooking = useBookingsStore((s) => s.addBooking);
   const clearCart = useCartStore((s) => s.clear);
+  const { user } = useAuth();
+  const customerName = user ? [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Guest' : 'Guest';
 
   useEffect(() => {
     getBusinessProfile(businessId).then(setProfile);
@@ -56,6 +59,7 @@ export function ReviewPoliciesScreen() {
       const booking = await createBooking({
         businessId,
         businessName: profile.name,
+        customerName,
         staffId: draft.staffId,
         staffName: draft.staffName,
         services: draft.services,

@@ -7,11 +7,32 @@ import { Divider } from '../../components/Divider';
 import { GoogleIcon } from '../../components/icons/GoogleIcon';
 import { AppleIcon } from '../../components/icons/AppleIcon';
 import { PhoneIcon } from '../../components/icons/PhoneIcon';
+import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
+import { seedOwnedBusinessForTesting } from '../../utils/devSeed';
 import { colors, spacing, typography } from '../../theme';
 
 export function WelcomeScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
+  const setOwnedBusiness = useOwnedBusinessStore((s) => s.setOwnedBusiness);
+  const setActiveMode = useOwnedBusinessStore((s) => s.setActiveMode);
+
+  // No real Google/Apple/phone OAuth yet (see the note below the Divider) —
+  // repurposed as a role-testing shortcut per explicit request: Google →
+  // customer, Apple → business (solo), phone → business (team). None of
+  // this reflects real auth; it only exists so the three app experiences
+  // can be reached quickly without repeating the full wizard each time.
+  const enterAsCustomer = () => {
+    router.dismissAll();
+    router.replace('/explore');
+  };
+
+  const enterAsBusiness = (teamMode: 'solo' | 'team') => {
+    setOwnedBusiness(seedOwnedBusinessForTesting(teamMode === 'solo' ? 0 : 1, teamMode));
+    setActiveMode('business');
+    router.dismissAll();
+    router.replace('/today');
+  };
 
   return (
     <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
@@ -44,19 +65,22 @@ export function WelcomeScreen() {
 
       <Divider label="OR" />
 
-      {/* No real Google/Apple OAuth yet — temporarily jumps straight into
-          business setup so that flow can be tested without a full signup. */}
       <View style={styles.buttonGroup}>
-        <Button label="Continue with mobile" onPress={() => {}} variant="secondary" icon={<PhoneIcon size={20} />} />
+        <Button
+          label="Continue with mobile"
+          onPress={() => enterAsBusiness('team')}
+          variant="secondary"
+          icon={<PhoneIcon size={20} />}
+        />
         <Button
           label="Continue with Google"
-          onPress={() => router.push('/business-name')}
+          onPress={enterAsCustomer}
           variant="secondary"
           icon={<GoogleIcon size={20} />}
         />
         <Button
           label="Continue with Apple"
-          onPress={() => router.push('/business-name')}
+          onPress={() => enterAsBusiness('solo')}
           variant="secondary"
           icon={<AppleIcon size={20} />}
         />

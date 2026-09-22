@@ -1,31 +1,19 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import MapView, { Marker } from 'react-native-maps';
 import { Avatar } from '../../components/Avatar';
 import { BackButton } from '../../components/BackButton';
 import { Button } from '../../components/Button';
-import { LocationPinIcon } from '../../components/icons/LocationPinIcon';
+import { EmbeddedLocationMap } from '../../components/EmbeddedLocationMap';
 import { getBusinessProfile } from '../../api/discovery';
 import { useBookingDraftStore } from '../../store/useBookingDraftStore';
 import { useBookingsStore } from '../../store/useBookingsStore';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
+import { BOOKING_STATUS_COLOR, BOOKING_STATUS_LABEL } from '../../utils/bookingStatus';
 import { formatBookingDateLong, getBookingDateTime, isUpcomingBooking } from '../../utils/date';
-import type { Booking, BookingServiceLine } from '../../types/booking';
+import type { BookingServiceLine } from '../../types/booking';
 import type { BusinessProfile } from '../../types/discovery';
-
-const STATUS_LABEL: Record<Booking['status'], string> = {
-  pending_payment: 'Payment pending',
-  confirmed: 'Confirmed',
-  cancelled: 'Cancelled',
-};
-
-const STATUS_COLOR: Record<Booking['status'], string> = {
-  pending_payment: colors.feedback.warning,
-  confirmed: colors.feedback.success,
-  cancelled: colors.feedback.danger,
-};
 
 // Reached from Activity's list. No reschedule yet (that's C3, sequenced
 // separately) — cancellation is built here since it's simple enough to not
@@ -71,10 +59,6 @@ export function BookingDetailScreen() {
   const withinFreeWindow = hoursUntil >= profile.policies.cancellation.freeCancellationHours;
   const lateFeeAmount = Math.round((booking.totalAmount.amount * profile.policies.cancellation.lateFeePercent) / 100);
 
-  const handleGetDirections = () => {
-    Linking.openURL(`https://maps.google.com/?q=${profile.lat},${profile.lng}`).catch(() => {});
-  };
-
   const handleRebook = () => {
     const lines: BookingServiceLine[] = booking.services.map((service) => ({ ...service }));
     startBookingDraft(booking.businessId, booking.businessName, lines);
@@ -99,8 +83,8 @@ export function BookingDetailScreen() {
           <Image source={{ uri: profile.photos[0] }} style={styles.thumb} />
           <View style={styles.summaryInfo}>
             <Text style={styles.businessName}>{booking.businessName}</Text>
-            <Text style={[styles.status, { color: STATUS_COLOR[booking.status] }]}>
-              {STATUS_LABEL[booking.status]}
+            <Text style={[styles.status, { color: BOOKING_STATUS_COLOR[booking.status] }]}>
+              {BOOKING_STATUS_LABEL[booking.status]}
             </Text>
           </View>
         </View>
@@ -150,25 +134,7 @@ export function BookingDetailScreen() {
 
         <View style={styles.card}>
           <Text style={styles.cardLabel}>Location</Text>
-          <View style={styles.locationRow}>
-            <LocationPinIcon size={14} color={colors.text.secondary} />
-            <Text style={styles.metaLine}>{profile.address}</Text>
-          </View>
-          <View style={styles.mapWrapper}>
-            <MapView
-              style={styles.map}
-              pointerEvents="none"
-              initialRegion={{
-                latitude: profile.lat,
-                longitude: profile.lng,
-                latitudeDelta: 0.02,
-                longitudeDelta: 0.02,
-              }}
-            >
-              <Marker coordinate={{ latitude: profile.lat, longitude: profile.lng }} />
-            </MapView>
-          </View>
-          <Button label="Get directions" variant="secondary" onPress={handleGetDirections} />
+          <EmbeddedLocationMap address={profile.address} lat={profile.lat} lng={profile.lng} />
         </View>
 
         <View style={styles.policyCard}>
@@ -351,20 +317,6 @@ const styles = StyleSheet.create({
   totalValue: {
     ...typography.bodyMedium,
     color: colors.text.primary,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  mapWrapper: {
-    height: 140,
-    borderRadius: radii.md,
-    overflow: 'hidden',
-    marginVertical: spacing.xs,
-  },
-  map: {
-    flex: 1,
   },
   policyCard: {
     borderRadius: radii.lg,

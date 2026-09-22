@@ -221,6 +221,115 @@
       ]
     },
     {
+      "id": "update-service",
+      "screen": "Manage Business → Services (business-owner app, post-publish)",
+      "story": "O1",
+      "method": "PATCH",
+      "path": "/businesses/{businessId}/services/{serviceId}",
+      "description": "Edits an existing service's name/duration/price. Added for post-publish management — onboarding itself only ever creates services, never edits them.",
+      "auth": "owner",
+      "request": {
+        "name": "Classic Haircut",
+        "durationMinutes": 45,
+        "price": { "amount": 900, "currency": "KES" }
+      },
+      "response": {
+        "serviceId": "svc_01a1",
+        "businessId": "biz_01hxyz",
+        "categoryId": "svccat_01a1",
+        "name": "Classic Haircut",
+        "durationMinutes": 45,
+        "price": { "amount": 900, "currency": "KES" }
+      },
+      "errors": [
+        { "status": 400, "code": "validation_error", "message": "price.amount must be greater than 0" },
+        { "status": 404, "code": "not_found", "message": "serviceId does not exist for this business" }
+      ]
+    },
+    {
+      "id": "delete-service",
+      "screen": "Manage Business → Services (business-owner app, post-publish)",
+      "story": "O1",
+      "method": "DELETE",
+      "path": "/businesses/{businessId}/services/{serviceId}",
+      "description": "Removes a single service. Added for post-publish management.",
+      "auth": "owner",
+      "request": null,
+      "response": null,
+      "errors": [
+        { "status": 404, "code": "not_found", "message": "serviceId does not exist for this business" }
+      ]
+    },
+    {
+      "id": "delete-service-category",
+      "screen": "Manage Business → Services (business-owner app, post-publish)",
+      "story": "O1",
+      "method": "DELETE",
+      "path": "/businesses/{businessId}/service-categories/{categoryId}",
+      "description": "Removes a service category and cascades to delete its services. Added for post-publish management.",
+      "auth": "owner",
+      "request": null,
+      "response": null,
+      "errors": [
+        { "status": 404, "code": "not_found", "message": "categoryId does not exist for this business" }
+      ]
+    },
+    {
+      "id": "update-business-info",
+      "screen": "Manage Business → Business info (business-owner app, post-publish)",
+      "story": "O1",
+      "method": "PATCH",
+      "path": "/businesses/{businessId}",
+      "description": "Edits the business's identity fields (name, description, categories, phone, location) as a single combined update. Added for post-publish management — onboarding's Business Basics wizard only ever creates these fields via create-business, spread across 4 separate steps; this screen edits all of them together in one place instead.",
+      "auth": "owner",
+      "request": {
+        "name": "Glow Beauty Lounge",
+        "description": "A cosy beauty lounge in the heart of Kilimani offering hair styling, coloring, and nail care in a relaxed, welcoming space.",
+        "categories": ["hair_salon", "nail_salon"],
+        "phone": "+254712345678",
+        "location": {
+          "address": "Kilimani, Nairobi",
+          "lat": -1.2921,
+          "lng": 36.7833,
+          "building": "Yaya Centre",
+          "floor": "2nd Floor",
+          "unit": "Shop 14"
+        }
+      },
+      "response": {
+        "name": "Glow Beauty Lounge",
+        "description": "A cosy beauty lounge in the heart of Kilimani offering hair styling, coloring, and nail care in a relaxed, welcoming space.",
+        "categories": ["hair_salon", "nail_salon"],
+        "phone": "+254712345678",
+        "location": {
+          "address": "Kilimani, Nairobi",
+          "lat": -1.2921,
+          "lng": 36.7833,
+          "building": "Yaya Centre",
+          "floor": "2nd Floor",
+          "unit": "Shop 14"
+        }
+      },
+      "errors": [
+        { "status": 400, "code": "validation_error", "message": "name is required" },
+        { "status": 404, "code": "not_found", "message": "businessId does not exist" }
+      ]
+    },
+    {
+      "id": "delete-business-photo",
+      "screen": "Manage Business → Photos (business-owner app, post-publish)",
+      "story": "O1",
+      "method": "DELETE",
+      "path": "/businesses/{businessId}/photos/{photoId}",
+      "description": "Removes a single photo. Added for post-publish management — onboarding never removes a photo, only adds. If the removed photo was the cover, the backend should promote the next remaining photo to cover.",
+      "auth": "owner",
+      "request": null,
+      "response": null,
+      "errors": [
+        { "status": 404, "code": "not_found", "message": "photoId does not exist for this business" }
+      ]
+    },
+    {
       "id": "set-policies",
       "screen": "Deposit & Cancellation Policy",
       "story": "O1",

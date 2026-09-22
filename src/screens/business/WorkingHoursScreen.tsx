@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { AuthScreenLayout } from '../../components/AuthScreenLayout';
 import { TimePickerField } from '../../components/TimePickerField';
 import { Button } from '../../components/Button';
@@ -36,6 +36,8 @@ const FALLBACK_HOURS: DayHours = { open: '09:00', close: '19:00' };
 
 export function WorkingHoursScreen() {
   const router = useRouter();
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const isEditMode = mode === 'edit';
   const draftHours = useBusinessOnboardingStore((s) => s.business?.workingHours);
   const submitWorkingHours = useBusinessOnboardingStore((s) => s.submitWorkingHours);
   const isSubmitting = useBusinessOnboardingStore((s) => s.isSubmitting);
@@ -60,19 +62,27 @@ export function WorkingHoursScreen() {
 
   const handleContinue = async () => {
     await submitWorkingHours(hours);
-    router.push('/business-services');
+    if (isEditMode) {
+      router.back();
+    } else {
+      router.push('/business-services');
+    }
   };
 
   return (
     <AuthScreenLayout
       title="Set your working hours"
       subtitle="Customers can only book during these times. You can change this anytime."
-      progress={6 / TOTAL_STEPS}
+      progress={isEditMode ? undefined : 6 / TOTAL_STEPS}
       onBack={() => router.back()}
       footer={
         <>
           {error ? <Text style={styles.error}>{error}</Text> : null}
-          <Button label={isSubmitting ? 'Saving…' : 'Continue'} disabled={isSubmitting} onPress={handleContinue} />
+          <Button
+            label={isSubmitting ? 'Saving…' : isEditMode ? 'Save' : 'Continue'}
+            disabled={isSubmitting}
+            onPress={handleContinue}
+          />
         </>
       }
     >
