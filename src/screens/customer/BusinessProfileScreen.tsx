@@ -24,9 +24,10 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Avatar } from '../../components/Avatar';
 import { Button } from '../../components/Button';
 import { ChevronLeftIcon } from '../../components/icons/ChevronLeftIcon';
-import { HeartIcon } from '../../components/icons/HeartIcon';
+import { AnimatedFavoriteHeart } from '../../components/AnimatedFavoriteHeart';
 import { LocationPinIcon } from '../../components/icons/LocationPinIcon';
 import { ShareIcon } from '../../components/icons/ShareIcon';
+import { PhotoGridModal } from '../../components/PhotoGridModal';
 import { RatingLabel } from '../../components/RatingLabel';
 import { getBusinessProfile } from '../../api/discovery';
 import { BUSINESS_CATEGORIES } from '../../data/businessCategories';
@@ -34,6 +35,7 @@ import { useBookingDraftStore } from '../../store/useBookingDraftStore';
 import { useCartStore } from '../../store/useCartStore';
 import { useFavoritesStore } from '../../store/useFavoritesStore';
 import { useRecentlyViewedStore } from '../../store/useRecentlyViewedStore';
+import { getOpenStatus } from '../../utils/availability';
 import { groupServicesByCategory } from '../../utils/services';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import type { BookingServiceLine } from '../../types/booking';
@@ -54,6 +56,7 @@ export function BusinessProfileScreen() {
   const { businessId } = useLocalSearchParams<{ businessId: string }>();
   const [profile, setProfile] = useState<BusinessProfile | null>(null);
   const [pageIndex, setPageIndex] = useState(0);
+  const [photosGridVisible, setPhotosGridVisible] = useState(false);
   const scrollY = useSharedValue(0);
 
   const recordView = useRecentlyViewedStore((s) => s.recordView);
@@ -130,6 +133,7 @@ export function BusinessProfileScreen() {
         0,
       )
     : 0;
+  const openStatus = getOpenStatus(profile.workingHours);
 
   return (
     <View style={styles.flex}>
@@ -148,16 +152,18 @@ export function BusinessProfileScreen() {
             style={styles.heroScroll}
           >
             {profile.photos.map((url) => (
-              <Image key={url} source={{ uri: url }} style={[styles.heroImage, { width }]} />
+              <Pressable key={url} onPress={() => setPhotosGridVisible(true)}>
+                <Image source={{ uri: url }} style={[styles.heroImage, { width }]} />
+              </Pressable>
             ))}
           </ScrollView>
 
           {profile.photos.length > 1 ? (
-            <View style={styles.pageBadge}>
+            <Pressable style={styles.pageBadge} onPress={() => setPhotosGridVisible(true)}>
               <Text style={styles.pageBadgeText}>
                 {pageIndex + 1}/{profile.photos.length}
               </Text>
-            </View>
+            </Pressable>
           ) : null}
         </View>
 
@@ -167,6 +173,9 @@ export function BusinessProfileScreen() {
           <View style={styles.ratingRow}>
             <RatingLabel rating={profile.rating} textStyle={styles.meta} />
             <Text style={styles.meta}>({profile.reviewCount} reviews)</Text>
+            <Text style={[styles.meta, openStatus.isOpen ? styles.openText : styles.closedText]}>
+              · {openStatus.label}
+            </Text>
           </View>
 
           <View style={styles.locationRow}>
@@ -183,6 +192,16 @@ export function BusinessProfileScreen() {
             <Text style={styles.policyText}>{profile.depositSummary}</Text>
             <Text style={styles.policyText}>{profile.cancellationSummary}</Text>
           </View>
+
+          {profile.amenities.length > 0 ? (
+            <View style={styles.pillRow}>
+              {profile.amenities.map((amenity) => (
+                <View key={amenity} style={styles.amenityPill}>
+                  <Text style={styles.amenityPillText}>{amenity}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
 
           <Text style={styles.sectionTitle}>Services</Text>
           <Pressable style={styles.servicesCard} onPress={goToServices}>
@@ -205,7 +224,11 @@ export function BusinessProfileScreen() {
 
           <Text style={styles.sectionTitle}>Staff</Text>
           {profile.staff.map((member) => (
-            <View key={member.staffId} style={styles.staffRow}>
+            <Pressable
+              key={member.staffId}
+              style={styles.staffRow}
+              onPress={() => router.push(`/business/${businessId}/staff/${member.staffId}`)}
+            >
               <Avatar name={member.name} uri={member.avatarUrl} size={44} />
               <View style={styles.staffInfo}>
                 <Text style={styles.staffName}>{member.name}</Text>
@@ -214,7 +237,7 @@ export function BusinessProfileScreen() {
                   <RatingLabel rating={member.rating} textStyle={styles.staffMeta} />
                 </View>
               </View>
-            </View>
+            </Pressable>
           ))}
 
           <Text style={styles.sectionTitle}>Reviews</Text>
@@ -232,7 +255,7 @@ export function BusinessProfileScreen() {
 
       <View style={styles.fixedHeader}>
         <Animated.View style={[styles.fixedHeaderBg, headerBackgroundStyle]} />
-        <View style={[styles.heroControlsRow, { paddingTop: insets.top + spacing.sm }]}>
+        <View style={[styles.heroControlsRow, { paddingTop: insets.top + spacing.lg }]}>
           <Pressable style={styles.circleButton} onPress={() => router.back()} hitSlop={8}>
             <ChevronLeftIcon size={18} />
           </Pressable>
@@ -241,7 +264,7 @@ export function BusinessProfileScreen() {
               <ShareIcon size={18} />
             </Pressable>
             <Pressable style={styles.circleButton} onPress={() => toggleFavorite(businessId)} hitSlop={8}>
-              <HeartIcon size={18} color={isFavorite ? colors.brand.pink : colors.text.primary} filled={isFavorite} />
+              <AnimatedFavoriteHeart filled={isFavorite} size={18} inactiveColor={colors.text.primary} />
             </Pressable>
           </View>
         </View>
@@ -257,6 +280,13 @@ export function BusinessProfileScreen() {
           <Button label="See all services" onPress={goToServices} />
         )}
       </SafeAreaView>
+
+      <PhotoGridModal
+        visible={photosGridVisible}
+        title="Photos"
+        images={profile.photos}
+        onClose={() => setPhotosGridVisible(false)}
+      />
     </View>
   );
 }
@@ -352,6 +382,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+  },
+  openText: {
+    color: colors.feedback.success,
+  },
+  closedText: {
+    color: colors.feedback.danger,
+  },
+  pillRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  amenityPill: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.pill,
+    backgroundColor: colors.background.secondary,
+  },
+  amenityPillText: {
+    ...typography.caption,
+    color: colors.text.primary,
   },
   locationRow: {
     flexDirection: 'row',

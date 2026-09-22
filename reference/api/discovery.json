@@ -27,7 +27,13 @@
             "name": "Glow Beauty Lounge",
             "categories": ["hair_salon", "nail_salon"],
             "thumbnailUrl": "https://cdn.trimyy.app/businesses/biz_01hxyz/cover.jpg",
+            "photos": [
+              "https://cdn.trimyy.app/businesses/biz_01hxyz/cover.jpg",
+              "https://cdn.trimyy.app/businesses/biz_01hxyz/photo_2.jpg"
+            ],
             "address": "Kilimani, Nairobi",
+            "lat": -1.2921,
+            "lng": 36.7833,
             "distanceKm": 2.3,
             "startingPrice": { "amount": 500, "currency": "KES" },
             "rating": 4.7,
@@ -81,6 +87,7 @@
           "cancellation": { "freeCancellationHours": 24, "lateFeePercent": 50 },
           "noShow": { "feePercent": 100 }
         },
+        "amenities": ["Free WiFi", "Air conditioning", "Wheelchair accessible", "Parking available"],
         "services": [
           {
             "serviceId": "svc_01a1",
@@ -91,7 +98,19 @@
           }
         ],
         "staff": [
-          { "staffId": "staff_01a1", "name": "Jane Wanjiru", "role": "Senior Stylist", "rating": 4.8 }
+          {
+            "staffId": "staff_01a1",
+            "name": "Jane Wanjiru",
+            "role": "Senior Stylist",
+            "rating": 4.8,
+            "avatarUrl": "https://cdn.trimyy.app/staff/staff_01a1/avatar.jpg",
+            "bio": "10+ years styling natural and relaxed hair, trained in Nairobi and Johannesburg.",
+            "specialties": ["Haircuts", "Blow Dry & Style", "Natural Hair"],
+            "portfolio": [
+              "https://cdn.trimyy.app/staff/staff_01a1/portfolio_1.jpg",
+              "https://cdn.trimyy.app/staff/staff_01a1/portfolio_2.jpg"
+            ]
+          }
         ],
         "reviews": [
           {

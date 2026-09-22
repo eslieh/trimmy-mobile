@@ -297,13 +297,89 @@ in the same pass.
       not renamed) so the new `[businessId]/services.tsx` sibling route could exist without a
       file/folder name collision. `/business/${id}` links elsewhere (Explore, Wishlist) are
       unaffected
-- [ ] **Staff Profile** (customer-facing) — bio, specialties, services they perform, availability
-      preview, "Book with [name]" CTA — not built; Business Profile's staff rows (now with avatars)
-      still don't tap through anywhere
-- [ ] **Business Profile tabbed redesign** (next up) — restructure the single-scroll profile below
-      the hero into Fresha's segmented in-page tabs (About / Services / Team / Reviews / Other),
-      plus live open/closed status next to rating, category-pill filtering within Services, an
-      embedded map (react-native-maps already installed) + amenities list + "Venues nearby" in Other
+- [x] **Staff Profile** (`/business/[businessId]/staff/[staffId]`, customer-facing) — tapping a
+      staff row on Business Profile now goes somewhere. Fresha-inspired tabs (new reusable
+      `SegmentedTabs` component): **Profile** (bio, specialty pills, services-at-this-business list
+      — no staff↔service mapping exists in the data model, so this is the business's full menu, not
+      services specific to this person), **Portfolio** (new `portfolio: string[]` field on
+      `BusinessProfileStaffMember` — past-work photos in a masonry grid, tap opens a full-screen
+      pager), **Reviews** (badge shows count, but no per-staff review text is modeled — shows the
+      business's own reviews as a stand-in, documented in the screen's own comment). "Book with
+      [name]" seeds the booking draft with this staff member pre-selected: if the cart already has
+      services for this business it jumps straight to Select Date & Time, else it sends the
+      customer to the services picker first (can't book an empty cart)
+- [x] **Photo gallery** — new reusable `MasonryPhotoGrid` (2-column, deterministic per-position
+      aspect ratios fake a pinterest-style staggered look without a masonry library or measuring
+      real image dimensions) + `ImageGalleryViewer` (full-screen horizontal pager, opens at
+      whichever photo was tapped) + `PhotoGridModal` (grid-then-viewer, as a `pageSheet`). Wired
+      into both **Staff Profile's Portfolio tab** (inline grid) and **Business Profile's hero**
+      (tapping any hero photo, or the page-count badge, opens the full grid)
+- [x] **Live open/closed status** next to Business Profile's rating (new `getOpenStatus` in
+      `src/utils/availability.ts`, same "hours only, no holiday exceptions" caveat as the rest of
+      that file) and an **amenities pill row** (new `amenities: string[]` field on `BusinessProfile`,
+      populated for all 6 mock businesses)
+- [x] **Filter Sheet** (`src/screens/customer/FilterSheet.tsx`, modal) — price / rating / distance,
+      as discrete preset pills rather than true sliders (no slider library is installed, and adding
+      a native one mid-session means a dev-client rebuild — same pill pattern as everywhere else in
+      the app). Category is still handled separately (the existing quick-filter chips). Setting any
+      filter now also counts toward Explore's "is a search active" check, same as query/category.
+      New `radiusKm` param threaded through `searchBusinesses`/`discovery.json` (was already in the
+      contract's example request but not actually implemented)
+- [x] **Search Results sort + map view** — sort pills (Distance/Price/Rating, client-side re-sort,
+      no new backend param) and a List/Map toggle on Explore's active-search results. Map view is a
+      real `react-native-maps` `MapView` (new `SearchResultsMap`) with a price-pill marker per
+      result; needed adding `lat`/`lng` to `BusinessSummary` (search results previously had no
+      coordinates at all — a real gap, not just a display omission) and threading them through
+      `toSummary()`/`discovery.json`
+- [x] **Search Results redesign, Airbnb-inspired** (per user reference screenshots) — results list
+      is now single-column, full-width cards (new `BusinessResultCardLarge`), each with a
+      **swipeable photo carousel + dot pagination** instead of one static thumbnail. Needed adding
+      `photos: string[]` to `BusinessSummary` (previously only `thumbnailUrl` — another real search-
+      result data gap, same shape as the `lat`/`lng` one above) threaded through `toSummary()`/
+      `discovery.json`. The List/Map toggle moved from an inline pill row to a **floating pill
+      button** (bottom-center, absolute-positioned, shown in both modes) matching Airbnb's pattern;
+      the old "Filters (N)" text pill (buried in the category chip row) became a proper **circular
+      icon button** (new `FilterIcon`) next to the search pill, with a small badge dot for the
+      active count. Map markers switched from solid-dark to white pills to match the reference.
+      **Not built**: Airbnb's draggable bottom sheet (peeking list preview under the map) and
+      marker↔list selection sync — no bottom-sheet/gesture library is installed, and a from-scratch
+      `PanResponder` implementation risked a half-working gesture; the floating toggle covers the
+      same "switch view" need without it
+- [ ] **Business Profile tabbed redesign** (next up) — the single-scroll layout below the hero
+      (About/Services/Team/Reviews all still one long scroll) hasn't been restructured into
+      Fresha's segmented in-page tabs yet. Live open/closed status and amenities (above) and
+      `SegmentedTabs`/`MasonryPhotoGrid`/`ImageGalleryViewer` (built for Staff Profile) were meant
+      to feed into this — the pieces exist, the restructuring itself doesn't yet. Still needed:
+      category-pill filtering within a real Services tab, an embedded map in an Other tab
+      (react-native-maps already installed, used elsewhere now via `SearchResultsMap`/
+      `LocationPicker`), "Venues nearby" (reuse `searchBusinesses` filtered by category, excluding
+      the current business)
+
+**Motion pass**: user asked about adopting Framer Motion app-wide — it's web/DOM-only, no React
+Native support, so instead this expanded actual usage of `react-native-reanimated` (already a
+dependency, already used for a handful of things — button press-springs, focus-border color,
+`StepProgressBar`'s fill, Business Profile's scroll-linked header fade) into places that were
+previously just snapping:
+- `SegmentedTabs` — selected-pill background/text color now eases (`interpolateColor` +
+  `withTiming`) instead of snapping. One shared component, so this covers every place it's used
+  (Staff Profile, Activity) for free
+- New `AnimatedFavoriteHeart` (`src/components/AnimatedFavoriteHeart.tsx`) — replaces a plain
+  `HeartIcon` at every favorite-toggle site (`BusinessResultCard`, `BusinessResultCardLarge`,
+  Business Profile's hero heart button) with one that pops via `springs.bouncy` when it becomes
+  filled — that motion token existed in `theme/motion.ts` already, labeled for exactly this, just
+  never wired up until now
+- `BusinessServicesScreen`'s quantity stepper — extracted into `ServiceQuantityControl`; the Add-
+  button ↔ stepper swap now crossfades (Reanimated's `entering`/`exiting` on `Animated.View`,
+  declarative in the same spirit as Framer Motion's `AnimatePresence`) instead of an instant
+  layout snap, and the count bumps with `springs.bouncy` on every +/- tap
+- `ActivityScreen` — Upcoming/Past tab content now crossfades in (`FadeIn`) instead of snapping,
+  keyed by tab so the scroll position also resets on switch (matches expected tab-switch behavior)
+
+Deliberately not touched: the plain RN `Modal`s (`SearchSheet`, `FilterSheet`, `PhotoGridModal`,
+`ImageGalleryViewer`, the booking-flow cancel sheet, `CountryPicker`, `TimePickerField`, and a few
+business-setup screens) — their built-in slide/fade is a reasonable baseline, and layering custom
+reanimated gesture-driven transitions (drag-to-dismiss, independent backdrop fade) on all of them
+is a much bigger, separate effort not attempted in this pass.
 
 **Business Basics wizard update**: added a required **Description** field to the Business Name
 step (`/business-name`, still step 1/11 — no renumbering needed) so Business Profile's new About
@@ -356,10 +432,8 @@ review,payment,pending,confirmed}.tsx`, all thin re-exports of `src/screens/cust
       booking draft. No push/SMS/WhatsApp confirmation message — out of scope without a real
       notifications backend
 - [x] **New client-only state**: `useBookingDraftStore` (in-progress selections through the flow)
-      and `useBookingsStore` (completed bookings this session — `ActivityScreen` now lists these
-      instead of a pure empty state, with a status badge; still no reschedule/cancel or Upcoming/
-      Past/Cancelled segmented control, that's [C3](customer.md#c3--manage-appointments), not
-      sequenced yet)
+      and `useBookingsStore` (completed bookings this session). See **Activity / Booking Detail**
+      below for how these now drive a real Upcoming/Past view instead of a flat list.
 - [x] **Business Profile / `BusinessProfile` type extended**: added structured `workingHours` +
       `policies` fields (reusing `business.ts`'s `WeeklyHours`/`BusinessPolicies` types) alongside
       the existing plain-language `depositSummary`/`cancellationSummary` strings — the booking flow
@@ -369,6 +443,37 @@ review,payment,pending,confirmed}.tsx`, all thin re-exports of `src/screens/cust
       `discovery.json#get-business-profile`
 - [ ] M-Pesa STK push integration decision (sandbox vs. provider, shared by C2/F3/O4) — still open;
       everything above works against the mock regardless of which provider gets picked
+
+**Activity / Booking Detail** (pulled forward from [C3](customer.md#c3--manage-appointments), not
+the full C3 — see gaps below), Airbnb Trips-inspired per user reference screenshots:
+- [x] **Activity tab redesign** — pill `Upcoming`/`Past` switch (new reusable `SegmentedTabs`,
+      also used by Staff Profile) instead of one flat list. Classification and sort are computed
+      client-side from `booking.date`+`booking.time` vs. now (new `getBookingDateTime`/
+      `isUpcomingBooking` in `src/utils/date.ts`) — Upcoming sorted soonest-first, Past most-recent-
+      first. Each row sits in a connecting-line timeline (day-of-week + date-circle rail down the
+      left, mirroring the rail style in Airbnb's own trip-detail check-in/checkout) instead of a
+      plain card list. Distinct empty states per tab
+- [x] **Booking Detail** (`/booking/[bookingId]`, new top-level route — reached only from Activity,
+      not nested under a business, so it lives beside `success.tsx`/`get-started.tsx` rather than in
+      `(discover)`) — business summary card, date/time, services + total + deposit-paid line, and a
+      **Location card with a real embedded `react-native-maps` marker** (not a stylized badge like
+      the Airbnb reference) + a "Get directions" button (`Linking.openURL` to a Google Maps
+      universal link, works on iOS/Android without a native maps SDK), and the business's
+      cancellation policy in plain language
+- [x] **Cancel appointment** — only shown for upcoming, not-yet-cancelled bookings. Opens a confirm
+      sheet that computes whether this specific cancellation is inside the business's free-
+      cancellation window (`policies.cancellation.freeCancellationHours` vs. hours until the
+      appointment) and shows either "no fee" or the actual late-fee amount (`lateFeePercent`% of
+      `totalAmount`) before confirming — not just the policy text, the real number for *this*
+      booking. Confirming calls `useBookingsStore.updateBooking` to flip status to `cancelled`; no
+      cancel endpoint exists yet, so this is client-only and doesn't refund/reverse a paid deposit
+- [ ] **Gaps vs. full C3**: no reschedule (reuses Select Date & Time + shows fee impact, per the
+      candidate-screens doc — not built), no reason picker on cancel, no push/SMS/WhatsApp
+      cancellation confirmation. Cancelled bookings aren't split into their own segment — they're
+      still classified into Upcoming/Past purely by date/time (a cancelled booking whose original
+      slot is still in the future shows under Upcoming, just with a red "Cancelled" badge), not a
+      third `Cancelled` tab (Upcoming/Past/Cancelled was the original candidate-screens spec; two
+      tabs matches what was actually asked for this pass)
 
 **Bug found + fixed while building this**: `BookingConfirmedScreen`'s "Done"/"View appointment"
 buttons call `useBookingDraftStore`'s `reset()` then `router.dismissAll(); router.replace(...)`.

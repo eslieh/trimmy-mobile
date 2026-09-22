@@ -1,16 +1,70 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import Animated, { FadeIn, FadeOut, useAnimatedStyle, useSharedValue, withSequence, withSpring } from 'react-native-reanimated';
 import { BackButton } from '../../components/BackButton';
 import { Button } from '../../components/Button';
 import { getBusinessProfile } from '../../api/discovery';
 import { useBookingDraftStore } from '../../store/useBookingDraftStore';
 import { useCartStore } from '../../store/useCartStore';
 import { groupServicesByCategory } from '../../utils/services';
-import { colors, radii, shadows, spacing, typography } from '../../theme';
+import { colors, durations, radii, shadows, spacing, springs, typography } from '../../theme';
 import type { BookingServiceLine } from '../../types/booking';
 import type { BusinessProfile } from '../../types/discovery';
+
+// Add-button ↔ stepper swap crossfades (Reanimated's entering/exiting) and
+// the count bumps with an overshoot spring on change, rather than either
+// snapping instantly.
+function ServiceQuantityControl({
+  quantity,
+  onAdd,
+  onRemove,
+}: {
+  quantity: number;
+  onAdd: () => void;
+  onRemove: () => void;
+}) {
+  const countScale = useSharedValue(1);
+  const prevQuantity = useRef(quantity);
+
+  useEffect(() => {
+    if (quantity !== prevQuantity.current) {
+      countScale.value = withSequence(withSpring(1.3, springs.bouncy), withSpring(1, springs.bouncy));
+      prevQuantity.current = quantity;
+    }
+  }, [quantity, countScale]);
+
+  const animatedCountStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: countScale.value }],
+  }));
+
+  if (quantity === 0) {
+    return (
+      <Animated.View entering={FadeIn.duration(durations.fast)} exiting={FadeOut.duration(durations.fast)}>
+        <Pressable style={styles.addButton} onPress={onAdd} hitSlop={8}>
+          <Text style={styles.addButtonText}>Add</Text>
+        </Pressable>
+      </Animated.View>
+    );
+  }
+
+  return (
+    <Animated.View
+      style={styles.stepper}
+      entering={FadeIn.duration(durations.fast)}
+      exiting={FadeOut.duration(durations.fast)}
+    >
+      <Pressable style={styles.stepperButton} onPress={onRemove} hitSlop={8}>
+        <Text style={styles.stepperButtonText}>−</Text>
+      </Pressable>
+      <Animated.Text style={[styles.stepperCount, animatedCountStyle]}>{quantity}</Animated.Text>
+      <Pressable style={styles.stepperButton} onPress={onAdd} hitSlop={8}>
+        <Text style={styles.stepperButtonText}>+</Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
 
 // Fresha-style "pick your services" screen — everything grouped by
 // category, a stepper per service, and a sticky checkout summary once
@@ -18,7 +72,11 @@ import type { BusinessProfile } from '../../types/discovery';
 // services" row.
 export function BusinessServicesScreen() {
   const router = useRouter();
-  const { businessId } = useLocalSearchParams<{ businessId: string }>();
+  const { businessId, preferredStaffId, preferredStaffName } = useLocalSearchParams<{
+    businessId: string;
+    preferredStaffId?: string;
+    preferredStaffName?: string;
+  }>();
   const [profile, setProfile] = useState<BusinessProfile | null>(null);
 
   const quantities = useCartStore((s) => s.quantities);
@@ -26,6 +84,7 @@ export function BusinessServicesScreen() {
   const addToCart = useCartStore((s) => s.add);
   const removeFromCart = useCartStore((s) => s.remove);
   const startBookingDraft = useBookingDraftStore((s) => s.startDraft);
+  const setStaff = useBookingDraftStore((s) => s.setStaff);
 
   useEffect(() => {
     getBusinessProfile(businessId).then(setProfile);
@@ -58,7 +117,15 @@ export function BusinessServicesScreen() {
         quantity: cartQuantities[service.serviceId],
       }));
     startBookingDraft(businessId, profile.name, lines);
-    router.push(`/business/${businessId}/book/staff`);
+
+    if (preferredStaffName) {
+      // Came from Staff Profile's "Book with [name]" with an empty cart —
+      // the staff was already chosen, so skip asking again.
+      setStaff(preferredStaffId ?? null, preferredStaffName);
+      router.push(`/business/${businessId}/book/datetime`);
+    } else {
+      router.push(`/business/${businessId}/book/staff`);
+    }
   };
 
   return (
@@ -88,33 +155,11 @@ export function BusinessServicesScreen() {
                     </Text>
                   </View>
 
-                  {quantity === 0 ? (
-                    <Pressable
-                      style={styles.addButton}
-                      onPress={() => addToCart(businessId, service.serviceId)}
-                      hitSlop={8}
-                    >
-                      <Text style={styles.addButtonText}>Add</Text>
-                    </Pressable>
-                  ) : (
-                    <View style={styles.stepper}>
-                      <Pressable
-                        style={styles.stepperButton}
-                        onPress={() => removeFromCart(businessId, service.serviceId)}
-                        hitSlop={8}
-                      >
-                        <Text style={styles.stepperButtonText}>−</Text>
-                      </Pressable>
-                      <Text style={styles.stepperCount}>{quantity}</Text>
-                      <Pressable
-                        style={styles.stepperButton}
-                        onPress={() => addToCart(businessId, service.serviceId)}
-                        hitSlop={8}
-                      >
-                        <Text style={styles.stepperButtonText}>+</Text>
-                      </Pressable>
-                    </View>
-                  )}
+                  <ServiceQuantityControl
+                    quantity={quantity}
+                    onAdd={() => addToCart(businessId, service.serviceId)}
+                    onRemove={() => removeFromCart(businessId, service.serviceId)}
+                  />
                 </View>
               );
             })}

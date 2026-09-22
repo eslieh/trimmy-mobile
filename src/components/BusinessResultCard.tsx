@@ -1,5 +1,5 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { HeartIcon } from './icons/HeartIcon';
+import { AnimatedFavoriteHeart } from './AnimatedFavoriteHeart';
 import { RatingLabel } from './RatingLabel';
 import { useFavoritesStore } from '../store/useFavoritesStore';
 import { colors, radii, shadows, spacing, typography } from '../theme';
@@ -28,7 +28,7 @@ export function BusinessResultCard({ business, onPress }: BusinessResultCardProp
           onPress={() => toggleFavorite(business.businessId)}
           hitSlop={8}
         >
-          <HeartIcon size={16} color={isFavorite ? colors.brand.pink : colors.white} filled={isFavorite} />
+          <AnimatedFavoriteHeart filled={isFavorite} size={16} />
         </Pressable>
       </View>
 

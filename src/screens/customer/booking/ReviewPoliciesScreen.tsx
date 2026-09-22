@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Avatar } from '../../../components/Avatar';
 import { BackButton } from '../../../components/BackButton';
 import { Button } from '../../../components/Button';
 import { createBooking } from '../../../api/booking';
@@ -46,6 +47,7 @@ export function ReviewPoliciesScreen() {
     [draft.services],
   );
   const depositAmount = profile ? computeDeposit(profile, totalAmount) : null;
+  const staffMember = profile && draft.staffId ? profile.staff.find((s) => s.staffId === draft.staffId) : null;
 
   const handleConfirm = async () => {
     if (!profile || !draft.date || !draft.time) return;
@@ -119,7 +121,19 @@ export function ReviewPoliciesScreen() {
               <Text style={styles.editLink}>Edit</Text>
             </Pressable>
           </View>
-          <Text style={styles.cardValue}>{draft.staffName}</Text>
+          <View style={styles.staffRow}>
+            {staffMember ? (
+              <Avatar name={staffMember.name} uri={staffMember.avatarUrl} size={40} />
+            ) : (
+              <View style={styles.anyAvatar}>
+                <Text style={styles.anyAvatarText}>?</Text>
+              </View>
+            )}
+            <View>
+              <Text style={styles.cardValue}>{draft.staffName}</Text>
+              {staffMember ? <Text style={styles.cardMeta}>{staffMember.role}</Text> : null}
+            </View>
+          </View>
         </View>
 
         <View style={styles.card}>
@@ -223,6 +237,23 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.text.secondary,
     marginTop: 2,
+  },
+  staffRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  anyAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.background.tertiary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  anyAvatarText: {
+    ...typography.h3,
+    color: colors.text.secondary,
   },
   serviceLine: {
     flexDirection: 'row',

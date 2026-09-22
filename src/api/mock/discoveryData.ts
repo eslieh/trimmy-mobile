@@ -38,14 +38,40 @@ export const MOCK_BUSINESS_PROFILES: BusinessProfile[] = [
       cancellation: { freeCancellationHours: 24, lateFeePercent: 50 },
       noShow: { feePercent: 100 },
     },
+    amenities: ['Free WiFi', 'Air conditioning', 'Wheelchair accessible', 'Parking available'],
     services: [
       { serviceId: 'svc_seed_1a', categoryName: 'Haircuts', name: 'Classic Haircut', durationMinutes: 45, price: { amount: 800, currency: 'KES' } },
       { serviceId: 'svc_seed_1b', categoryName: 'Haircuts', name: 'Blow Dry & Style', durationMinutes: 60, price: { amount: 1200, currency: 'KES' } },
       { serviceId: 'svc_seed_1c', categoryName: 'Nails', name: 'Gel Manicure', durationMinutes: 50, price: { amount: 1500, currency: 'KES' } },
     ],
     staff: [
-      { staffId: 'staff_seed_1a', name: 'Jane Wanjiru', role: 'Senior Stylist', rating: 4.8 },
-      { staffId: 'staff_seed_1b', name: 'Achieng Otieno', role: 'Nail Technician', rating: 4.6 },
+      {
+        staffId: 'staff_seed_1a',
+        name: 'Jane Wanjiru',
+        role: 'Senior Stylist',
+        rating: 4.8,
+        bio: '10+ years styling natural and relaxed hair, trained in Nairobi and Johannesburg. Loves a good blow-dry transformation.',
+        specialties: ['Haircuts', 'Blow Dry & Style', 'Natural Hair'],
+        portfolio: [
+          'https://picsum.photos/seed/staff-1a-1/600/800',
+          'https://picsum.photos/seed/staff-1a-2/600/600',
+          'https://picsum.photos/seed/staff-1a-3/600/750',
+          'https://picsum.photos/seed/staff-1a-4/600/600',
+        ],
+      },
+      {
+        staffId: 'staff_seed_1b',
+        name: 'Achieng Otieno',
+        role: 'Nail Technician',
+        rating: 4.6,
+        bio: 'Gel and acrylic specialist with an eye for clean, long-lasting finishes.',
+        specialties: ['Gel Manicure', 'Nail Art'],
+        portfolio: [
+          'https://picsum.photos/seed/staff-1b-1/600/700',
+          'https://picsum.photos/seed/staff-1b-2/600/600',
+          'https://picsum.photos/seed/staff-1b-3/600/650',
+        ],
+      },
     ],
     reviews: [
       { reviewId: 'rev_seed_1a', authorName: 'Amina K.', rating: 5, text: 'Amazing service, will definitely come back!', createdAt: '2026-09-10T14:00:00Z' },
@@ -82,14 +108,40 @@ export const MOCK_BUSINESS_PROFILES: BusinessProfile[] = [
       cancellation: { freeCancellationHours: 12, lateFeePercent: 100 },
       noShow: { feePercent: 100 },
     },
+    amenities: ['Free WiFi', 'TV', 'Card payment accepted'],
     services: [
       { serviceId: 'svc_seed_2a', categoryName: 'Cuts', name: 'Skin Fade', durationMinutes: 30, price: { amount: 500, currency: 'KES' } },
       { serviceId: 'svc_seed_2b', categoryName: 'Cuts', name: 'Beard Trim', durationMinutes: 20, price: { amount: 300, currency: 'KES' } },
       { serviceId: 'svc_seed_2c', categoryName: 'Cuts', name: 'Cut & Beard Combo', durationMinutes: 45, price: { amount: 700, currency: 'KES' } },
     ],
     staff: [
-      { staffId: 'staff_seed_2a', name: 'Brian Otieno', role: 'Master Barber', rating: 4.9 },
-      { staffId: 'staff_seed_2b', name: 'Kevin Maina', role: 'Barber', rating: 4.7 },
+      {
+        staffId: 'staff_seed_2a',
+        name: 'Brian Otieno',
+        role: 'Master Barber',
+        rating: 4.9,
+        bio: 'Precision fades and line-ups are his signature — 8 years behind the chair, trained under some of the best in Westlands.',
+        specialties: ['Skin Fade', 'Line-ups'],
+        portfolio: [
+          'https://picsum.photos/seed/staff-2a-1/600/750',
+          'https://picsum.photos/seed/staff-2a-2/600/600',
+          'https://picsum.photos/seed/staff-2a-3/600/700',
+          'https://picsum.photos/seed/staff-2a-4/600/600',
+        ],
+      },
+      {
+        staffId: 'staff_seed_2b',
+        name: 'Kevin Maina',
+        role: 'Barber',
+        rating: 4.7,
+        bio: 'Fast, friendly, and great with kids — go-to for classic cuts and beard shaping.',
+        specialties: ['Beard Trim', 'Classic Cuts'],
+        portfolio: [
+          'https://picsum.photos/seed/staff-2b-1/600/600',
+          'https://picsum.photos/seed/staff-2b-2/600/700',
+          'https://picsum.photos/seed/staff-2b-3/600/600',
+        ],
+      },
     ],
     reviews: [
       { reviewId: 'rev_seed_2a', authorName: 'Dennis O.', rating: 5, text: 'Best fade in Nairobi, hands down.', createdAt: '2026-09-15T11:00:00Z' },
@@ -126,11 +178,26 @@ export const MOCK_BUSINESS_PROFILES: BusinessProfile[] = [
       cancellation: { freeCancellationHours: 48, lateFeePercent: 50 },
       noShow: { feePercent: 100 },
     },
+    amenities: ['Free WiFi', 'Parking available', 'Showers', 'Wheelchair accessible'],
     services: [
       { serviceId: 'svc_seed_3a', categoryName: 'Massage', name: 'Full Body Massage (60min)', durationMinutes: 60, price: { amount: 3500, currency: 'KES' } },
       { serviceId: 'svc_seed_3b', categoryName: 'Facials', name: 'Deep Cleanse Facial', durationMinutes: 45, price: { amount: 2500, currency: 'KES' } },
     ],
-    staff: [{ staffId: 'staff_seed_3a', name: 'Grace Muthoni', role: 'Spa Therapist', rating: 4.7 }],
+    staff: [
+      {
+        staffId: 'staff_seed_3a',
+        name: 'Grace Muthoni',
+        role: 'Spa Therapist',
+        rating: 4.7,
+        bio: 'Certified in Swedish and deep-tissue massage, with a calm, unhurried approach to every session.',
+        specialties: ['Full Body Massage', 'Deep Cleanse Facials'],
+        portfolio: [
+          'https://picsum.photos/seed/staff-3a-1/600/750',
+          'https://picsum.photos/seed/staff-3a-2/600/600',
+          'https://picsum.photos/seed/staff-3a-3/600/650',
+        ],
+      },
+    ],
     reviews: [
       { reviewId: 'rev_seed_3a', authorName: 'Linda W.', rating: 5, text: 'So relaxing, exactly what I needed.', createdAt: '2026-08-30T10:00:00Z' },
     ],
@@ -165,11 +232,27 @@ export const MOCK_BUSINESS_PROFILES: BusinessProfile[] = [
       cancellation: { freeCancellationHours: 24, lateFeePercent: 30 },
       noShow: { feePercent: 100 },
     },
+    amenities: ['Free WiFi', 'Card payment accepted'],
     services: [
       { serviceId: 'svc_seed_4a', categoryName: 'Nails', name: 'Classic Manicure', durationMinutes: 40, price: { amount: 900, currency: 'KES' } },
       { serviceId: 'svc_seed_4b', categoryName: 'Nails', name: 'Gel Pedicure', durationMinutes: 55, price: { amount: 1800, currency: 'KES' } },
     ],
-    staff: [{ staffId: 'staff_seed_4a', name: 'Cynthia Akinyi', role: 'Nail Artist', rating: 4.5 }],
+    staff: [
+      {
+        staffId: 'staff_seed_4a',
+        name: 'Cynthia Akinyi',
+        role: 'Nail Artist',
+        rating: 4.5,
+        bio: 'Known for intricate hand-painted nail art and durable gel pedicures.',
+        specialties: ['Nail Art', 'Gel Pedicure'],
+        portfolio: [
+          'https://picsum.photos/seed/staff-4a-1/600/600',
+          'https://picsum.photos/seed/staff-4a-2/600/700',
+          'https://picsum.photos/seed/staff-4a-3/600/600',
+          'https://picsum.photos/seed/staff-4a-4/600/650',
+        ],
+      },
+    ],
     reviews: [
       { reviewId: 'rev_seed_4a', authorName: 'Mercy J.', rating: 4, text: 'Lovely nail art, lasted 3 weeks.', createdAt: '2026-09-05T13:20:00Z' },
     ],
@@ -204,11 +287,26 @@ export const MOCK_BUSINESS_PROFILES: BusinessProfile[] = [
       cancellation: { freeCancellationHours: 24, lateFeePercent: 50 },
       noShow: { feePercent: 100 },
     },
+    amenities: ['Free WiFi', 'TV', 'Card payment accepted', 'Parking available'],
     services: [
       { serviceId: 'svc_seed_5a', categoryName: 'Cuts', name: 'Executive Haircut', durationMinutes: 40, price: { amount: 1000, currency: 'KES' } },
       { serviceId: 'svc_seed_5b', categoryName: 'Grooming', name: 'Hot Towel Shave', durationMinutes: 30, price: { amount: 600, currency: 'KES' } },
     ],
-    staff: [{ staffId: 'staff_seed_5a', name: 'Samuel Kiptoo', role: 'Senior Barber', rating: 4.8 }],
+    staff: [
+      {
+        staffId: 'staff_seed_5a',
+        name: 'Samuel Kiptoo',
+        role: 'Senior Barber',
+        rating: 4.8,
+        bio: 'Sharp, efficient cuts built for a lunch-break schedule, plus a proper hot towel shave when you have the extra 20 minutes.',
+        specialties: ['Executive Haircut', 'Hot Towel Shave'],
+        portfolio: [
+          'https://picsum.photos/seed/staff-5a-1/600/700',
+          'https://picsum.photos/seed/staff-5a-2/600/600',
+          'https://picsum.photos/seed/staff-5a-3/600/650',
+        ],
+      },
+    ],
     reviews: [
       { reviewId: 'rev_seed_5a', authorName: 'James R.', rating: 5, text: 'Professional and quick, great for a lunch break cut.', createdAt: '2026-09-12T12:00:00Z' },
     ],
@@ -243,11 +341,27 @@ export const MOCK_BUSINESS_PROFILES: BusinessProfile[] = [
       cancellation: { freeCancellationHours: 24, lateFeePercent: 50 },
       noShow: { feePercent: 100 },
     },
+    amenities: ['Free WiFi', 'Air conditioning'],
     services: [
       { serviceId: 'svc_seed_6a', categoryName: 'Hair', name: 'Silk Press', durationMinutes: 90, price: { amount: 2000, currency: 'KES' } },
       { serviceId: 'svc_seed_6b', categoryName: 'Makeup', name: 'Full Face Makeup', durationMinutes: 60, price: { amount: 2500, currency: 'KES' } },
     ],
-    staff: [{ staffId: 'staff_seed_6a', name: 'Esther Wambui', role: 'Beauty Specialist', rating: 4.4 }],
+    staff: [
+      {
+        staffId: 'staff_seed_6a',
+        name: 'Esther Wambui',
+        role: 'Beauty Specialist',
+        rating: 4.4,
+        bio: 'Hair styling and event makeup specialist — loves working with clients ahead of weddings and big occasions.',
+        specialties: ['Silk Press', 'Full Face Makeup'],
+        portfolio: [
+          'https://picsum.photos/seed/staff-6a-1/600/750',
+          'https://picsum.photos/seed/staff-6a-2/600/600',
+          'https://picsum.photos/seed/staff-6a-3/600/700',
+          'https://picsum.photos/seed/staff-6a-4/600/600',
+        ],
+      },
+    ],
     reviews: [
       { reviewId: 'rev_seed_6a', authorName: 'Susan K.', rating: 4, text: 'Beautiful makeup for my event, highly recommend.', createdAt: '2026-08-18T08:00:00Z' },
     ],

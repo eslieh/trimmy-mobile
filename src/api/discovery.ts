@@ -13,6 +13,7 @@ export type SearchBusinessesParams = {
   category?: BusinessCategory;
   priceMax?: number;
   ratingMin?: number;
+  radiusKm?: number;
 };
 
 function toSummary(profile: BusinessProfile, distanceKm: number): BusinessSummary {
@@ -26,7 +27,10 @@ function toSummary(profile: BusinessProfile, distanceKm: number): BusinessSummar
     name: profile.name,
     categories: profile.categories,
     thumbnailUrl: profile.photos[0] ?? '',
+    photos: profile.photos,
     address: profile.address,
+    lat: profile.lat,
+    lng: profile.lng,
     distanceKm,
     startingPrice,
     rating: profile.rating,
@@ -62,14 +66,18 @@ export function searchBusinesses(params: SearchBusinessesParams): Promise<Busine
       return matchesQuery && matchesCategory && matchesRating && matchesPrice;
     });
 
+    const hasCoords = params.lat !== undefined && params.lng !== undefined;
+
     const summaries = filtered
       .map((profile) => {
-        const distanceKm =
-          params.lat !== undefined && params.lng !== undefined
-            ? haversineKm(params.lat, params.lng, profile.lat, profile.lng)
-            : Math.round((1 + Math.random() * 8) * 10) / 10;
+        const distanceKm = hasCoords
+          ? haversineKm(params.lat!, params.lng!, profile.lat, profile.lng)
+          : Math.round((1 + Math.random() * 8) * 10) / 10;
         return toSummary(profile, distanceKm);
       })
+      // Only meaningful with real coordinates — the fallback distance above
+      // is a random placeholder, not something a radius filter should apply to.
+      .filter((summary) => !hasCoords || !params.radiusKm || summary.distanceKm <= params.radiusKm)
       .sort((a, b) => a.distanceKm - b.distanceKm);
 
     return mockDelay(summaries);

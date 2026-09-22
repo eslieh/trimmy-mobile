@@ -7,7 +7,13 @@ export type BusinessSummary = {
   name: string;
   categories: BusinessCategory[];
   thumbnailUrl: string;
+  // Full photo set — search results render a swipeable carousel (Airbnb-
+  // style), not just the single thumbnail. thumbnailUrl stays as photos[0]
+  // for the compact grid card, which only ever shows one image.
+  photos: string[];
   address: string;
+  lat: number;
+  lng: number;
   distanceKm: number;
   startingPrice: Money;
   rating: number;
@@ -28,6 +34,11 @@ export type BusinessProfileStaffMember = {
   role: string;
   rating: number;
   avatarUrl?: string;
+  bio: string;
+  specialties: string[];
+  // Past work photos — no per-staff review text is modeled yet, so Staff
+  // Profile's Reviews tab shows the business's own reviews as a stand-in.
+  portfolio: string[];
 };
 
 export type BusinessProfileReview = {
@@ -59,6 +70,7 @@ export type BusinessProfile = {
   // src/utils/availability.ts). A real backend would return both.
   workingHours: WeeklyHours;
   policies: BusinessPolicies;
+  amenities: string[];
   services: BusinessProfileService[];
   staff: BusinessProfileStaffMember[];
   reviews: BusinessProfileReview[];

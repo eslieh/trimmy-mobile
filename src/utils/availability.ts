@@ -59,6 +59,36 @@ export function getUpcomingDays(workingHours: WeeklyHours, count = 7): Available
   return days;
 }
 
+export type OpenStatus = {
+  isOpen: boolean;
+  label: string;
+};
+
+// Same "hours only, no real-time exceptions" caveat as the rest of this
+// file — a business marked open here might still be closed for a holiday
+// etc., there's no way to model that yet.
+export function getOpenStatus(workingHours: WeeklyHours): OpenStatus {
+  const now = new Date();
+  const todayKey = DAY_KEYS[now.getDay()];
+  const today: DayHours = workingHours[todayKey];
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+  if (today && nowMinutes >= hoursToMinutes(today.open) && nowMinutes < hoursToMinutes(today.close)) {
+    return { isOpen: true, label: `Open until ${today.close}` };
+  }
+
+  for (let i = 1; i <= 7; i += 1) {
+    const dayKey = DAY_KEYS[(now.getDay() + i) % 7];
+    const hours: DayHours = workingHours[dayKey];
+    if (hours) {
+      const dayLabel = i === 1 ? 'tomorrow' : new Date(now.getFullYear(), now.getMonth(), now.getDate() + i).toLocaleDateString('en-US', { weekday: 'long' });
+      return { isOpen: false, label: `Closed · Opens ${hours.open} ${dayLabel}` };
+    }
+  }
+
+  return { isOpen: false, label: 'Closed' };
+}
+
 export function getTimeSlots(workingHours: WeeklyHours, dateKey: string, durationMinutes: number): string[] {
   const [year, month, day] = dateKey.split('-').map(Number);
   const date = new Date(year, month - 1, day);

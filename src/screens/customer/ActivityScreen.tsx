@@ -1,12 +1,17 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { CalendarIcon } from '../../components/icons/CalendarIcon';
 import { Button } from '../../components/Button';
+import { SegmentedTabs } from '../../components/SegmentedTabs';
 import { useBookingsStore } from '../../store/useBookingsStore';
-import { colors, radii, shadows, spacing, typography } from '../../theme';
-import { formatBookingDate } from '../../utils/date';
+import { colors, durations, radii, shadows, spacing, typography } from '../../theme';
+import { formatBookingDate, getBookingDateTime, isUpcomingBooking } from '../../utils/date';
 import type { Booking } from '../../types/booking';
+
+type ActivityTab = 'upcoming' | 'past';
 
 const STATUS_LABEL: Record<Booking['status'], string> = {
   pending_payment: 'Payment pending',
@@ -21,47 +26,93 @@ const STATUS_COLOR: Record<Booking['status'], string> = {
 };
 
 // No "my bookings" endpoint or reschedule/cancel actions yet (that's C3,
-// sequenced separately) — this just lists what useBookingsStore has
-// accumulated from completed bookings this session.
+// sequenced separately) — this just lists and classifies what
+// useBookingsStore has accumulated from completed bookings this session,
+// Airbnb Trips-inspired: a pill Upcoming/Past switch, a connecting-line
+// timeline down the list, tap through to a full detail screen.
 export function ActivityScreen() {
   const router = useRouter();
   const bookings = useBookingsStore((s) => s.bookings);
+  const [tab, setTab] = useState<ActivityTab>('upcoming');
+
+  const upcoming = useMemo(
+    () =>
+      bookings
+        .filter((b) => isUpcomingBooking(b.date, b.time))
+        .sort((a, b) => getBookingDateTime(a.date, a.time).getTime() - getBookingDateTime(b.date, b.time).getTime()),
+    [bookings],
+  );
+  const past = useMemo(
+    () =>
+      bookings
+        .filter((b) => !isUpcomingBooking(b.date, b.time))
+        .sort((a, b) => getBookingDateTime(b.date, b.time).getTime() - getBookingDateTime(a.date, a.time).getTime()),
+    [bookings],
+  );
+
+  const visible = tab === 'upcoming' ? upcoming : past;
 
   return (
     <SafeAreaView style={styles.flex} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>Activity</Text>
+        <SegmentedTabs
+          options={[
+            { key: 'upcoming', label: 'Upcoming' },
+            { key: 'past', label: 'Past' },
+          ]}
+          value={tab}
+          onChange={setTab}
+        />
       </View>
 
-      {bookings.length === 0 ? (
-        <View style={styles.empty}>
+      {visible.length === 0 ? (
+        <Animated.View key={tab} entering={FadeIn.duration(durations.base)} style={styles.empty}>
           <CalendarIcon size={40} color={colors.text.tertiary} />
-          <Text style={styles.emptyTitle}>No appointments yet</Text>
-          <Text style={styles.emptyBody}>Book a service and it'll show up here.</Text>
-          <Button label="Find a business" onPress={() => router.push('/explore')} style={styles.emptyButton} />
-        </View>
+          <Text style={styles.emptyTitle}>
+            {tab === 'upcoming' ? 'No upcoming appointments' : 'No past appointments'}
+          </Text>
+          <Text style={styles.emptyBody}>
+            {tab === 'upcoming'
+              ? "Book a service and it'll show up here."
+              : 'Appointments you\'ve completed will show up here.'}
+          </Text>
+          {tab === 'upcoming' ? (
+            <Button label="Find a business" onPress={() => router.push('/explore')} style={styles.emptyButton} />
+          ) : null}
+        </Animated.View>
       ) : (
-        <ScrollView contentContainerStyle={styles.list}>
-          {bookings.map((booking) => (
-            <View key={booking.bookingId} style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.businessName}>{booking.businessName}</Text>
-                <Text style={[styles.status, { color: STATUS_COLOR[booking.status] }]}>
-                  {STATUS_LABEL[booking.status]}
-                </Text>
+        <ScrollView key={tab} contentContainerStyle={styles.list}>
+          <Animated.View entering={FadeIn.duration(durations.base)}>
+            {visible.map((booking, index) => (
+              <View key={booking.bookingId} style={styles.timelineRow}>
+                <View style={styles.timelineRail}>
+                  <Text style={styles.timelineWeekday}>{formatBookingDate(booking.date).slice(0, 3)}</Text>
+                  <View style={styles.timelineNode}>
+                    <Text style={styles.timelineNodeText}>{Number(booking.date.slice(-2))}</Text>
+                  </View>
+                  {index < visible.length - 1 ? <View style={styles.timelineLine} /> : null}
+                </View>
+
+                <Pressable style={styles.card} onPress={() => router.push(`/booking/${booking.bookingId}`)}>
+                  <View style={styles.cardHeader}>
+                    <Text style={styles.businessName}>{booking.businessName}</Text>
+                    <Text style={[styles.status, { color: STATUS_COLOR[booking.status] }]}>
+                      {STATUS_LABEL[booking.status]}
+                    </Text>
+                  </View>
+                  <Text style={styles.metaLine}>{booking.staffName}</Text>
+                  {booking.services.map((service) => (
+                    <Text key={service.serviceId} style={styles.metaLine}>
+                      {service.quantity > 1 ? `${service.quantity}× ` : ''}
+                      {service.name}
+                    </Text>
+                  ))}
+                  <Text style={styles.metaLine}>{booking.time}</Text>
+                </Pressable>
               </View>
-              <Text style={styles.metaLine}>{booking.staffName}</Text>
-              {booking.services.map((service) => (
-                <Text key={service.serviceId} style={styles.metaLine}>
-                  {service.quantity > 1 ? `${service.quantity}× ` : ''}
-                  {service.name}
-                </Text>
-              ))}
-              <Text style={styles.metaLine}>
-                {formatBookingDate(booking.date)} · {booking.time}
-              </Text>
-            </View>
-          ))}
+            ))}
+          </Animated.View>
         </ScrollView>
       )}
     </SafeAreaView>
@@ -76,6 +127,7 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: spacing.xxl,
     paddingTop: spacing.md,
+    gap: spacing.md,
   },
   title: {
     ...typography.h1,
@@ -92,6 +144,7 @@ const styles = StyleSheet.create({
     ...typography.h3,
     color: colors.text.primary,
     marginTop: spacing.md,
+    textAlign: 'center',
   },
   emptyBody: {
     ...typography.body,
@@ -104,15 +157,50 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingHorizontal: spacing.xxl,
-    paddingTop: spacing.md,
+    paddingTop: spacing.lg,
     paddingBottom: spacing.xxl,
+  },
+  timelineRow: {
+    flexDirection: 'row',
     gap: spacing.md,
   },
+  timelineRail: {
+    width: 40,
+    alignItems: 'center',
+  },
+  timelineWeekday: {
+    ...typography.caption,
+    color: colors.text.secondary,
+    marginBottom: spacing.xs,
+  },
+  timelineNode: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.background.secondary,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timelineNodeText: {
+    ...typography.label,
+    color: colors.text.primary,
+  },
+  timelineLine: {
+    flex: 1,
+    width: 2,
+    backgroundColor: colors.border.subtle,
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
+  },
   card: {
+    flex: 1,
     borderRadius: radii.lg,
     backgroundColor: colors.background.secondary,
     padding: spacing.lg,
     gap: spacing.xs,
+    marginBottom: spacing.lg,
     ...shadows.card,
   },
   cardHeader: {
