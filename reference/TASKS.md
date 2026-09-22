@@ -735,6 +735,60 @@ Business, Menu.
       this — online bookings never collect a phone up front, so this card simply doesn't render for
       those until/unless charged.
 
+## Earnings tab (solo, post-publish, read-only analytics)
+
+Requested as the natural next step once bookings started carrying real payment data
+(`paymentStatus`/`paymentMethod`/`totalAmount` from the Charge customer work above) — a way for the
+owner to actually see how the business is doing, not just record individual charges. Purely a read
+layer: no new writes, just aggregation over `useBookingsStore` (see `src/utils/earnings.ts`) — kept
+as pure functions rather than inline in the screen so they're independently reasoned about. Only
+`paymentStatus: 'paid'` bookings count as revenue anywhere in these — a confirmed-but-unpaid or
+still-in-progress booking hasn't actually earned anything yet.
+
+- [x] **New "Earnings" tab** (`app/(business-app)/earnings.tsx` → `EarningsScreen`, `ChartIcon`) —
+      `(business-app)` is now 5 tabs (Today, Calendar, Earnings, Business, Menu). Chosen over burying
+      it in an existing tab, per explicit request, since this is meant to be a primary, frequently-
+      checked surface
+- [x] **No charting library added** — explicit decision, since only `react-native-svg` was already a
+      dependency and adding one risks unverified Expo SDK 57 compatibility for a single screen. Two
+      small custom chart components instead:
+  - `src/components/charts/BarChart.tsx` — plain `View` bars (no SVG needed for a rectangle),
+        animated in on mount/data-change via `withTiming` on height. Used for the revenue-trend chart.
+  - `src/components/charts/DonutChart.tsx` — the one that actually needs SVG: a multi-segment ring
+        via the standard `strokeDasharray`/`strokeDashoffset` trick, rotated -90° so the first segment
+        starts at 12 o'clock. Used for the payment-method (M-Pesa vs Cash) breakdown, with a
+        total-revenue center label.
+- [x] **Today/Week/Month/Year/Custom range toggle, defaulting to Today** — per explicit request
+      ("the default should be today"), since that's the question an owner checking in mid-shift
+      actually has, not a rolling week. The 4 presets are just specific `DateRange`s
+      (`getPresetDateRange`) anchored on today (not calendar-aligned — no need for exact
+      calendar-month precision against mock data); **Custom** reveals two `DatePickerField`s
+      ("From"/"To", new component mirroring the existing `TimePickerField`'s iOS-sheet/Android-
+      native-dialog split, `mode="date"` instead of `"time"`) whose values build a `DateRange` via
+      `buildCustomDateRange`. Every aggregation function in `earnings.ts` takes a plain `DateRange`
+      now rather than the range enum directly, so presets and custom ranges share one code path.
+  - **`getEarningsBuckets`'s granularity is now generic**, picked from however many days the range
+        actually spans, rather than being hardcoded per preset: ≤1 day → 3-hour buckets (so "Today"
+        isn't just a single bar), ≤16 days → daily, ≤70 days → weekly, beyond that → monthly. A
+        custom 3-day range and a custom 3-month range each get sensible bars without special-casing.
+- [x] **Hero card**: total earned for the range, plus completed count / average ticket size /
+      no-show+cancelled count.
+- [x] **Revenue trend** — `BarChart` over the range's buckets.
+- [x] **Payment method breakdown** — `DonutChart` (M-Pesa = brand purple, Cash = brand pink) +
+      a legend with amount and paid-count per method. Card doesn't render at all if nothing's been
+      paid yet in range (no segments to show).
+- [x] **Full services breakdown, not just a "top 5"** — per explicit request ("list the services
+      they offered"). `getServicesBreakdown` (renamed from `getTopServices`) now takes the business's
+      *entire* live service menu (`useBusinessOnboardingStore`'s `services`) and returns a row for
+      every one of them, including services with zero bookings in range ("Not booked" instead of an
+      amount) — the point being to also surface what *isn't* selling, not just rank what is. Revenue
+      is still allocated per service line (`price.amount * quantity`) rather than splitting a
+      booking's total evenly across its services. Sorted by revenue desc, ties broken alphabetically
+      so zero-revenue rows have a stable order instead of shuffling on every render.
+- [x] **Appointment volume & completion stats** — folded into the hero card rather than a separate
+      section (completed/no-show/cancelled counts + avg ticket), since a standalone stats grid for
+      just 4 numbers felt like padding rather than a real section.
+
 ## Phase 5 — Team management ([O2](business-owner.md#o2--team-management))
 
 - [ ] **Team List** screen
