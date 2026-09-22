@@ -38,7 +38,7 @@ export default function RootLayout() {
   }
 
   return (
-    <GestureHandlerRootView style={styles.flex}>
+    <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
         <AuthProvider>
           <Stack
@@ -56,7 +56,12 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
-  flex: {
+  root: {
     flex: 1,
+    // The true outermost container — without this, any area the content
+    // doesn't perfectly cover (behind the status bar/home indicator, or a
+    // brief layout gap) falls back to the system default background instead
+    // of matching the app, showing as a black/mismatched bar at the edges.
+    backgroundColor: colors.background.primary,
   },
 });

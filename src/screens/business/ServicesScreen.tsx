@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { AuthScreenLayout } from '../../components/AuthScreenLayout';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
+import { CloseIcon } from '../../components/icons/CloseIcon';
 import {
   ServiceCategoryDraft,
   ServiceDraftItem,
@@ -72,7 +73,7 @@ export function ServicesScreen() {
                   </Text>
                 </View>
                 <Pressable onPress={() => removeService(category.localId, index)} hitSlop={8}>
-                  <Text style={styles.removeText}>×</Text>
+                  <CloseIcon size={16} color={colors.feedback.danger} />
                 </Pressable>
               </View>
             ))

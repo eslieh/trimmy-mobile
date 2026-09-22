@@ -85,6 +85,16 @@ export function searchBusinesses(params: SearchBusinessesParams): Promise<Busine
   return apiRequest<{ businesses: BusinessSummary[] }>(`/businesses/search?${query}`).then((res) => res.businesses);
 }
 
+// Not a distinct backend endpoint — just search-businesses with no filters,
+// re-ordered to match `ids` (most-recent-first for Explore's "Recently
+// viewed" section, backed by the client-only useRecentlyViewedStore).
+export async function getBusinessesByIds(ids: string[]): Promise<BusinessSummary[]> {
+  if (ids.length === 0) return [];
+  const all = await searchBusinesses({});
+  const byId = new Map(all.map((business) => [business.businessId, business]));
+  return ids.map((id) => byId.get(id)).filter((business): business is BusinessSummary => business !== undefined);
+}
+
 // See reference/api/discovery.json#get-business-profile for the contract this implements.
 export function getBusinessProfile(businessId: string): Promise<BusinessProfile> {
   if (USE_MOCK_API) {

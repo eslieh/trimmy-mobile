@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Country, countries } from '../data/countries';
+import { CheckmarkIcon } from './icons/CheckmarkIcon';
 import { colors, radii, spacing, typography } from '../theme';
 
 interface CountryPickerProps {
@@ -61,7 +62,7 @@ export function CountryPicker({ visible, selected, onSelect, onClose }: CountryP
                   {item.name}
                 </Text>
                 <Text style={styles.dialCode}>+{item.dialCode}</Text>
-                {isSelected ? <Text style={styles.checkmark}>✓</Text> : null}
+                {isSelected ? <CheckmarkIcon size={18} /> : null}
               </Pressable>
             );
           }}
@@ -122,11 +123,6 @@ const styles = StyleSheet.create({
   dialCode: {
     ...typography.body,
     color: colors.text.secondary,
-    marginLeft: spacing.md,
-  },
-  checkmark: {
-    ...typography.bodyMedium,
-    color: colors.brand.purple,
     marginLeft: spacing.md,
   },
 });

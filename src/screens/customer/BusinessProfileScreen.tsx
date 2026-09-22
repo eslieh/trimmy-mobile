@@ -1,47 +1,115 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  ActivityIndicator,
+  Image,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
+import Animated, {
+  Extrapolation,
+  interpolate,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { BackButton } from '../../components/BackButton';
+import { Avatar } from '../../components/Avatar';
 import { Button } from '../../components/Button';
+import { ChevronLeftIcon } from '../../components/icons/ChevronLeftIcon';
+import { HeartIcon } from '../../components/icons/HeartIcon';
+import { LocationPinIcon } from '../../components/icons/LocationPinIcon';
+import { ShareIcon } from '../../components/icons/ShareIcon';
+import { RatingLabel } from '../../components/RatingLabel';
 import { getBusinessProfile } from '../../api/discovery';
 import { BUSINESS_CATEGORIES } from '../../data/businessCategories';
+import { useBookingDraftStore } from '../../store/useBookingDraftStore';
+import { useCartStore } from '../../store/useCartStore';
+import { useFavoritesStore } from '../../store/useFavoritesStore';
+import { useRecentlyViewedStore } from '../../store/useRecentlyViewedStore';
+import { groupServicesByCategory } from '../../utils/services';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
+import type { BookingServiceLine } from '../../types/booking';
 import type { BusinessProfile } from '../../types/discovery';
 
 function categoryLabel(value: string): string {
   return BUSINESS_CATEGORIES.find((c) => c.value === value)?.label ?? value;
 }
 
-function groupServicesByCategory(services: BusinessProfile['services']) {
-  const groups = new Map<string, BusinessProfile['services']>();
-  for (const service of services) {
-    const list = groups.get(service.categoryName) ?? [];
-    list.push(service);
-    groups.set(service.categoryName, list);
-  }
-  return Array.from(groups.entries());
-}
+// Landscape-ish hero (shorter than a square) — see hero's aspectRatio below.
+const HERO_ASPECT_RATIO = 1.15;
+const HEADER_BUTTON_ZONE = 56;
 
 export function BusinessProfileScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const { businessId } = useLocalSearchParams<{ businessId: string }>();
   const [profile, setProfile] = useState<BusinessProfile | null>(null);
+  const [pageIndex, setPageIndex] = useState(0);
+  const scrollY = useSharedValue(0);
+
+  const recordView = useRecentlyViewedStore((s) => s.recordView);
+  const isFavorite = useFavoritesStore((s) => s.isFavorite(businessId));
+  const toggleFavorite = useFavoritesStore((s) => s.toggleFavorite);
+
+  const cartBusinessId = useCartStore((s) => s.businessId);
+  const cartQuantities = useCartStore((s) => s.quantities);
+  const startBookingDraft = useBookingDraftStore((s) => s.startDraft);
 
   useEffect(() => {
     getBusinessProfile(businessId).then(setProfile);
+    recordView(businessId);
   }, [businessId]);
 
-  const handleBook = () => {
-    router.push({
-      pathname: '/success',
-      params: {
-        title: 'Booking coming soon',
-        subtitle: "We're still building the booking flow — check back shortly.",
-        ctaLabel: 'Done',
-        nextRoute: '/discover',
-      },
-    });
+  const handleShare = () => {
+    if (!profile) return;
+    Share.share({ message: `Check out ${profile.name} on Trimmy` }).catch(() => {});
+  };
+
+  const handlePhotoScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    setPageIndex(Math.round(event.nativeEvent.contentOffset.x / width));
+  };
+
+  const scrollHandler = useAnimatedScrollHandler((event) => {
+    scrollY.value = event.contentOffset.y;
+  });
+
+  // Fade the fixed header's white background in as the hero scrolls out of
+  // view, back to transparent when scrolled to the top.
+  const heroHeight = width / HERO_ASPECT_RATIO;
+  const headerFadeEnd = Math.max(heroHeight - insets.top - HEADER_BUTTON_ZONE, 1);
+  const headerBackgroundStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [0, headerFadeEnd], [0, 1], Extrapolation.CLAMP),
+  }));
+
+  const goToServices = () => {
+    router.push(`/business/${businessId}/services`);
+  };
+
+  // Cart already has services picked for this business — skip straight into
+  // the booking flow instead of back through the picker (Edit on the
+  // services card / Review step still route back to it if needed).
+  const goToBooking = () => {
+    if (!profile) return;
+    const lines: BookingServiceLine[] = profile.services
+      .filter((service) => (cartQuantities[service.serviceId] ?? 0) > 0)
+      .map((service) => ({
+        serviceId: service.serviceId,
+        name: service.name,
+        durationMinutes: service.durationMinutes,
+        price: service.price,
+        quantity: cartQuantities[service.serviceId],
+      }));
+    startBookingDraft(businessId, profile.name, lines);
+    router.push(`/business/${businessId}/book/staff`);
   };
 
   if (!profile) {
@@ -52,72 +120,144 @@ export function BusinessProfileScreen() {
     );
   }
 
+  const cartIsForThisBusiness = cartBusinessId === businessId;
+  const selectedCount = cartIsForThisBusiness
+    ? Object.values(cartQuantities).reduce((sum, q) => sum + q, 0)
+    : 0;
+  const cartTotal = cartIsForThisBusiness
+    ? profile.services.reduce(
+        (sum, service) => sum + (cartQuantities[service.serviceId] ?? 0) * service.price.amount,
+        0,
+      )
+    : 0;
+
   return (
-    <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <BackButton onPress={() => router.back()} />
+    <View style={styles.flex}>
+      <Animated.ScrollView
+        bounces={false}
+        contentContainerStyle={styles.scrollContent}
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+      >
+        <View style={styles.hero}>
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={handlePhotoScrollEnd}
+            style={styles.heroScroll}
+          >
+            {profile.photos.map((url) => (
+              <Image key={url} source={{ uri: url }} style={[styles.heroImage, { width }]} />
+            ))}
+          </ScrollView>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoRow}>
-          {profile.photos.map((url) => (
-            <Image key={url} source={{ uri: url }} style={styles.photo} />
-          ))}
-        </ScrollView>
-
-        <Text style={styles.name}>{profile.name}</Text>
-        <Text style={styles.meta}>{profile.categories.map(categoryLabel).join(', ')}</Text>
-        <Text style={styles.meta}>
-          ★ {profile.rating.toFixed(1)} ({profile.reviewCount} reviews) · {profile.address}
-        </Text>
-
-        <Text style={styles.sectionTitle}>About</Text>
-        <Text style={styles.aboutText}>{profile.description}</Text>
-
-        <View style={styles.policyCard}>
-          <Text style={styles.policyText}>{profile.depositSummary}</Text>
-          <Text style={styles.policyText}>{profile.cancellationSummary}</Text>
+          {profile.photos.length > 1 ? (
+            <View style={styles.pageBadge}>
+              <Text style={styles.pageBadgeText}>
+                {pageIndex + 1}/{profile.photos.length}
+              </Text>
+            </View>
+          ) : null}
         </View>
 
-        <Text style={styles.sectionTitle}>Services</Text>
-        {groupServicesByCategory(profile.services).map(([categoryName, services]) => (
-          <View key={categoryName} style={styles.serviceGroup}>
-            <Text style={styles.serviceGroupTitle}>{categoryName}</Text>
-            {services.map((service) => (
-              <View key={service.serviceId} style={styles.serviceRow}>
-                <View style={styles.serviceInfo}>
-                  <Text style={styles.serviceName}>{service.name}</Text>
-                  <Text style={styles.serviceMeta}>{service.durationMinutes} min</Text>
+        <View style={styles.sheet}>
+          <Text style={styles.name}>{profile.name}</Text>
+          <Text style={styles.meta}>{profile.categories.map(categoryLabel).join(', ')}</Text>
+          <View style={styles.ratingRow}>
+            <RatingLabel rating={profile.rating} textStyle={styles.meta} />
+            <Text style={styles.meta}>({profile.reviewCount} reviews)</Text>
+          </View>
+
+          <View style={styles.locationRow}>
+            <LocationPinIcon size={14} color={colors.text.secondary} />
+            <Text style={styles.locationText} numberOfLines={1}>
+              {profile.address}
+            </Text>
+          </View>
+
+          <Text style={styles.sectionTitle}>About</Text>
+          <Text style={styles.aboutText}>{profile.description}</Text>
+
+          <View style={styles.policyCard}>
+            <Text style={styles.policyText}>{profile.depositSummary}</Text>
+            <Text style={styles.policyText}>{profile.cancellationSummary}</Text>
+          </View>
+
+          <Text style={styles.sectionTitle}>Services</Text>
+          <Pressable style={styles.servicesCard} onPress={goToServices}>
+            <View>
+              <Text style={styles.servicesCardTitle}>{profile.services.length} services available</Text>
+              {selectedCount > 0 ? (
+                <Text style={styles.servicesCardSubtitle}>
+                  {selectedCount} selected · KSh {cartTotal}
+                </Text>
+              ) : (
+                <Text style={styles.servicesCardSubtitle}>
+                  {groupServicesByCategory(profile.services).length} categories
+                </Text>
+              )}
+            </View>
+            <View style={styles.servicesCardButton}>
+              <Text style={styles.servicesCardButtonText}>{selectedCount > 0 ? 'Edit' : 'See all'}</Text>
+            </View>
+          </Pressable>
+
+          <Text style={styles.sectionTitle}>Staff</Text>
+          {profile.staff.map((member) => (
+            <View key={member.staffId} style={styles.staffRow}>
+              <Avatar name={member.name} uri={member.avatarUrl} size={44} />
+              <View style={styles.staffInfo}>
+                <Text style={styles.staffName}>{member.name}</Text>
+                <View style={styles.ratingRow}>
+                  <Text style={styles.staffMeta}>{member.role} ·</Text>
+                  <RatingLabel rating={member.rating} textStyle={styles.staffMeta} />
                 </View>
-                <Text style={styles.servicePrice}>KSh {service.price.amount}</Text>
               </View>
-            ))}
-          </View>
-        ))}
+            </View>
+          ))}
 
-        <Text style={styles.sectionTitle}>Staff</Text>
-        {profile.staff.map((member) => (
-          <View key={member.staffId} style={styles.staffRow}>
-            <Text style={styles.staffName}>{member.name}</Text>
-            <Text style={styles.staffMeta}>
-              {member.role} · ★ {member.rating.toFixed(1)}
-            </Text>
-          </View>
-        ))}
+          <Text style={styles.sectionTitle}>Reviews</Text>
+          {profile.reviews.map((review) => (
+            <View key={review.reviewId} style={styles.reviewCard}>
+              <View style={styles.ratingRow}>
+                <Text style={styles.reviewAuthor}>{review.authorName} ·</Text>
+                <RatingLabel rating={review.rating} textStyle={styles.reviewAuthor} />
+              </View>
+              <Text style={styles.reviewText}>{review.text}</Text>
+            </View>
+          ))}
+        </View>
+      </Animated.ScrollView>
 
-        <Text style={styles.sectionTitle}>Reviews</Text>
-        {profile.reviews.map((review) => (
-          <View key={review.reviewId} style={styles.reviewCard}>
-            <Text style={styles.reviewAuthor}>
-              {review.authorName} · ★ {review.rating}
-            </Text>
-            <Text style={styles.reviewText}>{review.text}</Text>
+      <View style={styles.fixedHeader}>
+        <Animated.View style={[styles.fixedHeaderBg, headerBackgroundStyle]} />
+        <View style={[styles.heroControlsRow, { paddingTop: insets.top + spacing.sm }]}>
+          <Pressable style={styles.circleButton} onPress={() => router.back()} hitSlop={8}>
+            <ChevronLeftIcon size={18} />
+          </Pressable>
+          <View style={styles.heroControlsRight}>
+            <Pressable style={styles.circleButton} onPress={handleShare} hitSlop={8}>
+              <ShareIcon size={18} />
+            </Pressable>
+            <Pressable style={styles.circleButton} onPress={() => toggleFavorite(businessId)} hitSlop={8}>
+              <HeartIcon size={18} color={isFavorite ? colors.brand.pink : colors.text.primary} filled={isFavorite} />
+            </Pressable>
           </View>
-        ))}
-      </ScrollView>
-
-      <View style={styles.footer}>
-        <Button label={`Book with ${profile.name}`} onPress={handleBook} />
+        </View>
       </View>
-    </SafeAreaView>
+
+      <SafeAreaView edges={['bottom']} style={styles.footer}>
+        {selectedCount > 0 ? (
+          <Button
+            label={`Continue · ${selectedCount} service${selectedCount > 1 ? 's' : ''} · KSh ${cartTotal}`}
+            onPress={goToBooking}
+          />
+        ) : (
+          <Button label="See all services" onPress={goToServices} />
+        )}
+      </SafeAreaView>
+    </View>
   );
 }
 
@@ -129,21 +269,76 @@ const styles = StyleSheet.create({
   loading: {
     flex: 1,
   },
-  content: {
-    paddingHorizontal: spacing.xxl,
-    paddingTop: spacing.md,
+  scrollContent: {
     paddingBottom: spacing.xxl,
-    gap: spacing.md,
   },
-  photoRow: {
-    marginTop: spacing.md,
-  },
-  photo: {
-    width: 260,
-    height: 180,
-    borderRadius: radii.lg,
-    marginRight: spacing.sm,
+  hero: {
+    width: '100%',
+    aspectRatio: HERO_ASPECT_RATIO,
     backgroundColor: colors.background.tertiary,
+  },
+  heroScroll: {
+    flex: 1,
+  },
+  heroImage: {
+    height: '100%',
+  },
+  fixedHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
+  fixedHeaderBg: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.background.primary,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border.subtle,
+  },
+  heroControlsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
+  },
+  heroControlsRight: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  circleButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pageBadge: {
+    position: 'absolute',
+    bottom: spacing.md,
+    right: spacing.md,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.pill,
+  },
+  pageBadgeText: {
+    ...typography.label,
+    color: colors.white,
+  },
+  sheet: {
+    marginTop: -spacing.xl,
+    borderTopLeftRadius: radii.xxl,
+    borderTopRightRadius: radii.xxl,
+    backgroundColor: colors.background.primary,
+    paddingHorizontal: spacing.xxl,
+    paddingTop: spacing.xl,
+    gap: spacing.md,
   },
   name: {
     ...typography.h1,
@@ -152,6 +347,21 @@ const styles = StyleSheet.create({
   meta: {
     ...typography.body,
     color: colors.text.secondary,
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  locationText: {
+    ...typography.body,
+    color: colors.text.secondary,
+    flex: 1,
   },
   policyCard: {
     borderRadius: radii.lg,
@@ -173,38 +383,42 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.text.secondary,
   },
-  serviceGroup: {
-    gap: spacing.xs,
-  },
-  serviceGroupTitle: {
-    ...typography.label,
-    color: colors.text.secondary,
-  },
-  serviceRow: {
+  servicesCard: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: spacing.xs,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border.subtle,
+    justifyContent: 'space-between',
+    borderRadius: radii.lg,
+    backgroundColor: colors.background.secondary,
+    padding: spacing.lg,
+    ...shadows.card,
   },
-  serviceInfo: {
-    flex: 1,
-  },
-  serviceName: {
+  servicesCardTitle: {
     ...typography.bodyMedium,
     color: colors.text.primary,
   },
-  serviceMeta: {
+  servicesCardSubtitle: {
     ...typography.caption,
     color: colors.text.secondary,
+    marginTop: 2,
   },
-  servicePrice: {
-    ...typography.bodyMedium,
-    color: colors.text.primary,
+  servicesCardButton: {
+    backgroundColor: colors.button.primaryBg,
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  servicesCardButtonText: {
+    ...typography.label,
+    color: colors.button.primaryText,
   },
   staffRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
     paddingVertical: spacing.xs,
+  },
+  staffInfo: {
+    flex: 1,
   },
   staffName: {
     ...typography.bodyMedium,
@@ -230,8 +444,9 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingHorizontal: spacing.xxl,
-    paddingVertical: spacing.md,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.border.subtle,
+    backgroundColor: colors.background.primary,
   },
 });

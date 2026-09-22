@@ -1,16 +1,21 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { HeartIcon } from './icons/HeartIcon';
+import { RatingLabel } from './RatingLabel';
 import { useFavoritesStore } from '../store/useFavoritesStore';
 import { colors, radii, shadows, spacing, typography } from '../theme';
 import type { BusinessSummary } from '../types/discovery';
 
 interface BusinessResultCardProps {
   business: BusinessSummary;
-  badge?: string;
   onPress: () => void;
 }
 
-export function BusinessResultCard({ business, badge, onPress }: BusinessResultCardProps) {
+// Flexible width (fills whatever grid cell it's placed in — see
+// ExploreScreen/WishlistScreen's numColumns={2} grids), shorter landscape
+// image (reduced height, not a square), minimal text underneath (name,
+// rating + distance, price) for a clean look rather than every field
+// crammed in.
+export function BusinessResultCard({ business, onPress }: BusinessResultCardProps) {
   const isFavorite = useFavoritesStore((s) => s.isFavorite(business.businessId));
   const toggleFavorite = useFavoritesStore((s) => s.toggleFavorite);
 
@@ -18,11 +23,6 @@ export function BusinessResultCard({ business, badge, onPress }: BusinessResultC
     <Pressable style={styles.card} onPress={onPress}>
       <View style={styles.thumbWrapper}>
         <Image source={{ uri: business.thumbnailUrl }} style={styles.thumb} />
-        {badge ? (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{badge}</Text>
-          </View>
-        ) : null}
         <Pressable
           style={styles.favoriteButton}
           onPress={() => toggleFavorite(business.businessId)}
@@ -35,26 +35,25 @@ export function BusinessResultCard({ business, badge, onPress }: BusinessResultC
       <Text style={styles.name} numberOfLines={1}>
         {business.name}
       </Text>
-      <Text style={styles.meta} numberOfLines={1}>
-        {business.distanceKm.toFixed(1)} km · {business.address}
+      <Text style={styles.address} numberOfLines={1}>
+        {business.address}
       </Text>
-      <View style={styles.footer}>
-        <Text style={styles.rating}>
-          ★ {business.rating.toFixed(1)} ({business.reviewCount})
-        </Text>
-        <Text style={styles.price}>From KSh {business.startingPrice.amount}</Text>
+      <View style={styles.metaRow}>
+        <RatingLabel rating={business.rating} size={11} textStyle={styles.metaText} />
+        <Text style={styles.metaText}>· {business.distanceKm.toFixed(1)} km</Text>
       </View>
+      <Text style={styles.price}>From KSh {business.startingPrice.amount}</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    width: 220,
+    flex: 1,
   },
   thumbWrapper: {
-    width: 220,
-    height: 150,
+    width: '100%',
+    aspectRatio: 1.3,
     borderRadius: radii.lg,
     overflow: 'hidden',
     backgroundColor: colors.background.tertiary,
@@ -63,19 +62,6 @@ const styles = StyleSheet.create({
   thumb: {
     width: '100%',
     height: '100%',
-  },
-  badge: {
-    position: 'absolute',
-    top: spacing.sm,
-    left: spacing.sm,
-    backgroundColor: colors.white,
-    borderRadius: radii.pill,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-  },
-  badgeText: {
-    ...typography.caption,
-    color: colors.text.primary,
   },
   favoriteButton: {
     position: 'absolute',
@@ -89,26 +75,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   name: {
-    ...typography.bodyMedium,
+    ...typography.label,
     color: colors.text.primary,
     marginTop: spacing.sm,
   },
-  meta: {
+  address: {
     ...typography.caption,
     color: colors.text.secondary,
     marginTop: 2,
   },
-  footer: {
+  metaRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: spacing.xs,
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
   },
-  rating: {
+  metaText: {
     ...typography.caption,
-    color: colors.text.primary,
+    color: colors.text.secondary,
   },
   price: {
-    ...typography.label,
+    ...typography.caption,
     color: colors.brand.purple,
+    marginTop: 2,
   },
 });

@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { AuthScreenLayout } from '../../components/AuthScreenLayout';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
+import { CheckmarkIcon } from '../../components/icons/CheckmarkIcon';
 import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
 import { KENYA_BANKS, KenyaBank } from '../../data/kenyaBanks';
 import { colors, radii, spacing, typography } from '../../theme';
@@ -174,7 +175,7 @@ function BankPickerSheet({ visible, selected, onSelect, onClose }: BankPickerShe
                 onPress={() => onSelect(bank)}
               >
                 <Text style={styles.bankRowText}>{bank.name}</Text>
-                {selected?.shortcode === bank.shortcode ? <Text style={styles.bankRowCheck}>✓</Text> : null}
+                {selected?.shortcode === bank.shortcode ? <CheckmarkIcon size={18} /> : null}
               </Pressable>
             ))}
           </ScrollView>
@@ -260,10 +261,6 @@ const styles = StyleSheet.create({
   bankRowText: {
     ...typography.bodyMedium,
     color: colors.text.primary,
-  },
-  bankRowCheck: {
-    ...typography.bodyMedium,
-    color: colors.brand.purple,
   },
   error: {
     ...typography.caption,

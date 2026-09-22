@@ -2,6 +2,80 @@
   "domain": "booking",
   "baseUrl": "/api/v1",
   "auth": "Requires a Bearer token for a user with role `customer`, unless noted.",
-  "note": "Stub — fill in when Phase 3 (Booking flow) starts. See business-setup.json for the expected format.",
-  "endpoints": []
+  "note": "Availability (getUpcomingDays/getTimeSlots in src/utils/availability.ts) is computed client-side from the business's workingHours only — there's no server-side conflict check against existing bookings yet, since this is the first phase to create bookings at all. A real implementation should move slot generation server-side once it has bookings to check against. STK push is fully mocked (confirm-booking-payment below) — no real M-Pesa integration exists yet; that's still an open decision (sandbox vs. provider).",
+  "endpoints": [
+    {
+      "id": "create-booking",
+      "screen": "Review & Policies",
+      "story": "C2",
+      "method": "POST",
+      "path": "/bookings",
+      "description": "Creates a booking once the customer confirms service(s), staff, and date/time on the Review & Policies screen. Returns status=confirmed immediately if the business requires no deposit; otherwise status=pending_payment until confirm-booking-payment (or a real STK push webhook) settles it.",
+      "auth": "customer",
+      "request": {
+        "businessId": "biz_01hxyz",
+        "businessName": "Glow Beauty Lounge",
+        "staffId": "staff_01a1",
+        "staffName": "Jane Wanjiru",
+        "services": [
+          {
+            "serviceId": "svc_01a1",
+            "name": "Classic Haircut",
+            "durationMinutes": 45,
+            "price": { "amount": 800, "currency": "KES" },
+            "quantity": 1
+          }
+        ],
+        "date": "2026-09-24",
+        "time": "14:30",
+        "durationMinutes": 45,
+        "totalAmount": { "amount": 800, "currency": "KES" },
+        "depositAmount": null
+      },
+      "response": {
+        "bookingId": "booking_01hxyz",
+        "businessId": "biz_01hxyz",
+        "businessName": "Glow Beauty Lounge",
+        "staffId": "staff_01a1",
+        "staffName": "Jane Wanjiru",
+        "services": [
+          {
+            "serviceId": "svc_01a1",
+            "name": "Classic Haircut",
+            "durationMinutes": 45,
+            "price": { "amount": 800, "currency": "KES" },
+            "quantity": 1
+          }
+        ],
+        "date": "2026-09-24",
+        "time": "14:30",
+        "durationMinutes": 45,
+        "totalAmount": { "amount": 800, "currency": "KES" },
+        "depositAmount": null,
+        "status": "confirmed",
+        "createdAt": "2026-09-22T10:00:00Z"
+      },
+      "errors": [
+        { "status": 409, "code": "slot_unavailable", "message": "The selected time is no longer available" }
+      ]
+    },
+    {
+      "id": "confirm-booking-payment",
+      "screen": "STK Push Pending",
+      "story": "C2",
+      "method": "POST",
+      "path": "/bookings/{bookingId}/confirm-payment",
+      "description": "Sends the M-Pesa STK push for a pending_payment booking's deposit and returns once it settles. A real implementation is async (STK push, then a callback/webhook updates the booking; this endpoint would need to either poll or the client would subscribe to a status endpoint) — the mock layer (src/api/booking.ts#confirmBookingPayment) simplifies this to a single request that resolves after a fixed delay, always succeeding.",
+      "auth": "customer",
+      "request": null,
+      "response": {
+        "bookingId": "booking_01hxyz",
+        "status": "confirmed"
+      },
+      "errors": [
+        { "status": 402, "code": "payment_failed", "message": "The M-Pesa payment was not completed" },
+        { "status": 408, "code": "payment_timeout", "message": "No payment confirmation received in time" }
+      ]
+    }
+  ]
 }

@@ -4,7 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserIcon } from '../../components/icons/UserIcon';
-import { HeartIcon } from '../../components/icons/HeartIcon';
 import { CalendarIcon } from '../../components/icons/CalendarIcon';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 
@@ -29,7 +28,6 @@ export function ProfileScreen() {
 
   const accountRows: Row[] = [
     { key: 'profile', label: 'Profile', icon: <UserIcon size={20} /> },
-    { key: 'favourites', label: 'Favourites', icon: <HeartIcon size={20} />, onPress: () => router.push('/favorites') },
     { key: 'messages', label: 'Messages' },
     { key: 'appointments', label: 'My appointments', icon: <CalendarIcon size={20} />, onPress: () => router.push('/activity') },
     { key: 'forms', label: 'Forms' },
@@ -42,7 +40,7 @@ export function ProfileScreen() {
   ];
 
   return (
-    <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.flex} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>Profile</Text>
         <Text style={styles.name}>{displayName}</Text>
@@ -106,6 +104,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.xxl,
     paddingTop: spacing.xl,
+    paddingBottom: spacing.xxl,
     gap: spacing.lg,
   },
   group: {

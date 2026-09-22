@@ -2,14 +2,13 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { BackButton } from '../../components/BackButton';
 import { BusinessResultCard } from '../../components/BusinessResultCard';
 import { searchBusinesses } from '../../api/discovery';
 import { useFavoritesStore } from '../../store/useFavoritesStore';
 import { colors, spacing, typography } from '../../theme';
 import type { BusinessSummary } from '../../types/discovery';
 
-export function FavoritesScreen() {
+export function WishlistScreen() {
   const router = useRouter();
   const businessIds = useFavoritesStore((s) => s.businessIds);
   const [all, setAll] = useState<BusinessSummary[] | null>(null);
@@ -21,10 +20,9 @@ export function FavoritesScreen() {
   const favorites = all?.filter((business) => businessIds.has(business.businessId)) ?? [];
 
   return (
-    <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.flex} edges={['top']}>
       <View style={styles.header}>
-        <BackButton onPress={() => router.back()} />
-        <Text style={styles.title}>Favourites</Text>
+        <Text style={styles.title}>Wishlist</Text>
       </View>
 
       {all === null ? (
@@ -57,7 +55,6 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: spacing.xxl,
     paddingTop: spacing.md,
-    gap: spacing.md,
   },
   title: {
     ...typography.h1,

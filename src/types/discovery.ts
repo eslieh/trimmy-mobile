@@ -1,4 +1,4 @@
-import type { BusinessCategory, Money } from './business';
+import type { BusinessCategory, BusinessPolicies, Money, WeeklyHours } from './business';
 
 // Card shown in "near me" results / search results — a lighter projection
 // of a business than the full profile, per reference/customer.md C1.
@@ -27,6 +27,7 @@ export type BusinessProfileStaffMember = {
   name: string;
   role: string;
   rating: number;
+  avatarUrl?: string;
 };
 
 export type BusinessProfileReview = {
@@ -52,6 +53,12 @@ export type BusinessProfile = {
   lng: number;
   depositSummary: string;
   cancellationSummary: string;
+  // Structured form of the two summaries above — the plain-language strings
+  // are what the profile page shows, this is what the booking flow computes
+  // real deposit amounts and available time slots from (see
+  // src/utils/availability.ts). A real backend would return both.
+  workingHours: WeeklyHours;
+  policies: BusinessPolicies;
   services: BusinessProfileService[];
   staff: BusinessProfileStaffMember[];
   reviews: BusinessProfileReview[];

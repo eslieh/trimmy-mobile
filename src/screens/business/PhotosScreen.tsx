@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { AuthScreenLayout } from '../../components/AuthScreenLayout';
 import { Button } from '../../components/Button';
+import { CloseIcon } from '../../components/icons/CloseIcon';
 import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
 import { colors, radii, spacing, typography } from '../../theme';
 
@@ -66,7 +67,7 @@ export function PhotosScreen() {
               </View>
             ) : null}
             <Pressable style={styles.removeButton} onPress={() => removePhotoDraft(photo.localId)} hitSlop={8}>
-              <Text style={styles.removeButtonText}>×</Text>
+              <CloseIcon size={14} color={colors.white} />
             </Pressable>
           </View>
         ))}
@@ -118,11 +119,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.text.primary,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  removeButtonText: {
-    color: colors.white,
-    fontSize: 16,
-    lineHeight: 18,
   },
   addTile: {
     width: THUMB_SIZE,

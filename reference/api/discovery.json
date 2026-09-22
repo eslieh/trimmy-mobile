@@ -43,7 +43,7 @@
       "story": "C1",
       "method": "GET",
       "path": "/businesses/{businessId}/profile",
-      "description": "Fetches the full customer-facing profile for a published business: photos, services grouped by the owner's own service categories, staff, reviews, and policy summaries (plain-language, derived from BusinessPolicies — see business-setup.json#set-policies).",
+      "description": "Fetches the full customer-facing profile for a published business: photos, services grouped by the owner's own service categories, staff, reviews, plain-language policy summaries, and the structured workingHours/policies the booking flow (see booking.json) uses to compute available time slots and deposit amounts.",
       "auth": "public",
       "request": null,
       "response": {
@@ -62,6 +62,25 @@
         "lng": 36.7833,
         "depositSummary": "No deposit required",
         "cancellationSummary": "Free cancellation up to 24h before, 50% fee after",
+        "workingHours": {
+          "monday": { "open": "09:00", "close": "19:00" },
+          "tuesday": { "open": "09:00", "close": "19:00" },
+          "wednesday": { "open": "09:00", "close": "19:00" },
+          "thursday": { "open": "09:00", "close": "19:00" },
+          "friday": { "open": "09:00", "close": "19:00" },
+          "saturday": { "open": "09:00", "close": "19:00" },
+          "sunday": null
+        },
+        "policies": {
+          "deposit": {
+            "required": false,
+            "type": "fixed",
+            "amount": { "amount": 0, "currency": "KES" },
+            "appliesTo": "all_services"
+          },
+          "cancellation": { "freeCancellationHours": 24, "lateFeePercent": 50 },
+          "noShow": { "feePercent": 100 }
+        },
         "services": [
           {
             "serviceId": "svc_01a1",
