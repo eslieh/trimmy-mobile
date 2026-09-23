@@ -1,6 +1,6 @@
 import { apiRequest } from './client';
 import { mockDelay } from './mock/delay';
-import { USE_MOCK_API } from '../config/env';
+import { USE_MOCK_BOOKING, USE_MOCK_FULFILLMENT } from '../config/env';
 import type { Booking, BookingServiceLine } from '../types/booking';
 import type { Money } from '../types/business';
 
@@ -22,7 +22,7 @@ export type CreateBookingInput = {
 let mockBookingSequence = 0;
 
 export function createBooking(input: CreateBookingInput): Promise<Booking> {
-  if (USE_MOCK_API) {
+  if (USE_MOCK_BOOKING) {
     mockBookingSequence += 1;
     return mockDelay<Booking>({
       ...input,
@@ -63,7 +63,7 @@ export function createWalkInBooking(input: CreateOwnerBookingInput): Promise<Boo
   const date = now.toISOString().slice(0, 10);
   const time = now.toTimeString().slice(0, 5);
 
-  if (USE_MOCK_API) {
+  if (USE_MOCK_FULFILLMENT) {
     mockBookingSequence += 1;
     return mockDelay<Booking>({
       ...input,
@@ -97,7 +97,7 @@ export type CreateScheduledBookingInput = CreateOwnerBookingInput & {
 // 'in_progress' — the owner still has to check the customer in when they
 // arrive.
 export function createScheduledBooking(input: CreateScheduledBookingInput): Promise<Booking> {
-  if (USE_MOCK_API) {
+  if (USE_MOCK_FULFILLMENT) {
     mockBookingSequence += 1;
     return mockDelay<Booking>({
       ...input,
@@ -123,7 +123,7 @@ export function createScheduledBooking(input: CreateScheduledBookingInput): Prom
 // push. Mock-only quirk: takes the full booking rather than just an id,
 // same reason as confirmBookingPayment below.
 export function chargeBookingPayment(booking: Booking, customerPhone: string): Promise<Booking> {
-  if (USE_MOCK_API) {
+  if (USE_MOCK_FULFILLMENT) {
     return mockDelay<Booking>(
       { ...booking, customerPhone, paymentStatus: 'paid', paymentMethod: 'mpesa', status: 'completed' },
       2200,
@@ -142,7 +142,7 @@ export function chargeBookingPayment(booking: Booking, customerPhone: string): P
 // mockDelay so the UI's brief loading state is exercised the same way as
 // every other mock write.
 export function chargeBookingCash(booking: Booking): Promise<Booking> {
-  if (USE_MOCK_API) {
+  if (USE_MOCK_FULFILLMENT) {
     return mockDelay<Booking>({ ...booking, paymentStatus: 'paid', paymentMethod: 'cash', status: 'completed' });
   }
 
@@ -159,7 +159,7 @@ export function chargeBookingCash(booking: Booking): Promise<Booking> {
 // exists yet (see TASKS.md's open "M-Pesa integration decision"); this just
 // simulates the push settling successfully after a short delay.
 export function confirmBookingPayment(booking: Booking): Promise<Booking> {
-  if (USE_MOCK_API) {
+  if (USE_MOCK_BOOKING) {
     return mockDelay<Booking>({ ...booking, status: 'confirmed' }, 2200);
   }
 
@@ -173,7 +173,7 @@ export function confirmBookingPayment(booking: Booking): Promise<Booking> {
 // every other write in the app. Same mock-only "takes the full booking"
 // quirk as confirmBookingPayment/chargeBookingPayment above.
 export function updateBookingStatus(booking: Booking, status: Booking['status']): Promise<Booking> {
-  if (USE_MOCK_API) {
+  if (USE_MOCK_FULFILLMENT) {
     return mockDelay<Booking>({ ...booking, status });
   }
 

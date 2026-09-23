@@ -80,19 +80,15 @@ Stack: Expo `~57.0.22`, React Native `0.86.3`, React `19.2.3`, TypeScript `~6.0.
 
 ## Resolved decisions (cont'd)
 
-- **Backend** — custom REST API (not a BaaS). No backend fully implements our contracts yet, so
-  the app's API layer talks to a **mock adapter** returning the dummy data from
-  `reference/api/*.json`, switched via the flat `USE_MOCK_API` constant in `src/config/env.ts`
-  (**not** derived from whether an API URL is configured — `.env.development/.staging/.production`
-  always set a real URL now, so "URL present" stopped being a valid mock/real signal a while back).
-  **2026-09-22 incident**: someone flipped `USE_MOCK_API` to `false` assuming staging was fully
-  live; in practice dev builds load `.env.development`, which points at `http://localhost:8001`
-  (not staging) — every request failed with "Could not connect to the server." Reverted to `true`.
-  Before flipping again: (1) point `.env.development` at a URL that's actually reachable from
-  wherever you're testing (staging URL, or a real local server), and (2) confirm the backend
-  implements every endpoint in `reference/api/*.json` — Discovery's `search-businesses`/
-  `get-business-profile` especially are brand-new contracts from this session, unlikely to exist
-  on any real backend yet.
+- **Backend** — custom REST API (not a BaaS). Live against staging for auth, business setup
+  (incl. post-publish management), discovery, and team — `USE_MOCK_API = false` in
+  `src/config/env.ts`. Booking (`USE_MOCK_BOOKING`) and customer fulfillment
+  (`USE_MOCK_FULFILLMENT`) stay on mock until Phase 3/4 ship.
+  Env URLs are committed: `.env.development` / `.env.staging` →
+  `https://trimmy-staging.pesagrid.co.ke`, `.env.production` →
+  `https://trimmy-api.pesagrid.co.ke`. Never localhost (the 2026-09-22 incident —
+  `.env.development` pointed at `http://localhost:8001` and every request failed).
+  `apiRequest` attaches the Bearer token and maps backend `{error, message}` shapes.
 - **State management** — Zustand.
 - **Maps** — `react-native-maps`, with `expo-location` for "use current location" + reverse geocoding.
 - **Date/time picker** — `@react-native-community/datetimepicker`. Only Working Hours (open/close

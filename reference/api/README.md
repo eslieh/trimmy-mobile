@@ -1,11 +1,11 @@
 # API Contracts
 
-Machine-readable request/response contracts for the backend team, one JSON file per MVP phase
-(matching [../TASKS.md](../TASKS.md)). These are the app's *requirements* of the backend, not a
-description of a real backend that exists — the app itself has a mock API layer (`USE_MOCK_API` in
-`src/config/env.ts`; every `src/api/*.ts` function branches on it) that stands in for the real
-thing, so every value here is illustrative dummy data until a real backend implements these
-contracts and the app is pointed at it.
+Machine-readable request/response contracts for the backend (one JSON file per MVP phase,
+matching [../TASKS.md](../TASKS.md)). They were written as the app's *requirements* before the
+backend existed; `trimmy-server` now implements the phases marked **live** below (auth, business
+setup, discovery, team) on staging/prod. Domains still **drafted** only — booking, fulfillment —
+stay on the app's mock layer (`USE_MOCK_BOOKING` / `USE_MOCK_FULFILLMENT` in `src/config/env.ts`)
+until those phases ship.
 
 ## Why JSON, not prose
 
@@ -18,11 +18,11 @@ shape) — they should stay accurate enough to hand to a backend engineer as-is.
 
 | File | Phase | Status |
 |---|---|---|
-| [business-setup.json](business-setup.json) | Phase 1 — Business setup | drafted |
-| [discovery.json](discovery.json) | Phase 2 — Discovery | drafted (search — including all current filter params — + business profile, which embeds staff/reviews/policies rather than needing separate endpoints for those; favorites/wishlist not yet covered — no story id for it in customer.md yet) |
+| [business-setup.json](business-setup.json) | Phase 1 — Business setup | live on staging/prod (create/read/wizard writes + post-publish management: update-business, photos, services, categories, policies, payment, publish) |
+| [discovery.json](discovery.json) | Phase 2 — Discovery | live on staging/prod (search — including all current filter params — + business profile, which embeds staff/reviews/policies; favorites/wishlist not yet covered — no story id for it in customer.md yet) |
 | [booking.json](booking.json) | Phase 3 — Booking flow | drafted (create-booking + confirm-booking-payment; reschedule/cancel not covered — that's [C3](../customer.md#c3--manage-appointments), Post-MVP backlog) |
 | [fulfillment.json](fulfillment.json) | Phase 4 — Fulfillment view | drafted (solo owner session only — bookings list/create/status/charge, earnings summary, customers) |
-| [team.json](team.json) | Phase 5 — Team management | drafted (invitation endpoints only, needed by Get Started) |
+| [team.json](team.json) | Phase 5 — Team management | live on staging/prod (invitation endpoints only, needed by Get Started) |
 
 A "stub" file just holds the `domain` and an empty `endpoints` array — fill it in when that
 phase actually starts, using `business-setup.json` as the template.

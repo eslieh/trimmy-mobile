@@ -18,26 +18,63 @@ type RequestOptions = {
   body?: unknown;
 };
 
-// Fetch-based helper for endpoints the backend hasn't built yet (see
-// reference/api/*.json) — callers normally go through USE_MOCK_API instead
-// of calling this directly. Kept separate from apiClient below, which is
-// for the real, already-wired auth endpoints and needs the token-refresh
-// interceptors this doesn't.
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const headers: Record<string, string> = {};
+  const token = await tokenStorage.getAccessToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  return headers;
+}
+
+async function refreshAccessToken(): Promise<string | null> {
+  const refreshToken = await tokenStorage.getRefreshToken();
+  if (!refreshToken) return null;
+  try {
+    const response = await axios.post(`${config.apiBaseUrl}/api/v1/auth/refresh`, {
+      refresh_token: refreshToken,
+    });
+    await tokenStorage.setTokens(response.data.access_token, response.data.refresh_token);
+    return response.data.access_token;
+  } catch {
+    await tokenStorage.clearTokens();
+    return null;
+  }
+}
+
+// Fetch-based helper for non-axios calls (public discovery, multipart
+// uploads, booking/fulfillment). Attaches the Bearer token and mirrors
+// apiClient's one-shot refresh on 401.
 export async function apiRequest<TResponse>(path: string, options: RequestOptions = {}): Promise<TResponse> {
   // FormData (file uploads) must not be JSON-stringified, and fetch needs to
   // set its own multipart Content-Type (with boundary) — never set it manually.
   const isFormData = options.body instanceof FormData;
 
-  const response = await fetch(`${config.apiBaseUrl}${path}`, {
-    method: options.method ?? 'GET',
-    headers: isFormData ? undefined : { 'Content-Type': 'application/json' },
-    body: isFormData ? (options.body as FormData) : options.body ? JSON.stringify(options.body) : undefined,
-  });
+  const doFetch = async (): Promise<Response> => {
+    const headers: Record<string, string> = isFormData ? {} : { 'Content-Type': 'application/json' };
+    Object.assign(headers, await getAuthHeaders());
+
+    return fetch(`${config.apiBaseUrl}${path}`, {
+      method: options.method ?? 'GET',
+      headers,
+      body: isFormData ? (options.body as FormData) : options.body ? JSON.stringify(options.body) : undefined,
+    });
+  };
+
+  let response = await doFetch();
+
+  if (response.status === 401) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      response = await doFetch();
+    }
+  }
 
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new ApiError(response.status, data?.code ?? 'unknown_error', data?.message ?? 'Request failed');
+    // Backend error shape is { error, message } (see main.py exception handler).
+    throw new ApiError(response.status, data?.error ?? 'unknown_error', data?.message ?? 'Request failed');
   }
 
   return data as TResponse;
