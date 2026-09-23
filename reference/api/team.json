@@ -45,6 +45,75 @@
         { "status": 404, "code": "not_found", "message": "No pending invitation found for this id" },
         { "status": 409, "code": "already_responded", "message": "This invitation has already been accepted or declined" }
       ]
+    },
+    {
+      "id": "add-team-member",
+      "screen": "Invite team member (business-owner app, Team tab \"+\")",
+      "story": "O2",
+      "method": "POST",
+      "path": "/businesses/{businessId}/team/members",
+      "description": "Post-publish equivalent of business-setup.json#invite-team-member (onboarding's Team invite step), but collects the fuller field set that step never asked for: name, commission split, and working days. At least one of email/phone is required. An invitation IS the team roster record — there's no separate 'member' entity — so this returns the same shape list-my-invitations/get-business-profile-style team lists would use.",
+      "auth": "owner",
+      "request": {
+        "name": "Jane Doe",
+        "email": "jane@example.com",
+        "phone": "+254798765432",
+        "role": "staff",
+        "commissionPercent": 40,
+        "workingDays": null
+      },
+      "response": {
+        "invitationId": "inv_01xy",
+        "businessId": "biz_01hxyz",
+        "name": "Jane Doe",
+        "email": "jane@example.com",
+        "phone": "+254798765432",
+        "role": "staff",
+        "status": "pending",
+        "commissionPercent": 40,
+        "workingDays": null,
+        "sentAt": "2026-09-23T09:00:00Z"
+      },
+      "errors": [
+        { "status": 400, "code": "validation_error", "message": "email or phone is required" },
+        { "status": 409, "code": "already_invited", "message": "This email or phone already has a pending invitation" }
+      ]
+    },
+    {
+      "id": "update-team-member",
+      "screen": "Member Detail (business-owner app)",
+      "story": "O2",
+      "method": "PATCH",
+      "path": "/businesses/{businessId}/team/members/{invitationId}",
+      "description": "Edits a team member's commission split and/or working days. Works the same whether the member's invitation is still pending or already accepted — no separate 'accepted member' record exists to edit instead.",
+      "auth": "owner",
+      "request": {
+        "commissionPercent": 45,
+        "workingDays": ["monday", "tuesday", "wednesday", "thursday", "friday"]
+      },
+      "response": {
+        "invitationId": "inv_01xy",
+        "commissionPercent": 45,
+        "workingDays": ["monday", "tuesday", "wednesday", "thursday", "friday"]
+      },
+      "errors": [
+        { "status": 400, "code": "validation_error", "message": "commissionPercent must be between 0 and 100" },
+        { "status": 404, "code": "not_found", "message": "invitationId does not exist for this business" }
+      ]
+    },
+    {
+      "id": "remove-team-member",
+      "screen": "Member Detail (business-owner app)",
+      "story": "O2",
+      "method": "DELETE",
+      "path": "/businesses/{businessId}/team/members/{invitationId}",
+      "description": "Cancels a still-pending invitation, or removes an already-accepted member from the team — same request either way, the meaning just depends on the record's current status.",
+      "auth": "owner",
+      "request": null,
+      "response": null,
+      "errors": [
+        { "status": 404, "code": "not_found", "message": "invitationId does not exist for this business" }
+      ]
     }
   ]
 }

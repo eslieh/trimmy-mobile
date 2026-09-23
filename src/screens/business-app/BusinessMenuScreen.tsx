@@ -8,6 +8,11 @@ import { colors, radii, shadows, spacing, typography } from '../../theme';
 // Business-owner session's Menu tab — account-level only (name/email
 // header, "Switch to browsing", Log out). Business management now lives in
 // its own "Business" tab, not here — see TASKS.md for why it moved.
+// "Switch to staff view" only shows for team_mode 'team' businesses — Today/
+// Calendar are hidden tabs for those (see (business-app)/_layout.tsx), since
+// a team owner's default posture is oversight, not personally running the
+// daily schedule; this is how they deliberately step into that view anyway
+// (e.g. if they also work shifts themselves).
 export function BusinessMenuScreen() {
   const router = useRouter();
   const { user, logout } = useAuth();
@@ -28,6 +33,10 @@ export function BusinessMenuScreen() {
     router.replace('/');
   };
 
+  const handleSwitchToStaffView = () => {
+    router.push('/today');
+  };
+
   return (
     <SafeAreaView style={styles.flex} edges={['top']}>
       <View style={styles.header}>
@@ -40,6 +49,14 @@ export function BusinessMenuScreen() {
         <Pressable style={styles.switchButton} onPress={handleSwitchToBrowsing}>
           <Text style={styles.switchButtonText}>Switch to browsing</Text>
         </Pressable>
+
+        {ownedBusiness?.teamMode === 'team' ? (
+          <View style={styles.group}>
+            <Pressable style={[styles.row, styles.rowLast]} onPress={handleSwitchToStaffView}>
+              <Text style={styles.rowLabel}>Switch to staff view</Text>
+            </Pressable>
+          </View>
+        ) : null}
 
         <View style={styles.group}>
           <Pressable style={[styles.row, styles.rowLast]} onPress={handleLogout}>

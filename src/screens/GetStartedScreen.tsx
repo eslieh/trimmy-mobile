@@ -4,13 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Button } from '../components/Button';
 import { listMyInvitations, respondToInvitation } from '../api/team';
+import { TEAM_ROLE_LABEL } from '../utils/team';
 import { colors, radii, shadows, spacing, typography } from '../theme';
-import type { MyInvitation, TeamRole } from '../types/team';
-
-const ROLE_LABEL: Record<TeamRole, string> = {
-  front_desk: 'Front Desk',
-  staff: 'Staff',
-};
+import type { MyInvitation } from '../types/team';
 
 // Lands here right after signup. Resolves the "what kind of user is this"
 // question from reference/TASKS.md: check for a pending team invite first
@@ -48,7 +44,7 @@ export function GetStartedScreen() {
             <View key={invite.invitationId} style={styles.card}>
               <Text style={styles.cardTitle}>{invite.businessName}</Text>
               <Text style={styles.cardBody}>
-                Invited you to join as <Text style={styles.cardBodyStrong}>{ROLE_LABEL[invite.role]}</Text>
+                Invited you to join as <Text style={styles.cardBodyStrong}>{TEAM_ROLE_LABEL[invite.role]}</Text>
               </Text>
               <View style={styles.cardActions}>
                 <Button

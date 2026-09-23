@@ -53,11 +53,16 @@ export type CreateOwnerBookingInput = {
   services: BookingServiceLine[];
   durationMinutes: number;
   totalAmount: Money;
+  // staffId is a TeamInvitation's invitationId when assigned — this is how
+  // TeamMemberDetailScreen's earnings section knows which bookings are
+  // theirs. null = "Any available"/unassigned, same as online bookings.
+  staffId: string | null;
+  staffName: string;
 };
 
 // A walk-in is already physically present and being served, so it skips
 // pending_payment/confirmed entirely and starts life as in_progress — no
-// staff assignment, no deposit, no date/time picking (uses right now).
+// deposit, no date/time picking (uses right now).
 export function createWalkInBooking(input: CreateOwnerBookingInput): Promise<Booking> {
   const now = new Date();
   const date = now.toISOString().slice(0, 10);
@@ -68,8 +73,6 @@ export function createWalkInBooking(input: CreateOwnerBookingInput): Promise<Boo
     return mockDelay<Booking>({
       ...input,
       bookingId: `booking_mock_${mockBookingSequence}`,
-      staffId: null,
-      staffName: 'Walk-in',
       date,
       time,
       depositAmount: null,
@@ -102,8 +105,6 @@ export function createScheduledBooking(input: CreateScheduledBookingInput): Prom
     return mockDelay<Booking>({
       ...input,
       bookingId: `booking_mock_${mockBookingSequence}`,
-      staffId: null,
-      staffName: 'Any available',
       depositAmount: null,
       status: 'confirmed',
       source: 'walk_in',

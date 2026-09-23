@@ -253,6 +253,9 @@ export type InviteTeamMemberInput = {
 let mockInvitationSequence = 0;
 
 // See reference/api/business-setup.json#invite-team-member for the contract this implements.
+// Onboarding's Team invite step only ever collects email/phone/role — name/
+// commissionPercent/workingDays are filled in later from the post-publish
+// Team screen (see src/api/team.ts#addTeamMember for that fuller version).
 export function inviteTeamMember(businessId: string, input: InviteTeamMemberInput): Promise<TeamInvitation> {
   if (USE_MOCK_API) {
     mockInvitationSequence += 1;
@@ -263,6 +266,8 @@ export function inviteTeamMember(businessId: string, input: InviteTeamMemberInpu
       phone: input.phone,
       role: input.role,
       status: 'pending',
+      commissionPercent: 40,
+      workingDays: null,
       sentAt: new Date().toISOString(),
     });
   }

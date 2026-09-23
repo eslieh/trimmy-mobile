@@ -49,7 +49,7 @@
       "story": "S1",
       "method": "POST",
       "path": "/bookings/walk-in",
-      "description": "Records a walk-in: the customer is already physically present, so this skips pending_payment/confirmed entirely and starts life as in_progress — no staff assignment, no deposit, no date/time picking (server should stamp the current date/time, not trust a client-sent one). customerName falls back to \"Walk-in customer\" client-side if left blank; customerPhone/customerEmail are optional.",
+      "description": "Records a walk-in: the customer is already physically present, so this skips pending_payment/confirmed entirely and starts life as in_progress — no deposit, no date/time picking (server should stamp the current date/time, not trust a client-sent one). customerName falls back to \"Walk-in customer\" client-side if left blank; customerPhone/customerEmail are optional. staffId is optional too — null/omitted means unassigned (\"Any available\"/\"Walk-in\"); when present it's a team.json add-team-member invitationId, which is how a member's earnings view (see get-earnings-summary) knows which bookings are theirs.",
       "auth": "owner",
       "request": {
         "businessId": "biz_01hxyz",
@@ -61,7 +61,9 @@
           { "serviceId": "svc_01a1", "name": "Classic Haircut", "durationMinutes": 45, "price": { "amount": 800, "currency": "KES" }, "quantity": 1 }
         ],
         "durationMinutes": 45,
-        "totalAmount": { "amount": 800, "currency": "KES" }
+        "totalAmount": { "amount": 800, "currency": "KES" },
+        "staffId": null,
+        "staffName": "Walk-in"
       },
       "response": {
         "bookingId": "booking_01a2",
@@ -96,7 +98,7 @@
       "story": "S1",
       "method": "POST",
       "path": "/bookings/scheduled",
-      "description": "Owner manually books a future appointment on someone's behalf. Same shape as create-walk-in-booking plus date/time, and starts life as confirmed rather than in_progress — the owner still has to check the customer in (see update-booking-status) when they actually arrive. Uses source `walk_in` (owner-recorded) rather than a separate value, since the only real difference from a walk-in is the starting status.",
+      "description": "Owner manually books a future appointment on someone's behalf. Same shape as create-walk-in-booking (including the optional staffId assignment) plus date/time, and starts life as confirmed rather than in_progress — the owner still has to check the customer in (see update-booking-status) when they actually arrive. Uses source `walk_in` (owner-recorded) rather than a separate value, since the only real difference from a walk-in is the starting status.",
       "auth": "owner",
       "request": {
         "businessId": "biz_01hxyz",
@@ -110,7 +112,9 @@
         "durationMinutes": 45,
         "totalAmount": { "amount": 800, "currency": "KES" },
         "date": "2026-09-25",
-        "time": "14:00"
+        "time": "14:00",
+        "staffId": "inv_01xy",
+        "staffName": "Jane Wanjiru"
       },
       "response": {
         "bookingId": "booking_01a3",
@@ -190,7 +194,7 @@
       "story": "S2",
       "method": "GET",
       "path": "/businesses/{businessId}/earnings",
-      "description": "Revenue trend buckets, payment-method breakdown, per-service breakdown, and appointment counts for a date range (`from`/`to` query params, both 'YYYY-MM-DD'). Mirrors what src/utils/earnings.ts currently computes client-side by filtering every booking in memory — fine for mock data, not something a real backend should do at scale. `services` should include every service the business currently offers, not just ones with revenue (bookingsCount: 0 rows included) — EarningsScreen uses that to show what isn't selling, not just what is. Only bookings with paymentStatus 'paid' count toward any amount here.",
+      "description": "Revenue trend buckets, payment-method breakdown, per-service breakdown, and appointment counts for a date range (`from`/`to` query params, both 'YYYY-MM-DD'). Also takes an optional `staffId` query param — when present, scopes every number to bookings assigned to that team member (see create-walk-in-booking's staffId), which is what TeamMemberDetailScreen's earnings section needs; omitted, it's the whole-business view EarningsScreen shows. Mirrors what src/utils/earnings.ts currently computes client-side by filtering every booking in memory — fine for mock data, not something a real backend should do at scale. `services` should include every service the business currently offers, not just ones with revenue (bookingsCount: 0 rows included) — both screens use that to show what isn't selling, not just what is. Only bookings with paymentStatus 'paid' count toward any amount here.",
       "auth": "owner",
       "request": null,
       "response": {

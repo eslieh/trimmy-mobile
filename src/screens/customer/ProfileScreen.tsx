@@ -19,7 +19,6 @@ type Row = {
 export function ProfileScreen() {
   const router = useRouter();
   const { user, logout } = useAuth();
-  const ownedBusiness = useOwnedBusinessStore((s) => s.business);
   const setOwnedBusiness = useOwnedBusinessStore((s) => s.setOwnedBusiness);
   const setActiveMode = useOwnedBusinessStore((s) => s.setActiveMode);
 
@@ -31,17 +30,19 @@ export function ProfileScreen() {
 
   // The real path into business mode is publishing a business through the
   // full setup wizard (ReviewPublishScreen sets the owned business there).
-  // If nothing's been published yet this session, this seeds from the first
-  // mock discovery business instead (same businessId real customer bookings
+  // If nothing's been published yet this session, this seeds from a mock
+  // discovery business instead (same businessId real customer bookings
   // already use) — a stand-in for "you don't have a listing yet" rather
   // than a dead end, since there's no real backend to check against.
-  const handleSwitchToHosting = () => {
-    if (!ownedBusiness) {
-      setOwnedBusiness(seedOwnedBusinessForTesting(0, 'solo'));
-    }
+  // Two variants (solo/team) so both tab-bar shapes are reachable for
+  // testing — see (business-app)/_layout.tsx for how they differ (team
+  // hides Today/Calendar). Team lands on Earnings rather than Today, since
+  // Today isn't a visible tab in team mode.
+  const handleSwitchToHosting = (teamMode: 'solo' | 'team') => {
+    setOwnedBusiness(seedOwnedBusinessForTesting(teamMode === 'solo' ? 0 : 1, teamMode));
     setActiveMode('business');
     router.dismissAll();
-    router.replace('/today');
+    router.replace(teamMode === 'solo' ? '/today' : '/earnings');
   };
 
   const displayName = user ? [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Guest' : 'Guest';
@@ -68,9 +69,21 @@ export function ProfileScreen() {
       </View>
 
       <View style={styles.content}>
-        <Pressable style={styles.switchButton} onPress={handleSwitchToHosting}>
-          <Text style={styles.switchButtonText}>Switch to hosting</Text>
-        </Pressable>
+        <View style={styles.testingSection}>
+          <Text style={styles.testingLabel}>Testing: switch mode</Text>
+          <View style={styles.testingButtonRow}>
+            <Pressable style={styles.switchButton} onPress={() => handleSwitchToHosting('solo')}>
+              <Text style={styles.switchButtonText}>Business (solo)</Text>
+            </Pressable>
+            <Pressable style={styles.switchButton} onPress={() => handleSwitchToHosting('team')}>
+              <Text style={styles.switchButtonText}>Business (team)</Text>
+            </Pressable>
+          </View>
+          <Text style={styles.testingHint}>
+            Staff and Front Desk aren't built as their own experience yet — there's nothing distinct to
+            switch into for those roles.
+          </Text>
+        </View>
 
         <RowGroup rows={accountRows} />
         <RowGroup rows={supportRows} />
@@ -131,8 +144,20 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
     gap: spacing.lg,
   },
+  testingSection: {
+    gap: spacing.sm,
+  },
+  testingLabel: {
+    ...typography.label,
+    color: colors.text.tertiary,
+    textAlign: 'center',
+  },
+  testingButtonRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing.md,
+  },
   switchButton: {
-    alignSelf: 'center',
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.md,
     borderRadius: radii.pill,
@@ -142,6 +167,11 @@ const styles = StyleSheet.create({
   switchButtonText: {
     ...typography.button,
     color: colors.button.primaryText,
+  },
+  testingHint: {
+    ...typography.caption,
+    color: colors.text.tertiary,
+    textAlign: 'center',
   },
   group: {
     borderRadius: radii.lg,

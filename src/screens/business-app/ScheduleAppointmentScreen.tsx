@@ -7,6 +7,7 @@ import { BackButton } from '../../components/BackButton';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { PhoneInput } from '../../components/PhoneInput';
+import { StaffPicker } from '../../components/StaffPicker';
 import { CheckmarkIcon } from '../../components/icons/CheckmarkIcon';
 import { createScheduledBooking } from '../../api/booking';
 import { useBookingsStore } from '../../store/useBookingsStore';
@@ -50,8 +51,14 @@ export function ScheduleAppointmentScreen() {
   const business = useBusinessOnboardingStore((s) => s.business);
   const serviceCategories = useBusinessOnboardingStore((s) => s.serviceCategories);
   const services = useBusinessOnboardingStore((s) => s.services);
+  const invitations = useBusinessOnboardingStore((s) => s.invitations);
   const addBooking = useBookingsStore((s) => s.addBooking);
   const saveCustomer = useCustomersStore((s) => s.saveCustomer);
+
+  const staffMembers = useMemo(
+    () => invitations.filter((i) => i.role === 'staff' && i.status !== 'declined'),
+    [invitations],
+  );
 
   const presetParsedPhone = presetCustomerPhone ? parsePhoneNumberFromString(presetCustomerPhone) : undefined;
   const presetCountry =
@@ -65,6 +72,7 @@ export function ScheduleAppointmentScreen() {
   const [selectedDate, setSelectedDate] = useState<string | null>(presetDate ?? null);
   const [selectedTime, setSelectedTime] = useState<string | null>(presetTime ?? null);
   const [pickerLocked, setPickerLocked] = useState(Boolean(presetDate && presetTime));
+  const [assignedStaffId, setAssignedStaffId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const selectedServices = useMemo(
@@ -126,6 +134,8 @@ export function ScheduleAppointmentScreen() {
 
     await saveCustomer(ownedBusiness.businessId, { name: trimmedName, phone: customerPhone, email: customerEmail });
 
+    const assignedStaff = staffMembers.find((m) => m.invitationId === assignedStaffId);
+
     const booking = await createScheduledBooking({
       businessId: ownedBusiness.businessId,
       businessName: ownedBusiness.name,
@@ -137,6 +147,8 @@ export function ScheduleAppointmentScreen() {
       totalAmount: { amount: totalAmount, currency },
       date: selectedDate,
       time: selectedTime,
+      staffId: assignedStaff?.invitationId ?? null,
+      staffName: assignedStaff?.name ?? assignedStaff?.phone ?? assignedStaff?.email ?? 'Any available',
     });
 
     addBooking(booking);
@@ -257,6 +269,10 @@ export function ScheduleAppointmentScreen() {
             </>
           )}
         </View>
+
+        {staffMembers.length > 0 ? (
+          <StaffPicker label="Assign to" staffMembers={staffMembers} value={assignedStaffId} onChange={setAssignedStaffId} />
+        ) : null}
 
         <Text style={styles.sectionLabel}>Select services</Text>
 

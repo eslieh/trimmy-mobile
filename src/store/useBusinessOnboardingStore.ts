@@ -20,6 +20,13 @@ import {
   type UpdateBusinessInfoInput,
   type UpdateServiceInput,
 } from '../api/businessSetup';
+import {
+  addTeamMember,
+  removeTeamMember as removeTeamMemberApi,
+  updateTeamMember as updateTeamMemberApi,
+  type AddTeamMemberInput,
+  type UpdateTeamMemberInput,
+} from '../api/team';
 import type {
   Business,
   BusinessCategory,
@@ -128,6 +135,21 @@ type BusinessOnboardingState = {
 
   invitations: TeamInvitation[];
   sendTeamInvite: (input: InviteTeamMemberInput) => Promise<TeamInvitation>;
+
+  // Post-publish team management (TeamScreen/InviteTeamMemberScreen/
+  // TeamMemberDetailScreen) — distinct from sendTeamInvite above (onboarding's
+  // Team invite step): these collect the fuller field set (name, commission,
+  // working days) and call the API immediately, one action at a time,
+  // against already-live invitations, not a batched wizard submit.
+  addTeamMemberNow: (businessId: string, input: AddTeamMemberInput) => Promise<TeamInvitation>;
+  updateTeamMemberNow: (businessId: string, invitation: TeamInvitation, input: UpdateTeamMemberInput) => Promise<TeamInvitation>;
+  removeTeamMemberNow: (businessId: string, invitationId: string) => Promise<void>;
+  // Testing convenience, not real auth — simulates the invited person
+  // accepting via team.json's respond-to-invitation, which isn't reachable
+  // from this app since no Staff/Front Desk session exists yet. Pure local
+  // state, no API call, same pattern as WelcomeScreen's role-testing
+  // shortcuts.
+  markTeamMemberActiveForTesting: (invitationId: string) => void;
 
   submitReviewPublish: (publish: boolean) => Promise<Business>;
 };
@@ -426,6 +448,30 @@ export const useBusinessOnboardingStore = create<BusinessOnboardingState>((set, 
       set({ isSubmitting: false, error: err instanceof Error ? err.message : 'Something went wrong' });
       throw err;
     }
+  },
+
+  addTeamMemberNow: async (businessId, input) => {
+    const saved = await addTeamMember(businessId, input);
+    set((state) => ({ invitations: [...state.invitations, saved] }));
+    return saved;
+  },
+  updateTeamMemberNow: async (businessId, invitation, input) => {
+    const saved = await updateTeamMemberApi(businessId, invitation, input);
+    set((state) => ({
+      invitations: state.invitations.map((i) => (i.invitationId === saved.invitationId ? saved : i)),
+    }));
+    return saved;
+  },
+  removeTeamMemberNow: async (businessId, invitationId) => {
+    await removeTeamMemberApi(businessId, invitationId);
+    set((state) => ({ invitations: state.invitations.filter((i) => i.invitationId !== invitationId) }));
+  },
+  markTeamMemberActiveForTesting: (invitationId) => {
+    set((state) => ({
+      invitations: state.invitations.map((i) =>
+        i.invitationId === invitationId ? { ...i, status: 'accepted' } : i,
+      ),
+    }));
   },
 
   submitReviewPublish: async (publish) => {

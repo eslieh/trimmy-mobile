@@ -6,6 +6,7 @@ import { BackButton } from '../../components/BackButton';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { PhoneInput } from '../../components/PhoneInput';
+import { StaffPicker } from '../../components/StaffPicker';
 import { CheckmarkIcon } from '../../components/icons/CheckmarkIcon';
 import { createWalkInBooking } from '../../api/booking';
 import { useBookingsStore } from '../../store/useBookingsStore';
@@ -31,14 +32,21 @@ export function StartWalkInScreen() {
   const ownedBusiness = useOwnedBusinessStore((s) => s.business);
   const serviceCategories = useBusinessOnboardingStore((s) => s.serviceCategories);
   const services = useBusinessOnboardingStore((s) => s.services);
+  const invitations = useBusinessOnboardingStore((s) => s.invitations);
   const addBooking = useBookingsStore((s) => s.addBooking);
   const saveCustomer = useCustomersStore((s) => s.saveCustomer);
+
+  const staffMembers = useMemo(
+    () => invitations.filter((i) => i.role === 'staff' && i.status !== 'declined'),
+    [invitations],
+  );
 
   const [customerName, setCustomerName] = useState('');
   const [country, setCountry] = useState(DEFAULT_COUNTRY);
   const [rawPhone, setRawPhone] = useState('');
   const [email, setEmail] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [assignedStaffId, setAssignedStaffId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const selectedServices = useMemo(
@@ -89,6 +97,8 @@ export function StartWalkInScreen() {
       });
     }
 
+    const assignedStaff = staffMembers.find((m) => m.invitationId === assignedStaffId);
+
     const booking = await createWalkInBooking({
       businessId: ownedBusiness.businessId,
       businessName: ownedBusiness.name,
@@ -98,6 +108,8 @@ export function StartWalkInScreen() {
       services: serviceLines,
       durationMinutes: totalDuration,
       totalAmount: { amount: totalAmount, currency },
+      staffId: assignedStaff?.invitationId ?? null,
+      staffName: assignedStaff?.name ?? assignedStaff?.phone ?? assignedStaff?.email ?? 'Walk-in',
     });
 
     addBooking(booking);
@@ -138,6 +150,10 @@ export function StartWalkInScreen() {
           keyboardType="email-address"
           autoCapitalize="none"
         />
+
+        {staffMembers.length > 0 ? (
+          <StaffPicker label="Assign to" staffMembers={staffMembers} value={assignedStaffId} onChange={setAssignedStaffId} />
+        ) : null}
 
         <Text style={styles.sectionLabel}>Select services</Text>
 

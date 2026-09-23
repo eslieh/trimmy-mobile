@@ -878,10 +878,132 @@ same fulfillment domain and would otherwise inherit the inconsistency.
       formalizing it means editing the user-story docs first, not just adding an endpoint; decided
       that's a separate, bigger decision than this audit
 
-- [ ] **Team List** screen
-- [ ] **Invite Member** modal — phone/email + role picker
-- [ ] **Member Detail / Edit** — services performed, commission split, working schedule
-- [ ] Invite flow: SMS/link → first-login password/PIN + profile completion
+## Phase 5 — Team management ([O2](business-owner.md#o2--team-management))
+
+Admin-side team management, picked as the next thing to build after auditing the API docs. An
+invitation IS the roster record throughout this — see `types/team.ts` — since there's no separate
+staff/front-desk signup flow built yet (`GetStartedScreen`/`team.json`'s `list-my-invitations`/
+`respond-to-invitation` are the invitee's side of this, already existed before this pass) and
+therefore no independent "member" entity to create once one's accepted.
+
+- [x] **`TeamInvitation` extended**: `name?`, `commissionPercent`, `workingDays` (`(keyof
+      WeeklyHours)[] | null` — null means "follows the business's own working days"). Onboarding's
+      Team invite step (`inviteTeamMember`, `business-setup.json#invite-team-member`) is unchanged
+      and still only collects email/phone/role — it now just defaults `commissionPercent: 40,
+      workingDays: null` so the type stays whole. New `src/api/team.ts` functions `addTeamMember`/
+      `updateTeamMember`/`removeTeamMember` are the post-publish, fuller-featured path (documented
+      as `add-team-member`/`update-team-member`/`remove-team-member` in `team.json`, alongside the
+      pre-existing invitee-side endpoints — **had to be careful reconstructing this file**, since an
+      early `Write` call clobbered the already-committed `listMyInvitations`/`respondToInvitation`
+      functions before the mistake was caught via a stray `GetStartedScreen` type error)
+- [x] **`TeamScreen`** — list of invitations (pending sorted first), tap → `TeamMemberDetailScreen`.
+      **Its own tab** (`app/(business-app)/team.tsx`, `BadgeIcon`) — originally scoped as a row
+      inside Manage Business (matching how Customers/Services/etc. work), then explicitly promoted
+      to a tab once the "team businesses shouldn't default to Today/Calendar" architecture change
+      (below) landed, since team management is central enough to a team business's day that it
+      deserves top-level billing, not a level deeper
+- [x] **`InviteTeamMemberScreen`** (route `/team-invite`) — name, phone/email (at least one
+      required), role pills, commission % input, `WorkingDaysPicker` (new shared component — see
+      below). Calls `addTeamMemberNow`
+- [x] **`TeamMemberDetailScreen`** (route `/team/[invitationId]`) — read-only contact card (name/
+      role/phone/email/status badge), editable commission % + working days (`updateTeamMemberNow`),
+      "Cancel invite"/"Remove from team" (`removeTeamMemberNow`, label depends on status). **"Mark as
+      joined (testing)"** button on pending invitations — explicit testing convenience, not real
+      auth (flips status locally, no API call) — simulates the invitee accepting via
+      `respond-to-invitation`, which isn't reachable from this app since no Staff/Front Desk session
+      exists to receive it
+- [x] **New `WorkingDaysPicker` component** (`src/components/WorkingDaysPicker.tsx`) — a lighter
+      concept than a full per-member `WeeklyHours` clone (exact open/close times), which would
+      duplicate the business-hours editor's complexity for something [S4](staff.md#s4--availability)
+      ("Availability" — marking specific unavailable blocks) is meant to cover in more detail and
+      isn't built yet. Just which weekdays a member works, defaulting to "follows business hours."
+      Shared between Invite and Member Detail
+- [ ] Invite flow: SMS/link → first-login password/PIN + profile completion — still not built; this
+      pass only covers the owner's side
+
+### Architecture change: team businesses no longer default to Today/Calendar
+
+Raised directly mid-build: "if it's business teams, it should not have the calendar and today... it
+should start at earnings, business, team, menu — then if the owner wants to go to staff mode they
+should be able to switch." Agreed — Today/Calendar are per-shift fulfillment views that fit a solo
+owner (who IS the staff) but not a team owner, whose default posture is oversight once there's an
+actual team doing the daily work.
+
+- [x] **`(business-app)/_layout.tsx` reads `teamMode`** and conditionally hides tabs via expo-router's
+      `href: null` (route stays fully functional, just not shown in the bar) rather than removing
+      them: Today/Calendar hidden for `teamMode: 'team'`, Team hidden for `teamMode: 'solo'` (nothing
+      to manage). Earnings/Business/Menu are always visible. Net effect: solo sees Today, Calendar,
+      Earnings, Business, Menu (5 tabs); team sees Earnings, Team, Business, Menu (4 tabs)
+- [x] **`BusinessMenuScreen` gained a "Switch to staff view" row** (`teamMode: 'team'` only) —
+      `router.push('/today')` into the hidden tab, for an owner who also works shifts themselves.
+      Since Today/Calendar are hidden rather than removed, this works with no special-casing; leaving
+      is just tapping any of the visible tabs (Earnings/Business/Menu stay in the bar the whole time)
+
+### `ProfileScreen`'s testing panel now covers every mode that actually exists
+
+Per explicit request to "put all the switches to all modes... for us to test every mode created."
+Replaced the single "Switch to hosting" button with a small "Testing: switch mode" section: separate
+**Business (solo)**/**Business (team)** buttons (each reseeds via `seedOwnedBusinessForTesting` with
+the matching `teamMode` and lands on `/today` or `/earnings` respectively, matching which tab is
+actually visible first for that mode), plus a note that **Staff and Front Desk aren't built as their
+own experience yet** — there's nothing distinct to switch into for those roles, so no button fakes
+one. (Previously this button only ever seeded solo and skipped reseeding if a business already
+existed; now it always reseeds deterministically on tap, since a testing panel that depends on
+prior state would make testing less reliable, not more.)
+
+## Team screen: grid layout, "Team" promoted to its own tab
+
+Two follow-up requests on the Team management work above, both addressed directly:
+
+- [x] **`TeamScreen` rendered as a 2-column photo grid** (`Avatar` — deterministic initials
+      placeholder, since no member has an actual photo yet — + name + role + status), not a plain
+      row list, per explicit request ("could we list them as a grid photo or placeholder, name,
+      role").
+- [x] **"Team" promoted from a row inside Manage Business to its own tab** (`app/(business-app)/
+      team.tsx`), hidden via `href: null` for `teamMode: 'solo'` (mirrors how Today/Calendar are
+      hidden for `'team'`) — per explicit request once the Today/Calendar-hiding architecture change
+      landed, since team management is central enough to a team business's day to deserve top-level
+      billing. `InviteTeamMemberScreen` moved from `/manage-business/team-invite` to a top-level
+      `/team-invite` route to match (no longer conceptually part of "manage business").
+
+## Team member earnings (per-staff revenue, mirroring the Earnings tab)
+
+Requested directly: "I'd wish for the business owner to be able to see the team members['] ...
+earning[s]... kinda what we have on the business earnings." Required a foundational piece first —
+**no booking was ever attributed to a specific team member**: owner-created walk-in/scheduled
+bookings always had `staffId: null` with a fixed placeholder `staffName` ("Walk-in"/"Any
+available"), and online bookings' staff selection comes from an entirely separate, unrelated data
+source (`BusinessProfileStaffMember`, the discovery-profile mock staff list customers pick from at
+booking time — not `TeamInvitation`). Scoped explicitly: assignment is **optional** (defaults to
+unassigned, same as online bookings already allow `staffId: null`), and the earnings view **reuses
+the Earnings tab's exact shape** rather than a lighter custom summary.
+
+- [x] **New shared `StaffPicker` component** (`src/components/StaffPicker.tsx`) — "Any available" +
+      one pill per invited `role: 'staff'` member (front_desk excluded — they check people in, they
+      don't perform services). Added to both `StartWalkInScreen` and `ScheduleAppointmentScreen`,
+      only rendered at all when the business actually has staff invited (nothing to pick for solo)
+- [x] **`CreateOwnerBookingInput` gained required `staffId`/`staffName`** (previously hardcoded
+      inside `createWalkInBooking`/`createScheduledBooking`'s mock bodies to `null`/a fixed string) —
+      both screens now pass the picker's selection through, falling back to the same placeholder
+      strings as before when left on "Any available". `staffId`, when set, is a `TeamInvitation`'s
+      `invitationId` — this is what lets a member's earnings view find "their" bookings, since
+      there's still no separate "team member" entity (see the Team management section above)
+- [x] **`TeamMemberDetailScreen` gained an Earnings section** — deliberately mirrors `EarningsScreen`
+      exactly: same Today/Week/Month/Year/Custom range toggle, same `BarChart` revenue trend, same
+      `DonutChart` payment-method breakdown, same services-performed breakdown (via the same
+      `getEarningsBuckets`/`getPaymentMethodBreakdown`/`getServicesBreakdown`/`getAppointmentStats`
+      pure functions from `utils/earnings.ts` — no changes needed there, since they already just take
+      a `Booking[]`, and this screen simply pre-filters `useBookingsStore`'s bookings to
+      `staffId === invitation.invitationId` before passing them in). Hero card additionally shows
+      **"Their commission"** — `totalRevenue × commissionPercent / 100` — alongside the raw revenue
+      total, since that's the number that actually matters for a specific member rather than the
+      business as a whole. Not extracted into a shared component with `EarningsScreen` (the JSX/
+      styles are specific enough, and this screen already has its own contact-card/editable-fields
+      content above and below it) — some duplication accepted rather than a risky refactor of the
+      already-working Earnings tab
+- [x] **`reference/api/fulfillment.json` updated**: `create-walk-in-booking`/`create-scheduled-
+      booking`'s request examples gained `staffId`/`staffName`; `get-earnings-summary` documented an
+      optional `staffId` query param for the real backend to scope its response the same way
 
 ## MVP done when
 
@@ -899,9 +1021,14 @@ same fulfillment domain and would otherwise inherit the inconsistency.
 - Front Desk: [F2](front-desk.md#f2--walk-ins) walk-ins,
   [F3](front-desk.md#f3--check-in--checkout-pos) checkout/POS,
   [F4](front-desk.md#f4--end-of-day-summary) day summary
-- Owner: [O3](business-owner.md#o3--performance-dashboard) dashboard,
+- Owner: [O3](business-owner.md#o3--performance-dashboard) dashboard — **the Earnings tab above
+  covers this for solo**, not yet extended to per-staff/team-wide breakdowns,
   [O4](business-owner.md#o4--payout-approval) payouts,
-  [O5](business-owner.md#o5--role-switching) role switching
-- Staff: [S2](staff.md#s2--earnings-tracking) earnings,
+  [O5](business-owner.md#o5--role-switching) role switching — **partially done**: customer↔business
+  and solo↔team-tab-shape switching exist (`ProfileScreen`'s testing panel, `(business-app)/
+  _layout.tsx`), but there's no real Staff/Front Desk session to switch *into* yet
+- Staff: [S2](staff.md#s2--earnings-tracking) earnings — **done for the solo owner's own earnings**
+  (the Earnings tab), not built as a distinct per-staff-member view (needs "your split" vs. the
+  business's total, which needs actual Staff sessions to exist first),
   [S3](staff.md#s3--payout-request) payout request,
   [S4](staff.md#s4--availability) availability
