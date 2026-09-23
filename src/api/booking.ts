@@ -40,10 +40,10 @@ export function createBooking(input: CreateBookingInput): Promise<Booking> {
   return apiRequest<Booking>('/bookings', { method: 'POST', body: input });
 }
 
-// No corresponding reference/api contract entry yet — owner-recorded
-// appointments (walk-in or manually scheduled) are an in-app-only concept,
-// not part of the customer-facing booking flow this file otherwise
-// documents. See TASKS.md's "New appointment" section.
+// See reference/api/fulfillment.json#create-walk-in-booking and
+// #create-scheduled-booking for the contracts this shared input implements
+// — owner-recorded appointments (walk-in or manually scheduled), not part
+// of the customer-facing booking flow this file otherwise documents.
 export type CreateOwnerBookingInput = {
   businessId: string;
   businessName: string;
@@ -116,11 +116,12 @@ export function createScheduledBooking(input: CreateScheduledBookingInput): Prom
   return apiRequest<Booking>('/bookings/scheduled', { method: 'POST', body: input });
 }
 
-// No corresponding reference/api contract entry yet — same as above. Mocks
-// an M-Pesa STK push to the customer's phone for the final service charge,
-// separate from confirm-booking-payment's up-front deposit push. Mock-only
-// quirk: takes the full booking rather than just an id, same reason as
-// confirmBookingPayment below.
+// See reference/api/fulfillment.json#charge-booking for the contract this
+// and chargeBookingCash below implement (one endpoint, method-dependent
+// body). Mocks an M-Pesa STK push to the customer's phone for the final
+// service charge, separate from confirm-booking-payment's up-front deposit
+// push. Mock-only quirk: takes the full booking rather than just an id,
+// same reason as confirmBookingPayment below.
 export function chargeBookingPayment(booking: Booking, customerPhone: string): Promise<Booking> {
   if (USE_MOCK_API) {
     return mockDelay<Booking>(
@@ -135,11 +136,11 @@ export function chargeBookingPayment(booking: Booking, customerPhone: string): P
   });
 }
 
-// No corresponding reference/api contract entry yet — same as
-// chargeBookingPayment, but for cash paid in person: no phone, no push, just
-// records the service as paid immediately. Still goes through mockDelay so
-// the UI's brief loading state is exercised the same way as every other
-// mock write.
+// See reference/api/fulfillment.json#charge-booking — same endpoint as
+// chargeBookingPayment above, but for cash paid in person: no phone, no
+// push, just records the service as paid immediately. Still goes through
+// mockDelay so the UI's brief loading state is exercised the same way as
+// every other mock write.
 export function chargeBookingCash(booking: Booking): Promise<Booking> {
   if (USE_MOCK_API) {
     return mockDelay<Booking>({ ...booking, paymentStatus: 'paid', paymentMethod: 'cash', status: 'completed' });
@@ -163,4 +164,18 @@ export function confirmBookingPayment(booking: Booking): Promise<Booking> {
   }
 
   return apiRequest<Booking>(`/bookings/${booking.bookingId}/confirm-payment`, { method: 'POST' });
+}
+
+// See reference/api/fulfillment.json#update-booking-status for the contract
+// this implements. Covers Appointment Detail's status stepper (check-in →
+// in_progress, no-show, cancel) — previously these just mutated
+// useBookingsStore's local state directly with no API call at all, unlike
+// every other write in the app. Same mock-only "takes the full booking"
+// quirk as confirmBookingPayment/chargeBookingPayment above.
+export function updateBookingStatus(booking: Booking, status: Booking['status']): Promise<Booking> {
+  if (USE_MOCK_API) {
+    return mockDelay<Booking>({ ...booking, status });
+  }
+
+  return apiRequest<Booking>(`/bookings/${booking.bookingId}/status`, { method: 'PATCH', body: { status } });
 }

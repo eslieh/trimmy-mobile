@@ -8,6 +8,7 @@ import { ImageIcon } from '../../components/icons/ImageIcon';
 import { InfoIcon } from '../../components/icons/InfoIcon';
 import { ListIcon } from '../../components/icons/ListIcon';
 import { ShieldIcon } from '../../components/icons/ShieldIcon';
+import { UsersIcon } from '../../components/icons/UsersIcon';
 import { WalletIcon } from '../../components/icons/WalletIcon';
 import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
 import { BUSINESS_CATEGORIES } from '../../data/businessCategories';
@@ -43,6 +44,12 @@ export function ManageBusinessScreen() {
       label: 'Services',
       icon: <ListIcon size={20} color={colors.text.secondary} />,
       onPress: () => router.push('/manage-business/services'),
+    },
+    {
+      key: 'customers',
+      label: 'Customers',
+      icon: <UsersIcon size={20} color={colors.text.secondary} />,
+      onPress: () => router.push('/manage-business/customers'),
     },
     {
       key: 'hours',

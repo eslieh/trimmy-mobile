@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { BackButton } from '../../components/BackButton';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
@@ -22,14 +23,29 @@ import type { BookingServiceLine } from '../../types/booking';
 const DEFAULT_COUNTRY = countries.find((c) => c.iso2 === 'KE') ?? countries[0];
 
 // Reached from the Calendar tab's "+" (no date/time preset — pick from
-// scratch) or by tapping an open slot on a Calendar day (date/time already
+// scratch), by tapping an open slot on a Calendar day (date/time already
 // chosen — shows as a locked summary with a "Change" link instead of the
-// full picker, Google Calendar-style). Separate from StartWalkInScreen
+// full picker, Google Calendar-style), or from a customer's detail screen's
+// "New appointment" (customerName/Phone/Email preset instead — phone is
+// recovered from its stored E.164 string via parsePhoneNumberFromString,
+// same approach as EditBusinessInfoScreen). Separate from StartWalkInScreen
 // ("now" — the customer is already physically present); this books someone
 // in for later, so the appointment stays 'confirmed' until check-in.
 export function ScheduleAppointmentScreen() {
   const router = useRouter();
-  const { date: presetDate, time: presetTime } = useLocalSearchParams<{ date?: string; time?: string }>();
+  const {
+    date: presetDate,
+    time: presetTime,
+    customerName: presetCustomerName,
+    customerPhone: presetCustomerPhone,
+    customerEmail: presetCustomerEmail,
+  } = useLocalSearchParams<{
+    date?: string;
+    time?: string;
+    customerName?: string;
+    customerPhone?: string;
+    customerEmail?: string;
+  }>();
   const ownedBusiness = useOwnedBusinessStore((s) => s.business);
   const business = useBusinessOnboardingStore((s) => s.business);
   const serviceCategories = useBusinessOnboardingStore((s) => s.serviceCategories);
@@ -37,10 +53,14 @@ export function ScheduleAppointmentScreen() {
   const addBooking = useBookingsStore((s) => s.addBooking);
   const saveCustomer = useCustomersStore((s) => s.saveCustomer);
 
-  const [customerName, setCustomerName] = useState('');
-  const [country, setCountry] = useState(DEFAULT_COUNTRY);
-  const [rawPhone, setRawPhone] = useState('');
-  const [email, setEmail] = useState('');
+  const presetParsedPhone = presetCustomerPhone ? parsePhoneNumberFromString(presetCustomerPhone) : undefined;
+  const presetCountry =
+    (presetParsedPhone?.country && countries.find((c) => c.iso2 === presetParsedPhone.country)) || DEFAULT_COUNTRY;
+
+  const [customerName, setCustomerName] = useState(presetCustomerName ?? '');
+  const [country, setCountry] = useState(presetCountry);
+  const [rawPhone, setRawPhone] = useState(presetParsedPhone?.nationalNumber?.toString() ?? '');
+  const [email, setEmail] = useState(presetCustomerEmail ?? '');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(presetDate ?? null);
   const [selectedTime, setSelectedTime] = useState<string | null>(presetTime ?? null);
@@ -104,7 +124,7 @@ export function ScheduleAppointmentScreen() {
     const customerPhone = rawPhone.length >= 4 ? normalizePhoneNumber(rawPhone, country) : null;
     const customerEmail = email.trim() || null;
 
-    saveCustomer(ownedBusiness.businessId, { name: trimmedName, phone: customerPhone, email: customerEmail });
+    await saveCustomer(ownedBusiness.businessId, { name: trimmedName, phone: customerPhone, email: customerEmail });
 
     const booking = await createScheduledBooking({
       businessId: ownedBusiness.businessId,

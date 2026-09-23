@@ -1,7 +1,271 @@
 {
   "domain": "fulfillment",
   "baseUrl": "/api/v1",
-  "auth": "Requires a Bearer token for a user with role `staff` or `front_desk`, unless noted.",
-  "note": "Stub — fill in when Phase 4 (Fulfillment view) starts. See business-setup.json for the expected format.",
-  "endpoints": []
+  "auth": "Requires a Bearer token. Every endpoint here is documented against the solo owner (role `owner`, acting in a Staff-style capacity — see business-owner.md's S1/S2 stories) since that's the only fulfillment session built so far; Phase 5's Front Desk/Staff roles will extend this same domain, not replace it.",
+  "endpoints": [
+    {
+      "id": "list-business-bookings",
+      "screen": "Today / Calendar / Earnings (business-owner app)",
+      "story": "S1",
+      "method": "GET",
+      "path": "/businesses/{businessId}/bookings",
+      "description": "Fetches bookings for a business. Supports optional `date` (single day, for Today), `from`/`to` (range, for Calendar's month view and Earnings), and `status` query params. Today/Calendar/Earnings currently all read from one client-side array that only ever holds bookings created during the current app session — a real backend needs this endpoint to actually list bookings that already existed, not just ones the app itself just created.",
+      "auth": "owner",
+      "request": null,
+      "response": {
+        "bookings": [
+          {
+            "bookingId": "booking_01a1",
+            "businessId": "biz_01hxyz",
+            "businessName": "Glow Beauty Lounge",
+            "customerName": "Jane Doe",
+            "customerPhone": "+254798765432",
+            "customerEmail": "jane@example.com",
+            "staffId": null,
+            "staffName": "Any available",
+            "services": [
+              { "serviceId": "svc_01a1", "name": "Classic Haircut", "durationMinutes": 45, "price": { "amount": 800, "currency": "KES" }, "quantity": 1 }
+            ],
+            "date": "2026-09-25",
+            "time": "14:00",
+            "durationMinutes": 45,
+            "totalAmount": { "amount": 800, "currency": "KES" },
+            "depositAmount": null,
+            "status": "confirmed",
+            "source": "walk_in",
+            "paymentStatus": "unpaid",
+            "paymentMethod": null,
+            "createdAt": "2026-09-20T09:00:00Z"
+          }
+        ]
+      },
+      "errors": [
+        { "status": 404, "code": "not_found", "message": "No business found for this id" }
+      ]
+    },
+    {
+      "id": "create-walk-in-booking",
+      "screen": "New appointment — Now (business-owner app, Today tab \"+\")",
+      "story": "S1",
+      "method": "POST",
+      "path": "/bookings/walk-in",
+      "description": "Records a walk-in: the customer is already physically present, so this skips pending_payment/confirmed entirely and starts life as in_progress — no staff assignment, no deposit, no date/time picking (server should stamp the current date/time, not trust a client-sent one). customerName falls back to \"Walk-in customer\" client-side if left blank; customerPhone/customerEmail are optional.",
+      "auth": "owner",
+      "request": {
+        "businessId": "biz_01hxyz",
+        "businessName": "Glow Beauty Lounge",
+        "customerName": "Walk-in customer",
+        "customerPhone": null,
+        "customerEmail": null,
+        "services": [
+          { "serviceId": "svc_01a1", "name": "Classic Haircut", "durationMinutes": 45, "price": { "amount": 800, "currency": "KES" }, "quantity": 1 }
+        ],
+        "durationMinutes": 45,
+        "totalAmount": { "amount": 800, "currency": "KES" }
+      },
+      "response": {
+        "bookingId": "booking_01a2",
+        "businessId": "biz_01hxyz",
+        "businessName": "Glow Beauty Lounge",
+        "customerName": "Walk-in customer",
+        "customerPhone": null,
+        "customerEmail": null,
+        "staffId": null,
+        "staffName": "Walk-in",
+        "services": [
+          { "serviceId": "svc_01a1", "name": "Classic Haircut", "durationMinutes": 45, "price": { "amount": 800, "currency": "KES" }, "quantity": 1 }
+        ],
+        "date": "2026-09-22",
+        "time": "11:30",
+        "durationMinutes": 45,
+        "totalAmount": { "amount": 800, "currency": "KES" },
+        "depositAmount": null,
+        "status": "in_progress",
+        "source": "walk_in",
+        "paymentStatus": "unpaid",
+        "paymentMethod": null,
+        "createdAt": "2026-09-22T11:30:00Z"
+      },
+      "errors": [
+        { "status": 400, "code": "validation_error", "message": "services must include at least one item" }
+      ]
+    },
+    {
+      "id": "create-scheduled-booking",
+      "screen": "New appointment — Schedule (business-owner app, Calendar tab \"+\", or a customer's \"New appointment\" button)",
+      "story": "S1",
+      "method": "POST",
+      "path": "/bookings/scheduled",
+      "description": "Owner manually books a future appointment on someone's behalf. Same shape as create-walk-in-booking plus date/time, and starts life as confirmed rather than in_progress — the owner still has to check the customer in (see update-booking-status) when they actually arrive. Uses source `walk_in` (owner-recorded) rather than a separate value, since the only real difference from a walk-in is the starting status.",
+      "auth": "owner",
+      "request": {
+        "businessId": "biz_01hxyz",
+        "businessName": "Glow Beauty Lounge",
+        "customerName": "Jane Doe",
+        "customerPhone": "+254798765432",
+        "customerEmail": "jane@example.com",
+        "services": [
+          { "serviceId": "svc_01a1", "name": "Classic Haircut", "durationMinutes": 45, "price": { "amount": 800, "currency": "KES" }, "quantity": 1 }
+        ],
+        "durationMinutes": 45,
+        "totalAmount": { "amount": 800, "currency": "KES" },
+        "date": "2026-09-25",
+        "time": "14:00"
+      },
+      "response": {
+        "bookingId": "booking_01a3",
+        "businessId": "biz_01hxyz",
+        "businessName": "Glow Beauty Lounge",
+        "customerName": "Jane Doe",
+        "customerPhone": "+254798765432",
+        "customerEmail": "jane@example.com",
+        "staffId": null,
+        "staffName": "Any available",
+        "services": [
+          { "serviceId": "svc_01a1", "name": "Classic Haircut", "durationMinutes": 45, "price": { "amount": 800, "currency": "KES" }, "quantity": 1 }
+        ],
+        "date": "2026-09-25",
+        "time": "14:00",
+        "durationMinutes": 45,
+        "totalAmount": { "amount": 800, "currency": "KES" },
+        "depositAmount": null,
+        "status": "confirmed",
+        "source": "walk_in",
+        "paymentStatus": "unpaid",
+        "paymentMethod": null,
+        "createdAt": "2026-09-22T11:35:00Z"
+      },
+      "errors": [
+        { "status": 400, "code": "validation_error", "message": "time is not within the business's working hours for that date" },
+        { "status": 409, "code": "slot_unavailable", "message": "This time is no longer available" }
+      ]
+    },
+    {
+      "id": "update-booking-status",
+      "screen": "Appointment Detail (business-owner app)",
+      "story": "S1",
+      "method": "PATCH",
+      "path": "/bookings/{bookingId}/status",
+      "description": "Drives Appointment Detail's status stepper: check-in (confirmed → in_progress), no-show, and cancel. (in_progress → completed happens via charge-booking below, not this endpoint, since completing always goes through a payment record.)",
+      "auth": "owner",
+      "request": {
+        "status": "in_progress"
+      },
+      "response": {
+        "bookingId": "booking_01a1",
+        "status": "in_progress"
+      },
+      "errors": [
+        { "status": 400, "code": "invalid_status_transition", "message": "Cannot move from completed to in_progress" },
+        { "status": 404, "code": "not_found", "message": "bookingId does not exist" }
+      ]
+    },
+    {
+      "id": "charge-booking",
+      "screen": "Appointment Detail — Charge customer (business-owner app)",
+      "story": "S1",
+      "method": "POST",
+      "path": "/bookings/{bookingId}/charge",
+      "description": "Records the final service charge once a booking is in_progress, and marks it completed. `method` is `mpesa` (sends an STK push to `customerPhone` through the business's connected payment destination — request must include customerPhone) or `cash` (no phone needed, records instantly). Separate from confirm-booking-payment, which is the customer-facing up-front deposit push at booking time, not this after-the-fact full charge.",
+      "auth": "owner",
+      "request": {
+        "method": "mpesa",
+        "customerPhone": "+254798765432"
+      },
+      "response": {
+        "bookingId": "booking_01a1",
+        "status": "completed",
+        "paymentStatus": "paid",
+        "paymentMethod": "mpesa",
+        "customerPhone": "+254798765432"
+      },
+      "errors": [
+        { "status": 400, "code": "validation_error", "message": "customerPhone is required when method is mpesa" },
+        { "status": 422, "code": "payment_failed", "message": "Could not confirm payment" }
+      ]
+    },
+    {
+      "id": "get-earnings-summary",
+      "screen": "Earnings (business-owner app)",
+      "story": "S2",
+      "method": "GET",
+      "path": "/businesses/{businessId}/earnings",
+      "description": "Revenue trend buckets, payment-method breakdown, per-service breakdown, and appointment counts for a date range (`from`/`to` query params, both 'YYYY-MM-DD'). Mirrors what src/utils/earnings.ts currently computes client-side by filtering every booking in memory — fine for mock data, not something a real backend should do at scale. `services` should include every service the business currently offers, not just ones with revenue (bookingsCount: 0 rows included) — EarningsScreen uses that to show what isn't selling, not just what is. Only bookings with paymentStatus 'paid' count toward any amount here.",
+      "auth": "owner",
+      "request": null,
+      "response": {
+        "totalRevenue": 12400,
+        "completed": 14,
+        "noShow": 1,
+        "cancelled": 2,
+        "avgTicket": 886,
+        "buckets": [
+          { "label": "Mon", "amount": 1600 },
+          { "label": "Tue", "amount": 2400 }
+        ],
+        "paymentMethods": [
+          { "method": "mpesa", "amount": 9600, "count": 11 },
+          { "method": "cash", "amount": 2800, "count": 3 }
+        ],
+        "services": [
+          { "serviceId": "svc_01a1", "name": "Classic Haircut", "amount": 8000, "bookingsCount": 10 },
+          { "serviceId": "svc_01a2", "name": "Beard Trim", "amount": 0, "bookingsCount": 0 }
+        ]
+      },
+      "errors": [
+        { "status": 404, "code": "not_found", "message": "No business found for this id" }
+      ]
+    },
+    {
+      "id": "save-customer",
+      "screen": "New appointment / Customer Detail (business-owner app)",
+      "story": "S1",
+      "method": "POST",
+      "path": "/businesses/{businessId}/customers",
+      "description": "Creates or updates a customer record entered through the walk-in/schedule flow. `customerId` present means the client already matched this to an existing customer (by phone — the closest thing to a stable identifier the app has) and this is an update to their name/email; absent means create a new one.",
+      "auth": "owner",
+      "request": {
+        "customerId": null,
+        "name": "Jane Doe",
+        "phone": "+254798765432",
+        "email": "jane@example.com"
+      },
+      "response": {
+        "customerId": "customer_01a1",
+        "businessId": "biz_01hxyz",
+        "name": "Jane Doe",
+        "phone": "+254798765432",
+        "email": "jane@example.com",
+        "createdAt": "2026-09-22T11:35:00Z"
+      },
+      "errors": [
+        { "status": 400, "code": "validation_error", "message": "name is required" }
+      ]
+    },
+    {
+      "id": "list-customers",
+      "screen": "Customers (business-owner app)",
+      "story": "S1",
+      "method": "GET",
+      "path": "/businesses/{businessId}/customers",
+      "description": "Lists this business's saved customers. No mock implementation exists yet (see src/api/customers.ts) — CustomersScreen currently only ever shows customers saved during the current app session via save-customer, since there's no fetch-on-mount, same as every other post-publish store in this app.",
+      "auth": "owner",
+      "request": null,
+      "response": {
+        "customers": [
+          {
+            "customerId": "customer_01a1",
+            "businessId": "biz_01hxyz",
+            "name": "Jane Doe",
+            "phone": "+254798765432",
+            "email": "jane@example.com",
+            "createdAt": "2026-09-22T11:35:00Z"
+          }
+        ]
+      },
+      "errors": [
+        { "status": 404, "code": "not_found", "message": "No business found for this id" }
+      ]
+    }
+  ]
 }

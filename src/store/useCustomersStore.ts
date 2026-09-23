@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { saveCustomer as saveCustomerApi } from '../api/customers';
 import type { Customer } from '../types/customer';
 
 export type SaveCustomerInput = {
@@ -9,41 +10,36 @@ export type SaveCustomerInput = {
 
 type CustomersState = {
   customers: Customer[];
-  saveCustomer: (businessId: string, input: SaveCustomerInput) => Customer;
+  saveCustomer: (businessId: string, input: SaveCustomerInput) => Promise<Customer>;
 };
 
-let customerSequence = 0;
-
-// Client-only, in-memory — no backend endpoint exists yet, same caveat as
-// useBookingsStore/useFavoritesStore. Dedupes by phone within a business
-// (the closest thing to a stable identifier this mock data has): typing an
-// existing customer's phone again updates their name/email instead of
-// creating a duplicate row.
+// Client-only, in-memory — no real fetch-on-mount exists yet, same caveat as
+// useBookingsStore/useFavoritesStore (this only ever reflects what this
+// session itself saved). The write itself does go through the mock API
+// layer, though (see src/api/customers.ts), same as every other store's
+// writes. Dedupes by phone within a business (the closest thing to a stable
+// identifier this mock data has): saving with an existing customer's phone
+// updates their name/email instead of creating a duplicate row.
 export const useCustomersStore = create<CustomersState>((set, get) => ({
   customers: [],
-  saveCustomer: (businessId, input) => {
+  saveCustomer: async (businessId, input) => {
     const existing = input.phone
       ? get().customers.find((c) => c.businessId === businessId && c.phone === input.phone)
       : undefined;
 
-    if (existing) {
-      const updated: Customer = { ...existing, name: input.name, email: input.email ?? existing.email };
-      set((state) => ({
-        customers: state.customers.map((c) => (c.customerId === existing.customerId ? updated : c)),
-      }));
-      return updated;
-    }
-
-    customerSequence += 1;
-    const created: Customer = {
-      customerId: `customer_mock_${customerSequence}`,
-      businessId,
+    const saved = await saveCustomerApi(businessId, {
+      customerId: existing?.customerId,
       name: input.name,
       phone: input.phone,
-      email: input.email,
-      createdAt: new Date().toISOString(),
-    };
-    set((state) => ({ customers: [...state.customers, created] }));
-    return created;
+      email: input.email ?? existing?.email ?? null,
+    });
+
+    set((state) => ({
+      customers: existing
+        ? state.customers.map((c) => (c.customerId === saved.customerId ? saved : c))
+        : [...state.customers, saved],
+    }));
+
+    return saved;
   },
 }));

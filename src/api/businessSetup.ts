@@ -45,10 +45,10 @@ export function createBusiness(input: CreateBusinessInput): Promise<Business> {
   return apiRequest<Business>('/businesses', { method: 'POST', body: input });
 }
 
-// No corresponding reference/api contract entry yet — onboarding's
-// create-business is the only Business Basics endpoint. Added for post-
-// publish editing (see EditBusinessInfoScreen); a real backend would need
-// a PATCH endpoint here.
+// See reference/api/business-setup.json#update-business-info for the
+// contract this implements. Added for post-publish editing (see
+// EditBusinessInfoScreen) — onboarding's create-business is the only
+// Business Basics endpoint, a combined POST, not a per-field PATCH.
 export type UpdateBusinessInfoInput = CreateBusinessInput;
 
 export function updateBusinessInfo(businessId: string, input: UpdateBusinessInfoInput): Promise<UpdateBusinessInfoInput> {
@@ -93,9 +93,9 @@ export function uploadBusinessPhoto(businessId: string, input: UploadBusinessPho
   });
 }
 
-// No corresponding reference/api contract entry yet — onboarding never
-// removes a photo, only adds. Added for post-publish photo management (see
-// ManagePhotosScreen).
+// See reference/api/business-setup.json#delete-business-photo for the
+// contract this implements — onboarding never removes a photo, only adds.
+// Added for post-publish photo management (see ManagePhotosScreen).
 export function deleteBusinessPhoto(businessId: string, photoId: string): Promise<void> {
   if (USE_MOCK_API) {
     return mockDelay(undefined);
@@ -166,9 +166,9 @@ export type UpdateServiceInput = {
   price: Money;
 };
 
-// No corresponding reference/api contract entry yet — onboarding's contracts
-// only cover create. Added for post-publish service management (see
-// ManageServicesScreen); a real backend would need a PATCH endpoint here.
+// See reference/api/business-setup.json#update-service for the contract
+// this implements — onboarding's contracts only cover create. Added for
+// post-publish service management (see ManageServicesScreen).
 export function updateService(
   businessId: string,
   serviceId: string,

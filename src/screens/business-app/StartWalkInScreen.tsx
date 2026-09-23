@@ -82,7 +82,7 @@ export function StartWalkInScreen() {
     const customerEmail = email.trim() || null;
 
     if (trimmedName || customerPhone || customerEmail) {
-      saveCustomer(ownedBusiness.businessId, {
+      await saveCustomer(ownedBusiness.businessId, {
         name: trimmedName || 'Walk-in customer',
         phone: customerPhone,
         email: customerEmail,

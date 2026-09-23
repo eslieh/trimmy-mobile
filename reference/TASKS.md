@@ -789,7 +789,94 @@ still-in-progress booking hasn't actually earned anything yet.
       section (completed/no-show/cancelled counts + avg ticket), since a standalone stats grid for
       just 4 numbers felt like padding rather than a real section.
 
-## Phase 5 — Team management ([O2](business-owner.md#o2--team-management))
+## Customers list (solo, post-publish)
+
+Closes a loop opened by the walk-in/schedule flows: `useCustomersStore` has been writing
+name/phone/email since those landed, but nothing read it back until now. Picked over a 6th tab
+(would have crowded the bar) — instead a **"Customers" row in Manage Business**
+(`ManageBusinessScreen`, right after Services, new `UsersIcon`), consistent with how
+Services/Working hours/etc. already work as rows there rather than tabs of their own.
+
+- [x] **`CustomersScreen`** (route `/manage-business/customers`) — search (name/phone/email,
+      client-side filter over `useCustomersStore`) + alphabetical list. Empty states for "no
+      customers yet" vs "no customers match this search" are distinct messages, not the same generic
+      one
+- [x] **`CustomerDetailScreen`** (route `/customers/[customerId]`, top-level so it hides the tab bar
+      like `/appointment/[bookingId]`) — contact card (name, phone, email) with a "Call" button
+      (`Linking.openURL('tel:' + phone)`, same approach as Appointment Detail's), a "New appointment"
+      button that jumps to `/schedule` with `customerName`/`customerPhone`/`customerEmail` as query
+      params, and an **appointment history** list (reuses `AppointmentCard`). Bookings don't carry a
+      `customerId` (they predate this store, and online bookings never go through it at all), so
+      history is matched by phone when the customer has one, falling back to an exact name match
+      otherwise
+- [x] **`ScheduleAppointmentScreen` now accepts a customer preset** — reading
+      `customerName`/`customerPhone`/`customerEmail` from route params (in addition to the existing
+      `date`/`time` preset from tapping a Calendar slot) and prefilling the customer fields;
+      `customerPhone` (stored E.164) is recovered into country + national number via
+      `parsePhoneNumberFromString`, the same approach `EditBusinessInfoScreen` already used for the
+      business's own phone
+
+## Solo API reference closeout (before starting Phase 5)
+
+Asked directly: "have you prepared the API references for solo, or should we finish that first?"
+Audited and found `reference/api/fulfillment.json` was still the original empty stub — every
+fulfillment-domain mock function built this session (`createWalkInBooking`,
+`createScheduledBooking`, `chargeBookingPayment`/`chargeBookingCash`) only had an inline "no
+contract entry yet" code comment, never an actual JSON entry. The audit also turned up a real
+mock-layer inconsistency, not just a docs gap: **Appointment Detail's status stepper and
+`useCustomersStore.saveCustomer` never called a mock API function at all** — they mutated local
+Zustand state directly, unlike every other write in the app (which all go through a
+`USE_MOCK_API` branch + `mockDelay`/`apiRequest`). Fixed both, then wrote the contracts, rather
+than documenting the shortcut as if it were the intended behavior — decided explicitly rather
+than assumed, since this was worth the extra pass before Phase 5 (Front Desk/Staff) extends this
+same fulfillment domain and would otherwise inherit the inconsistency.
+
+- [x] **New `updateBookingStatus(booking, status)`** in `src/api/booking.ts` (mock-only "takes the
+      full booking" quirk, same reason as `chargeBookingPayment`/`confirmBookingPayment`) — wired
+      into `AppointmentDetailScreen`'s `setStatus` (now async, with an `isUpdatingStatus` guard
+      disabling the Check in/No-show/Cancel buttons mid-request rather than allowing a double-tap)
+- [x] **New `src/api/customers.ts`** — `saveCustomer(businessId, input)` mock function (create when
+      no `customerId`, update when one's passed — the dedupe-by-phone matching itself still happens
+      in `useCustomersStore`, which now calls this instead of building the `Customer` record
+      itself). `useCustomersStore.saveCustomer`'s signature changed from sync `Customer` to `Promise
+      <Customer>`; both call sites (`StartWalkInScreen`, `ScheduleAppointmentScreen`) already run
+      inside an async handler, so this was just adding `await`. `listCustomers` was **not** added as
+      a mock function — documented in the JSON contract only, matching the existing precedent that
+      `list-service-categories` (business-setup.json) also has no mock implementation
+- [x] **`reference/api/fulfillment.json` drafted** (was: stub) — 8 endpoints: `list-business-
+      bookings` (no mock implementation yet either — Today/Calendar/Earnings all read the client-
+      side `useBookingsStore` array directly, which only ever holds bookings created this session),
+      `create-walk-in-booking`, `create-scheduled-booking`, `update-booking-status`, `charge-
+      booking` (one endpoint, `method: 'mpesa' | 'cash'` — covers both `chargeBookingPayment`/
+      `chargeBookingCash`), `get-earnings-summary` (documents the shape `src/utils/earnings.ts`
+      currently computes client-side — flagged in the description that aggregating every booking
+      in memory isn't a real backend's job long-term), `save-customer`, `list-customers`. File's
+      top-level `auth` note explicitly says these are audited against the **solo owner** session
+      only, and Phase 5 extends rather than replaces this domain
+- [x] **Fixed stale "no reference/api contract entry yet" comments** in `businessSetup.ts`
+      (`update-business-info`/`delete-business-photo`/`update-service` — the JSON entries for these
+      were added earlier this session but the code comments never got updated to point at them) and
+      `booking.ts` (now point at their new `fulfillment.json` entries) — doc rot, not missing
+      coverage, but worth catching in the same pass
+- [x] **`reference/api/README.md`'s status table updated** — fulfillment.json: stub → drafted
+      (solo owner session only)
+- [x] **Followed up by auditing customer-facing `discovery.json`** too, per direct question
+      ("have we been updating the required endpoints for discovery?"). Found it in much better
+      shape than fulfillment was — both endpoints already match the current code exactly
+      (`search-businesses`'s example request already includes all 3 `FilterSheet` params;
+      `get-business-profile`'s example response already embeds `staff[]`/`reviews[]`, so
+      `StaffProfileScreen` re-fetching the whole profile and picking a member client-side was never
+      missing an endpoint). Two doc-rot fixes in `reference/api/README.md`: the discovery.json status
+      note ("filters/staff-profile endpoints not added yet") was stale, since both are covered;
+      `booking.json` was mislabeled "stub" despite having 2 real endpoints (`create-booking`,
+      `confirm-booking-payment`) — relabeled "drafted", noting reschedule/cancel (C3) is genuinely
+      not covered but that's Post-MVP backlog, not a gap in what's built. Also fixed the file's own
+      stale intro claiming "no API layer exists in the app yet" (a mock layer has existed for most
+      of this project by now). **Left alone, per explicit choice**: Favorites/Wishlist has no
+      contract anywhere and `useFavoritesStore` is explicitly client-only — but it has no story id
+      in `customer.md` yet (mentioned only as a capability + candidate screen, not one of C1–C5), so
+      formalizing it means editing the user-story docs first, not just adding an endpoint; decided
+      that's a separate, bigger decision than this audit
 
 - [ ] **Team List** screen
 - [ ] **Invite Member** modal — phone/email + role picker

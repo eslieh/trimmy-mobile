@@ -8,7 +8,7 @@ import { Button } from '../../components/Button';
 import { PhoneInput } from '../../components/PhoneInput';
 import { CheckIcon } from '../../components/icons/CheckIcon';
 import { PhoneIcon } from '../../components/icons/PhoneIcon';
-import { chargeBookingCash, chargeBookingPayment } from '../../api/booking';
+import { chargeBookingCash, chargeBookingPayment, updateBookingStatus } from '../../api/booking';
 import { useBookingsStore } from '../../store/useBookingsStore';
 import { BOOKING_STATUS_COLOR, BOOKING_STATUS_LABEL } from '../../utils/bookingStatus';
 import { formatBookingDateLong } from '../../utils/date';
@@ -48,6 +48,7 @@ export function AppointmentDetailScreen() {
   const [country, setCountry] = useState(DEFAULT_COUNTRY);
   const [rawPhone, setRawPhone] = useState('');
   const [chargeStep, setChargeStep] = useState<ChargeStep>('form');
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -64,8 +65,12 @@ export function AppointmentDetailScreen() {
     );
   }
 
-  const setStatus = (status: BookingStatus) => {
-    updateBooking({ ...booking, status });
+  const setStatus = async (status: BookingStatus) => {
+    if (isUpdatingStatus) return;
+    setIsUpdatingStatus(true);
+    const updated = await updateBookingStatus(booking, status);
+    updateBooking(updated);
+    setIsUpdatingStatus(false);
   };
 
   const handleCall = () => {
@@ -175,17 +180,19 @@ export function AppointmentDetailScreen() {
       <View style={styles.footer}>
         {booking.status === 'confirmed' ? (
           <>
-            <Button label="Check in" onPress={() => setStatus('in_progress')} />
+            <Button label="Check in" disabled={isUpdatingStatus} onPress={() => setStatus('in_progress')} />
             <View style={styles.footerRow}>
               <Button
                 label="No-show"
                 variant="secondary"
+                disabled={isUpdatingStatus}
                 onPress={() => setStatus('no_show')}
                 style={styles.footerHalf}
               />
               <Button
                 label="Cancel"
                 variant="secondary"
+                disabled={isUpdatingStatus}
                 onPress={() => setStatus('cancelled')}
                 style={styles.footerHalf}
               />
