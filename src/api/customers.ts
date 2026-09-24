@@ -1,6 +1,6 @@
 import { apiRequest } from './client';
 import { mockDelay } from './mock/delay';
-import { USE_MOCK_API } from '../config/env';
+import { USE_MOCK_FULFILLMENT } from '../config/env';
 import type { Customer } from '../types/customer';
 
 // See reference/api/fulfillment.json#save-customer for the contract this
@@ -17,7 +17,7 @@ export type SaveCustomerInput = {
 let mockCustomerSequence = 0;
 
 export function saveCustomer(businessId: string, input: SaveCustomerInput): Promise<Customer> {
-  if (USE_MOCK_API) {
+  if (USE_MOCK_FULFILLMENT) {
     const customerId = input.customerId ?? `customer_mock_${(mockCustomerSequence += 1)}`;
     return mockDelay<Customer>({
       customerId,
