@@ -25,7 +25,12 @@ export function BusinessLocationScreen() {
     if (!location) return;
     updateDraft({ location });
 
-    await submitBusinessBasics();
+    // The store keeps the error for the inline message — stay on this step.
+    try {
+      await submitBusinessBasics();
+    } catch {
+      return;
+    }
 
     router.push('/business-photos');
   };

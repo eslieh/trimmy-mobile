@@ -33,7 +33,12 @@ export function TeamModeScreen() {
 
   const handleContinue = async () => {
     if (!teamMode) return;
-    await submitTeamMode(teamMode);
+    // The store keeps the error for the inline message — stay on this step.
+    try {
+      await submitTeamMode(teamMode);
+    } catch {
+      return;
+    }
 
     if (teamMode === 'team') {
       router.push('/business-team-invite');

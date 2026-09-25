@@ -6,6 +6,7 @@ import { OtpInput } from '../../components/OtpInput';
 import { Button } from '../../components/Button';
 import { colors, spacing, typography } from '../../theme';
 import { authApi } from '../../api/auth';
+import { getApiErrorMessage } from '../../api/client';
 
 const CODE_LENGTH = 6;
 
@@ -13,6 +14,8 @@ export function ForgotPasswordVerificationScreen() {
   const router = useRouter();
   const { email } = useLocalSearchParams<{ email: string }>();
   const [code, setCode] = useState('');
+  const [checking, setChecking] = useState(false);
+  const [error, setError] = useState('');
   const [resending, setResending] = useState(false);
   const [resendMessage, setResendMessage] = useState('');
 
@@ -22,10 +25,25 @@ export function ForgotPasswordVerificationScreen() {
     try {
       const result = await authApi.resendOtp(email!, 'password_reset');
       setResendMessage(result.message);
-    } catch {
-      setResendMessage('Failed to resend code. Try again.');
+    } catch (err) {
+      setResendMessage(getApiErrorMessage(err, 'Failed to resend code. Try again.'));
     } finally {
       setResending(false);
+    }
+  };
+
+  // Check the code up front so a typo surfaces here, not after the user has
+  // typed their new password twice.
+  const handleContinue = async () => {
+    setChecking(true);
+    setError('');
+    try {
+      await authApi.verifyResetOtp(email!, code);
+      router.push({ pathname: '/reset-password', params: { email, otp: code } });
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Invalid or expired code. Please try again.'));
+    } finally {
+      setChecking(false);
     }
   };
 
@@ -35,11 +53,14 @@ export function ForgotPasswordVerificationScreen() {
       subtitle={`We sent a 6-digit code to ${email}`}
       onBack={() => router.back()}
       footer={
-        <Button
-          label="Continue"
-          disabled={code.length !== CODE_LENGTH}
-          onPress={() => router.push({ pathname: '/reset-password', params: { email, otp: code } })}
-        />
+        <>
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          <Button
+            label={checking ? 'Checking...' : 'Continue'}
+            disabled={code.length !== CODE_LENGTH || checking}
+            onPress={handleContinue}
+          />
+        </>
       }
     >
       <OtpInput length={CODE_LENGTH} value={code} onChangeText={setCode} />
@@ -82,5 +103,10 @@ const styles = StyleSheet.create({
   resendMessageText: {
     ...typography.caption,
     color: '#166534',
+  },
+  error: {
+    ...typography.caption,
+    color: colors.feedback.danger,
+    marginBottom: 8,
   },
 });

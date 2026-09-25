@@ -13,16 +13,31 @@ export type OwnedBusiness = {
   workingHours: WeeklyHours;
 };
 
-// 'customer' vs 'business' — Airbnb's traveling/hosting switch. Owning a
-// business doesn't put you in business mode automatically (a host can still
-// browse as a guest); this is which app module you're currently in, not
-// whether you're allowed into the business one.
-export type AppMode = 'customer' | 'business';
+// The staff-app equivalent of OwnedBusiness — same "which business is this
+// session about" slot, but for someone who works *at* a business rather
+// than owns it. invitationId links back to the matching TeamInvitation in
+// useBusinessOnboardingStore.invitations (that's still the only "team
+// member" record this app has — see types/team.ts), which is how the
+// staff app scopes bookings/earnings to "mine" (staffId === invitationId).
+export type StaffSession = {
+  businessId: string;
+  businessName: string;
+  invitationId: string;
+};
+
+// 'customer' / 'business' / 'staff' — Airbnb's traveling/hosting switch,
+// extended with a third posture for someone working at a business they
+// don't own. Owning or working at a business doesn't put you in that mode
+// automatically (a host can still browse as a guest); this is which app
+// module you're currently in, not what you're allowed into.
+export type AppMode = 'customer' | 'business' | 'staff';
 
 type OwnedBusinessState = {
   business: OwnedBusiness | null;
+  staffSession: StaffSession | null;
   activeMode: AppMode;
   setOwnedBusiness: (business: OwnedBusiness) => void;
+  setStaffSession: (session: StaffSession) => void;
   setActiveMode: (mode: AppMode) => void;
   clear: () => void;
 };
@@ -36,8 +51,10 @@ type OwnedBusinessState = {
 // across a full app relaunch either.
 export const useOwnedBusinessStore = create<OwnedBusinessState>((set) => ({
   business: null,
+  staffSession: null,
   activeMode: 'customer',
   setOwnedBusiness: (business) => set({ business }),
+  setStaffSession: (staffSession) => set({ staffSession }),
   setActiveMode: (activeMode) => set({ activeMode }),
-  clear: () => set({ business: null, activeMode: 'customer' }),
+  clear: () => set({ business: null, staffSession: null, activeMode: 'customer' }),
 }));

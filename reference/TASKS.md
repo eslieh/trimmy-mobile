@@ -1001,6 +1001,150 @@ the Earnings tab's exact shape** rather than a lighter custom summary.
       booking`'s request examples gained `staffId`/`staffName`; `get-earnings-summary` documented an
       optional `staffId` query param for the real backend to scope its response the same way
 
+## Staff app (new session/module — [S1](staff.md#s1--daily-schedule), [S2](staff.md#s2--earnings-tracking), [S3](staff.md#s3--payout-request))
+
+The other side of everything the Team management pass built: an invited person accepting still led
+nowhere real (`GetStartedScreen`'s accept just removed the invite card locally). Planned tab
+structure before writing any code, per explicit request — landed on mirroring the solo owner's
+shape (Today/Calendar/Earnings/Menu) for consistency, folding Payouts (S3) into Earnings rather than
+giving it a tab of its own, since S3 has no [O4](business-owner.md#o4--payout-approval) counterpart
+built yet for a request to go anywhere.
+
+- [x] **New `AppMode` value `'staff'`** and **`StaffSession`** (`useOwnedBusinessStore.ts`) — the
+      staff-app equivalent of `OwnedBusiness`: `{businessId, businessName, invitationId}`.
+      `invitationId` links back to a `TeamInvitation` in `useBusinessOnboardingStore.invitations`
+      (still the only "team member" record this app has), which is how the staff app scopes
+      bookings/earnings to "mine" rather than the whole business
+- [x] **New tab shell `app/staff/`** — own `<Tabs>`, same docked/blurred styling as
+      `(tabs)`/`(business-app)`. Four tabs: Today, Calendar, Earnings, Menu. No Business tab — staff
+      don't manage the business, which is the actual point of this being a separate module rather
+      than a filtered view of `(business-app)`. **Originally built as a route group `(staff-app)`,
+      then found broken**: route groups are transparent to the URL, so `(staff-app)/today.tsx` and
+      `(business-app)/today.tsx` both resolved to the same `/today` path (same for calendar/
+      earnings/menu) — navigating there could only ever land in one tab bar, which is why the staff
+      tabs never appeared when testing. Fixed by renaming to a real (non-parenthesized) folder,
+      `app/staff/`, so the routes became distinctly `/staff/today` etc. — caught from a direct bug
+      report ("i cant see the tabs we've discussed"), not something the earlier build/export checks
+      could have caught, since `tsc`/`expo export` don't detect two files resolving to one path
+- [x] **`StaffTodayScreen`** — same shape as the business-owner app's `TodayTimelineScreen`
+      (Today/Tomorrow pills, upcoming timeline with a rail, completed collapsed) but filtered to
+      `staffId === staffSession.invitationId` instead of the whole business, and no "+" (staff don't
+      create walk-ins)
+- [x] **`StaffCalendarScreen`** — read-only version of `CalendarScreen`: same month grid + selected-
+      day list, same `staffId` filter, but no "+" and no open-slots section (scheduling is an
+      owner/front-desk permission)
+- [x] **`StaffEarningsScreen`** — S2 (mirrors `EarningsScreen`/`TeamMemberDetailScreen`'s earnings
+      section exactly: same range toggle, `BarChart`, `DonutChart`, services breakdown, all scoped to
+      "my" bookings) with **S3 folded in as a wallet card at the top** (see wallet model section
+      below). New `PayoutRequest` type, `usePayoutsStore`, `src/api/payouts.ts#requestPayout`
+      (documented as `request-payout` in `fulfillment.json`) — always comes back `pending` since
+      there's no O4 screen for an owner to ever mark one `paid`
+- [x] **`StaffMenuScreen`** — mirrors `BusinessMenuScreen`'s shape (account identity, "Switch to
+      browsing", log out), no business-management rows
+- [x] **Appointment tap-through reuses the existing `/appointment/[bookingId]` screen as-is** — same
+      check-in/no-show/cancel/charge-customer actions the owner gets, not a separate restricted
+      staff version. Pragmatic reuse, not a considered permissions decision — flagged here since a
+      real product would likely restrict "Cancel" to front-desk/owner rather than let staff cancel
+      appointments themselves
+- [x] **`seedSelfAsStaffForTesting`** (`devSeed.ts`) — shares a new `seedBusinessData` helper
+      extracted from `seedOwnedBusinessForTesting` (same business/services seeding, previously
+      duplicated inline). Additionally seeds a single deterministic "you" `TeamInvitation`
+      (`inv_self_test`, role `'staff'`, already `status: 'accepted'` — skips the real invite/accept
+      flow, which isn't reachable from this shortcut) so the staff app's screens have a real
+      `invitationId` to scope to. Reuses whatever team members already exist rather than clearing
+      them, so testing Team management and Staff mode together in one session doesn't stomp on each
+      other
+- [x] **`ProfileScreen`'s testing panel gained a third "Staff" button** — per explicit request to
+      always keep every buildable mode reachable there. Front Desk is still the one honest gap
+      (testingHint updated to only call out Front Desk now, not Staff+Front Desk together)
+
+## Earnings wallet model + transaction ledger + payment reference
+
+Two follow-up requests on the earnings work, both addressed directly.
+
+**Wallet model for S3** ("a wallet for the staff where they can request the amounts they want,
+incrementing on the services they offer"): replaced the fixed "today's commission, once a day"
+payout request with an earned-wage-access model.
+- [x] **`PayoutRequest` dropped its `date` field** — a request is no longer tied to a specific day,
+      it's a withdrawal against an accumulating balance
+- [x] **`StaffEarningsScreen`'s wallet card**: available balance = lifetime commission earned
+      (`getAppointmentStats` called with a wide all-time `DateRange` rather than a new "lifetime"
+      concept in `earnings.ts`) minus the sum of every payout ever requested for this invitationId,
+      any status — a *pending* request reserves that amount immediately, not just once paid, so the
+      same earnings can't be requested twice while a request sits unactioned. "Request payout" opens
+      a sheet with an amount field (pre-filled with the full available balance, editable down),
+      capped at that balance, instead of one fixed button. A payout history list (amount, date,
+      pending/paid) sits below so a request doesn't feel like a black hole
+- [x] **`reference/api/fulfillment.json#request-payout` updated** to match — request no longer takes
+      `date`, description rewritten around the wallet model, `already_requested` error replaced with
+      `insufficient_balance`
+
+**Transaction ledger** ("a list of the services they offered line by line and time and client and
+amount... last 10 or so, then request more by date range... same for the global view"):
+- [x] **New `getTransactionLines(bookings, range)`** in `utils/earnings.ts` — one row per service
+      actually performed (not per booking, so a 2-service booking is 2 rows, each with its own
+      allocated amount), newest first
+- [x] **New shared `TransactionList` component** — used identically by `EarningsScreen`
+      (business-wide, solo and team), `TeamMemberDetailScreen` (one member, owner's view), and
+      `StaffEarningsScreen` ("mine"). Capped to the 10 most recent for a preset range
+      (Today/Week/Month/Year, meant as a quick pulse-check); a Custom range is treated as an explicit
+      "show me everything in this window" request, so it isn't capped. Totals are already covered by
+      each screen's existing hero card, driven by the same range toggle — no separate total needed
+      inside the list itself
+- [x] **Tapping a row reuses `AppointmentDetailScreen` as the detail view**, per follow-up request to
+      see "customer, payment methods, amount paid, txn details from M-Pesa" on tap — rather than
+      building a separate transaction-detail screen, since that screen already has the customer
+      contact card and full service/price breakdown. Only needed one addition there:
+- [x] **`Booking` gained `paymentReference: string | null`** — a mock M-Pesa receipt-style code
+      (`generateMpesaReceipt()` in `api/booking.ts`, cosmetic — 10 random uppercase
+      letters+digits) set by `chargeBookingPayment`; stays `null` for cash (no receipt exists for
+      cash) and for every unpaid booking. Shown in a new "Payment" card on Appointment Detail
+      (method, amount paid, and the M-Pesa reference when present). Documented in
+      `fulfillment.json`'s `charge-booking` response and `create-walk-in-booking`/
+      `create-scheduled-booking`'s (as `null`, since those are unpaid at creation)
+- [x] **`get-earnings-summary` documented a new `transactions` array** in its response, matching
+      `getTransactionLines`'s shape, with a note that a real backend could paginate this rather than
+      always returning every row like the mock does
+
+## Payout approval ([O4](business-owner.md#o4--payout-approval)) — the other half of S3
+
+Closes the loop the staff wallet opened. Placement was discussed explicitly before building:
+considered a section inside each member's Team → Member Detail page, but landed on **global** — a
+queue visible the moment the owner opens the Team tab ("when they click team they can see staff X
+requests KES X"), not something they'd have to open each member to discover.
+
+- [x] **`PayoutRequest` gained a real lifecycle**: `PayoutStatus` extended to `'pending' | 'paid' |
+      'rejected'`, plus `respondedAt`/`rejectionReason` fields. New `respondToPayout` in
+      `api/payouts.ts` (documented as `respond-to-payout` in `fulfillment.json`) — mock-only "takes
+      the full payout" quirk, same reason as `chargeBookingPayment`/`updateBookingStatus`
+- [x] **Correctness fix this required**: a rejected request now **releases its reserved amount back
+      to the staff member's wallet balance** — `StaffEarningsScreen`'s `totalRequested` sum excludes
+      `status: 'rejected'` payouts. Without this, a rejected request would have permanently locked
+      that chunk of their balance even though they were never actually paid
+- [x] **`TeamScreen` gained a "Payouts" card at the top** — pending requests across the whole team
+      (name, amount), each tappable, plus a "View all" link into full history. Shown immediately on
+      opening Team, above the member grid, per explicit request for a global view rather than
+      per-member
+- [x] **New `PayoutDetailScreen`** (route `/payouts/[payoutId]`) — the actual approve/reject actions.
+      **"Accept & send" is deliberately framed as a manual attestation, not a money-moving action**:
+      a confirmation sheet explains the owner has already sent the money themselves (M-Pesa/cash —
+      Trimyy has no real payment rail) before marking it paid. **"Reject" takes an optional reason**
+      (sheet with a text field), shown back to the staff member on their own payout history
+      (`StaffEarningsScreen`, which now also renders `rejectionReason` under a rejected entry)
+- [x] **New `PayoutHistoryScreen`** (route `/payouts`) — every payout request for the business, any
+      status, newest first, reached from Team's "View all" link. Answers "they should be able to
+      list the requests records and such"
+- [x] **New shared `src/utils/payout.ts`** (`PAYOUT_STATUS_LABEL`/`PAYOUT_STATUS_COLOR`) and
+      **`teamMemberDisplayName()` added to `utils/team.ts`** (deduped from `TeamScreen`/
+      `TeamMemberDetailScreen`'s identical inline `name || phone || email || 'Team member'`
+      expression, now also needed by the two new payout screens) — same "dedupe once it'd otherwise
+      appear in 3+ places" convention as `bookingStatus.ts`
+- [x] **`reference/api/fulfillment.json`**: `request-payout`'s description/response updated for the
+      full lifecycle (`respondedAt`/`rejectionReason`, and the corrected "rejected releases balance"
+      rule); new `respond-to-payout` (O4's actual approve/reject contract) and `list-business-
+      payouts` (documented, no mock implementation — same "no fetch-on-mount" gap as `list-
+      customers`/`list-business-bookings`) entries added
+
 ## MVP done when
 
 - [x] An owner can set up a business end-to-end (Phase 1) — done against mocks; still needs the
@@ -1017,14 +1161,18 @@ the Earnings tab's exact shape** rather than a lighter custom summary.
 - Front Desk: [F2](front-desk.md#f2--walk-ins) walk-ins,
   [F3](front-desk.md#f3--check-in--checkout-pos) checkout/POS,
   [F4](front-desk.md#f4--end-of-day-summary) day summary
-- Owner: [O3](business-owner.md#o3--performance-dashboard) dashboard — **the Earnings tab above
-  covers this for solo**, not yet extended to per-staff/team-wide breakdowns,
-  [O4](business-owner.md#o4--payout-approval) payouts,
-  [O5](business-owner.md#o5--role-switching) role switching — **partially done**: customer↔business
-  and solo↔team-tab-shape switching exist (`ProfileScreen`'s testing panel, `(business-app)/
-  _layout.tsx`), but there's no real Staff/Front Desk session to switch *into* yet
-- Staff: [S2](staff.md#s2--earnings-tracking) earnings — **done for the solo owner's own earnings**
-  (the Earnings tab), not built as a distinct per-staff-member view (needs "your split" vs. the
-  business's total, which needs actual Staff sessions to exist first),
-  [S3](staff.md#s3--payout-request) payout request,
-  [S4](staff.md#s4--availability) availability
+- Owner: [O3](business-owner.md#o3--performance-dashboard) dashboard — **done for solo** (the
+  Earnings tab) **and for viewing one member at a time** (Team → Member Detail's earnings section),
+  not a single team-wide rollup across every member,
+  [O4](business-owner.md#o4--payout-approval) payouts — **the missing half of the loop**: staff can
+  now request one ([S3](staff.md#s3--payout-request), below), but there's no owner screen to
+  see/approve it — every request just sits `pending` forever,
+  [O5](business-owner.md#o5--role-switching) role switching — **done**: customer↔business↔staff and
+  solo↔team-tab-shape switching all exist (`ProfileScreen`'s testing panel, `(business-app)`/
+  `(staff-app)` layouts) — only Front Desk has no session to switch into
+- Staff: [S1](staff.md#s1--daily-schedule) daily schedule — **done** (`(staff-app)`'s Today/
+  Calendar), [S2](staff.md#s2--earnings-tracking) earnings — **done**, their own view (`(staff-app)`'s
+  Earnings tab), [S3](staff.md#s3--payout-request) payout request — **request side done**, no
+  approval side (see O4 above),
+  [S4](staff.md#s4--availability) availability — still not built (feeds Front Desk's booking logic,
+  which doesn't exist yet either, so wouldn't do anything yet)

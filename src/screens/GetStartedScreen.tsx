@@ -4,6 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Button } from '../components/Button';
 import { listMyInvitations, respondToInvitation } from '../api/team';
+import { useBusinessOnboardingStore } from '../store/useBusinessOnboardingStore';
+import { nextSetupRoute } from '../utils/restoreOwnedBusiness';
 import { TEAM_ROLE_LABEL } from '../utils/team';
 import { colors, radii, shadows, spacing, typography } from '../theme';
 import type { MyInvitation } from '../types/team';
@@ -16,9 +18,16 @@ export function GetStartedScreen() {
   const router = useRouter();
   const [invitations, setInvitations] = useState<MyInvitation[] | null>(null);
   const [respondingId, setRespondingId] = useState<string | null>(null);
+  // An unfinished setup restored from the server after login.
+  const business = useBusinessOnboardingStore((s) => s.business);
+  const draft = business?.status === 'draft' ? business : null;
 
   useEffect(() => {
-    listMyInvitations().then(setInvitations);
+    // An invite check failing shouldn't strand the user on a spinner — fall
+    // through to the enroll-a-business / browse options.
+    listMyInvitations()
+      .then(setInvitations)
+      .catch(() => setInvitations([]));
   }, []);
 
   const handleRespond = async (invitationId: string, action: 'accept' | 'decline') => {
@@ -65,15 +74,27 @@ export function GetStartedScreen() {
           ))
         )}
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Own a business?</Text>
-          <Text style={styles.cardBody}>List your business on Trimyy and start taking bookings today.</Text>
-          <Button
-            label="Enroll your business today"
-            onPress={() => router.push('/business-name')}
-            style={styles.enrollButton}
-          />
-        </View>
+        {draft ? (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Finish setting up {draft.name}</Text>
+            <Text style={styles.cardBody}>Pick up where you left off — your progress is saved.</Text>
+            <Button
+              label="Continue setup"
+              onPress={() => router.push(nextSetupRoute(draft.onboardingStep, draft.teamMode))}
+              style={styles.enrollButton}
+            />
+          </View>
+        ) : (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Own a business?</Text>
+            <Text style={styles.cardBody}>List your business on Trimyy and start taking bookings today.</Text>
+            <Button
+              label="Enroll your business today"
+              onPress={() => router.push('/business-name')}
+              style={styles.enrollButton}
+            />
+          </View>
+        )}
       </ScrollView>
 
       <View style={styles.footer}>

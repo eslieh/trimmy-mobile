@@ -18,11 +18,12 @@ shape) — they should stay accurate enough to hand to a backend engineer as-is.
 
 | File | Phase | Status |
 |---|---|---|
+| [auth.json](auth.json) | Auth | live (register, login, refresh, logout, verify-email, check-email, me + update/delete, change-password, forgot/verify-reset-otp/reset password, resend-otp, me/businesses, Google sign-in) |
 | [business-setup.json](business-setup.json) | Phase 1 — Business setup | live on staging/prod (create/read/wizard writes + post-publish management: update-business, photos, services, categories, policies, payment, publish) |
 | [discovery.json](discovery.json) | Phase 2 — Discovery | live on staging/prod (search — including all current filter params — + business profile, which embeds staff/reviews/policies; favorites/wishlist not yet covered — no story id for it in customer.md yet) |
 | [booking.json](booking.json) | Phase 3 — Booking flow | drafted (create-booking + confirm-booking-payment; reschedule/cancel not covered — that's [C3](../customer.md#c3--manage-appointments), Post-MVP backlog) |
 | [fulfillment.json](fulfillment.json) | Phase 4 — Fulfillment view | drafted (solo owner session only — bookings list/create/status/charge, earnings summary, customers) |
-| [team.json](team.json) | Phase 5 — Team management | live on staging/prod (invitation endpoints only, needed by Get Started) |
+| [team.json](team.json) | Phase 5 — Team management | live (my-invitations, respond, and list/add/update/remove team members) |
 
 A "stub" file just holds the `domain` and an empty `endpoints` array — fill it in when that
 phase actually starts, using `business-setup.json` as the template.

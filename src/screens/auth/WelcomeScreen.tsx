@@ -7,6 +7,9 @@ import { Divider } from '../../components/Divider';
 import { GoogleIcon } from '../../components/icons/GoogleIcon';
 import { AppleIcon } from '../../components/icons/AppleIcon';
 import { PhoneIcon } from '../../components/icons/PhoneIcon';
+import { authApi } from '../../api/auth';
+import { getApiErrorMessage } from '../../api/client';
+import { useGoogleSignIn } from '../../hooks/useGoogleSignIn';
 import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { seedOwnedBusinessForTesting } from '../../utils/devSeed';
 import { colors, spacing, typography } from '../../theme';
@@ -14,19 +17,37 @@ import { colors, spacing, typography } from '../../theme';
 export function WelcomeScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
+  const [checking, setChecking] = useState(false);
+  const [error, setError] = useState('');
+  const google = useGoogleSignIn();
   const setOwnedBusiness = useOwnedBusinessStore((s) => s.setOwnedBusiness);
   const setActiveMode = useOwnedBusinessStore((s) => s.setActiveMode);
 
-  // No real Google/Apple/phone OAuth yet (see the note below the Divider) —
-  // repurposed as a role-testing shortcut per explicit request: Google →
-  // customer, Apple → business (solo), phone → business (team). None of
-  // this reflects real auth; it only exists so the three app experiences
-  // can be reached quickly without repeating the full wizard each time.
-  const enterAsCustomer = () => {
-    router.dismissAll();
-    router.replace('/explore');
+  // One email field for both paths: existing accounts go to Login (email
+  // prefilled), new ones start sign-up.
+  const handleContinue = async () => {
+    const trimmed = email.trim();
+    setChecking(true);
+    setError('');
+    try {
+      const { exists } = await authApi.checkEmail(trimmed);
+      router.push(
+        exists
+          ? { pathname: '/login', params: { email: trimmed } }
+          : { pathname: '/onboarding-password', params: { email: trimmed } },
+      );
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Something went wrong. Please try again.'));
+    } finally {
+      setChecking(false);
+    }
   };
 
+  // Google is real sign-in (useGoogleSignIn). Apple/phone OAuth don't exist
+  // yet, so those two stay role-testing shortcuts per explicit request:
+  // Apple → business (solo), phone → business (team). Neither reflects real
+  // auth; they only let the business app be reached without repeating the
+  // full wizard each time.
   const enterAsBusiness = (teamMode: 'solo' | 'team') => {
     setOwnedBusiness(seedOwnedBusinessForTesting(teamMode === 'solo' ? 0 : 1, teamMode));
     setActiveMode('business');
@@ -55,11 +76,12 @@ export function WelcomeScreen() {
         style={styles.input}
       />
 
+      {error ? <Text style={styles.error}>{error}</Text> : null}
       <Button
-        label="Continue"
-        onPress={() => router.push({ pathname: '/onboarding-password', params: { email: email.trim() } })}
+        label={checking ? 'Checking...' : 'Continue'}
+        onPress={handleContinue}
         variant="primary"
-        disabled={!email.trim()}
+        disabled={!email.trim() || checking}
         style={styles.continueButton}
       />
 
@@ -73,8 +95,9 @@ export function WelcomeScreen() {
           icon={<PhoneIcon size={20} />}
         />
         <Button
-          label="Continue with Google"
-          onPress={enterAsCustomer}
+          label={google.loading ? 'Connecting to Google...' : 'Continue with Google'}
+          onPress={google.start}
+          disabled={google.loading}
           variant="secondary"
           icon={<GoogleIcon size={20} />}
         />
@@ -85,6 +108,8 @@ export function WelcomeScreen() {
           icon={<AppleIcon size={20} />}
         />
       </View>
+
+      {google.error ? <Text style={styles.googleError}>{google.error}</Text> : null}
 
       <Pressable style={styles.loginLink} onPress={() => router.push('/login')} hitSlop={8}>
         <Text style={styles.loginLinkText}>
@@ -126,6 +151,18 @@ const styles = StyleSheet.create({
   },
   input: {
     marginBottom: spacing.xl,
+  },
+  error: {
+    ...typography.caption,
+    color: colors.feedback.danger,
+    marginTop: -spacing.md,
+    marginBottom: spacing.md,
+  },
+  googleError: {
+    ...typography.caption,
+    color: colors.feedback.danger,
+    textAlign: 'center',
+    marginTop: spacing.md,
   },
   continueButton: {
     marginBottom: spacing.xl,

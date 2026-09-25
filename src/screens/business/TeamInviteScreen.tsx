@@ -7,6 +7,7 @@ import { Button } from '../../components/Button';
 import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import type { TeamRole } from '../../types/team';
+import { showApiError } from '../../utils/showApiError';
 
 const TOTAL_STEPS = 11;
 
@@ -79,11 +80,17 @@ function AddInviteSheet({ visible, onClose }: AddInviteSheetProps) {
   };
 
   const handleSend = async () => {
-    await sendTeamInvite({
-      email: contactMethod === 'email' ? contactValue.trim() : undefined,
-      phone: contactMethod === 'phone' ? contactValue.trim() : undefined,
-      role,
-    });
+    // Keep the sheet open on failure — the screen's inline error sits behind it.
+    try {
+      await sendTeamInvite({
+        email: contactMethod === 'email' ? contactValue.trim() : undefined,
+        phone: contactMethod === 'phone' ? contactValue.trim() : undefined,
+        role,
+      });
+    } catch (err) {
+      showApiError("Couldn't send invite", err);
+      return;
+    }
     reset();
     onClose();
   };

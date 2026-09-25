@@ -51,5 +51,6 @@ export type Booking = {
   source: BookingSource;
   paymentStatus: PaymentStatus;
   paymentMethod: PaymentMethod | null; // null until charged
+  paymentReference: string | null; // M-Pesa receipt number once paid via mpesa; cash has no reference, stays null
   createdAt: string;
 };

@@ -19,7 +19,7 @@ export function OnboardingMobileScreen() {
     <AuthScreenLayout
       title="What's your mobile number?"
       subtitle="We'll use this to send booking updates and reminders."
-      progress={4 / TOTAL_STEPS}
+      progress={3 / TOTAL_STEPS}
       onBack={() => router.back()}
       footer={
         <Button

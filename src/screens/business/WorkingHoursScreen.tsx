@@ -61,7 +61,12 @@ export function WorkingHoursScreen() {
   };
 
   const handleContinue = async () => {
-    await submitWorkingHours(hours);
+    // The store keeps the error for the inline message — stay on this step.
+    try {
+      await submitWorkingHours(hours);
+    } catch {
+      return;
+    }
     if (isEditMode) {
       router.back();
     } else {

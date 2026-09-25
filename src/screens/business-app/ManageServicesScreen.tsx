@@ -10,6 +10,7 @@ import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingSto
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import type { UpdateServiceInput } from '../../api/businessSetup';
 import type { Service } from '../../types/business';
+import { showApiError } from '../../utils/showApiError';
 
 // Post-publish sibling to onboarding's ServicesScreen — same category-card /
 // add-service-sheet visual language, but operating on the already-live
@@ -99,7 +100,9 @@ export function ManageServicesScreen() {
         onClose={() => setAddCategoryVisible(false)}
         onSubmit={async (name) => {
           setAddCategoryVisible(false);
-          await addServiceCategoryNow(business.businessId, name);
+          await addServiceCategoryNow(business.businessId, name).catch((err) =>
+            showApiError("Couldn't add category", err),
+          );
         }}
       />
 
@@ -109,7 +112,10 @@ export function ManageServicesScreen() {
         onSubmit={async (input) => {
           const categoryId = addServiceForCategory;
           setAddServiceForCategory(null);
-          if (categoryId) await addServiceNow(business.businessId, categoryId, input);
+          if (!categoryId) return;
+          await addServiceNow(business.businessId, categoryId, input).catch((err) =>
+            showApiError("Couldn't add service", err),
+          );
         }}
       />
 
@@ -120,7 +126,10 @@ export function ManageServicesScreen() {
         onSubmit={async (input) => {
           const service = editingService;
           setEditingService(null);
-          if (service) await editService(business.businessId, service.serviceId, input);
+          if (!service) return;
+          await editService(business.businessId, service.serviceId, input).catch((err) =>
+            showApiError("Couldn't save service", err),
+          );
         }}
       />
     </SafeAreaView>

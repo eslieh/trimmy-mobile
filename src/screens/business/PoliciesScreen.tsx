@@ -16,8 +16,10 @@ const DEFAULT_POLICIES: BusinessPolicies = {
   deposit: {
     required: false,
     type: 'fixed',
-    amount: { amount: 0, currency: 'KES' },
+    amount: null,
+    percent: null,
     appliesTo: 'all_services',
+    serviceIds: [],
   },
   cancellation: {
     freeCancellationHours: 24,
@@ -36,9 +38,14 @@ export function PoliciesScreen() {
   const submitPolicies = useBusinessOnboardingStore((s) => s.submitPolicies);
   const isSubmitting = useBusinessOnboardingStore((s) => s.isSubmitting);
   const error = useBusinessOnboardingStore((s) => s.error);
+  const services = useBusinessOnboardingStore((s) => s.services);
 
   const [policies, setPolicies] = useState<BusinessPolicies>(draftPolicies ?? DEFAULT_POLICIES);
-  const [depositAmountText, setDepositAmountText] = useState(String(policies.deposit.amount.amount || ''));
+  // One text field for either kind of deposit — KSh for fixed, % for percent.
+  const [depositValueText, setDepositValueText] = useState(
+    String((policies.deposit.type === 'percent' ? policies.deposit.percent : policies.deposit.amount?.amount) || ''),
+  );
+  const [validationError, setValidationError] = useState('');
   const [freeCancellationHoursText, setFreeCancellationHoursText] = useState(
     String(policies.cancellation.freeCancellationHours),
   );
@@ -56,10 +63,53 @@ export function PoliciesScreen() {
     setPolicies((current) => ({ ...current, deposit: { ...current.deposit, type } }));
   };
 
+  const setAppliesTo = (appliesTo: 'all_services' | 'selected_services') => {
+    setPolicies((current) => ({ ...current, deposit: { ...current.deposit, appliesTo } }));
+  };
+
+  const toggleDepositService = (serviceId: string) => {
+    setPolicies((current) => {
+      const ids = current.deposit.serviceIds;
+      return {
+        ...current,
+        deposit: {
+          ...current.deposit,
+          serviceIds: ids.includes(serviceId) ? ids.filter((id) => id !== serviceId) : [...ids, serviceId],
+        },
+      };
+    });
+  };
+
+  const buildDeposit = (): BusinessPolicies['deposit'] | string => {
+    const { deposit } = policies;
+    if (!deposit.required) {
+      return { required: false, type: 'fixed', amount: null, percent: null, appliesTo: 'all_services', serviceIds: [] };
+    }
+    const value = Number(depositValueText);
+    if (deposit.type === 'percent' && !(value >= 1 && value <= 100)) return 'Deposit percentage must be between 1 and 100.';
+    if (deposit.type === 'fixed' && !(value > 0)) return 'Enter a deposit amount.';
+    if (deposit.appliesTo === 'selected_services' && deposit.serviceIds.length === 0) {
+      return 'Choose at least one service that takes a deposit.';
+    }
+    return {
+      ...deposit,
+      amount: deposit.type === 'fixed' ? { amount: value, currency: 'KES' } : null,
+      percent: deposit.type === 'percent' ? value : null,
+      serviceIds: deposit.appliesTo === 'selected_services' ? deposit.serviceIds : [],
+    };
+  };
+
   const handleContinue = async () => {
+    const deposit = buildDeposit();
+    if (typeof deposit === 'string') {
+      setValidationError(deposit);
+      return;
+    }
+    setValidationError('');
+
     const finalPolicies: BusinessPolicies = {
       ...policies,
-      deposit: { ...policies.deposit, amount: { amount: Number(depositAmountText) || 0, currency: 'KES' } },
+      deposit,
       cancellation: {
         freeCancellationHours: Number(freeCancellationHoursText) || 0,
         lateFeePercent: Number(lateFeePercentText) || 0,
@@ -67,7 +117,12 @@ export function PoliciesScreen() {
       noShow: { feePercent: Number(noShowFeePercentText) || 0 },
     };
 
-    await submitPolicies(finalPolicies);
+    // The store keeps the error for the inline message — stay on this step.
+    try {
+      await submitPolicies(finalPolicies);
+    } catch {
+      return;
+    }
 
     if (isEditMode) {
       router.back();
@@ -84,7 +139,7 @@ export function PoliciesScreen() {
       onBack={() => router.back()}
       footer={
         <>
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {validationError || error ? <Text style={styles.error}>{validationError || error}</Text> : null}
           <Button
             label={isSubmitting ? 'Saving…' : isEditMode ? 'Save' : 'Continue'}
             disabled={isSubmitting}
@@ -146,11 +201,53 @@ export function PoliciesScreen() {
             </View>
             <Input
               label={policies.deposit.type === 'fixed' ? 'Deposit amount (KSh)' : 'Deposit (%)'}
-              value={depositAmountText}
-              onChangeText={setDepositAmountText}
+              value={depositValueText}
+              onChangeText={setDepositValueText}
               placeholder={policies.deposit.type === 'fixed' ? '500' : '20'}
               keyboardType="number-pad"
             />
+
+            <Text style={styles.fieldLabel}>Applies to</Text>
+            <View style={styles.pillRow}>
+              {(
+                [
+                  { value: 'all_services', label: 'All services' },
+                  { value: 'selected_services', label: 'Selected services' },
+                ] as const
+              ).map((option) => {
+                const selected = policies.deposit.appliesTo === option.value;
+                return (
+                  <Pressable
+                    key={option.value}
+                    onPress={() => setAppliesTo(option.value)}
+                    style={[styles.pill, selected ? styles.pillSelected : styles.pillUnselected]}
+                  >
+                    <Text style={[styles.pillText, selected ? styles.pillTextSelected : styles.pillTextUnselected]}>
+                      {option.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {policies.deposit.appliesTo === 'selected_services' ? (
+              <View style={styles.wrapRow}>
+                {services.map((service) => {
+                  const selected = policies.deposit.serviceIds.includes(service.serviceId);
+                  return (
+                    <Pressable
+                      key={service.serviceId}
+                      onPress={() => toggleDepositService(service.serviceId)}
+                      style={[styles.pill, selected ? styles.pillSelected : styles.pillUnselected]}
+                    >
+                      <Text style={[styles.pillText, selected ? styles.pillTextSelected : styles.pillTextUnselected]}>
+                        {service.name}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : null}
           </>
         ) : null}
       </View>
@@ -203,6 +300,15 @@ const styles = StyleSheet.create({
   pillRow: {
     flexDirection: 'row',
     gap: spacing.sm,
+  },
+  wrapRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  fieldLabel: {
+    ...typography.label,
+    color: colors.text.primary,
   },
   pill: {
     paddingHorizontal: spacing.lg,

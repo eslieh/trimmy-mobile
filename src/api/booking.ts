@@ -21,6 +21,16 @@ export type CreateBookingInput = {
 
 let mockBookingSequence = 0;
 
+// Plausible-looking M-Pesa receipt number (real ones are ~10 chars,
+// uppercase letters + digits) — purely cosmetic, for the transaction-detail
+// view (AppointmentDetailScreen) to show something realistic once charged.
+function generateMpesaReceipt(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let code = '';
+  for (let i = 0; i < 10; i += 1) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
 export function createBooking(input: CreateBookingInput): Promise<Booking> {
   if (USE_MOCK_BOOKING) {
     mockBookingSequence += 1;
@@ -33,6 +43,7 @@ export function createBooking(input: CreateBookingInput): Promise<Booking> {
       source: 'online',
       paymentStatus: 'unpaid',
       paymentMethod: null,
+      paymentReference: null,
       createdAt: new Date().toISOString(),
     });
   }
@@ -80,6 +91,7 @@ export function createWalkInBooking(input: CreateOwnerBookingInput): Promise<Boo
       source: 'walk_in',
       paymentStatus: 'unpaid',
       paymentMethod: null,
+      paymentReference: null,
       createdAt: now.toISOString(),
     });
   }
@@ -110,6 +122,7 @@ export function createScheduledBooking(input: CreateScheduledBookingInput): Prom
       source: 'walk_in',
       paymentStatus: 'unpaid',
       paymentMethod: null,
+      paymentReference: null,
       createdAt: new Date().toISOString(),
     });
   }
@@ -126,7 +139,14 @@ export function createScheduledBooking(input: CreateScheduledBookingInput): Prom
 export function chargeBookingPayment(booking: Booking, customerPhone: string): Promise<Booking> {
   if (USE_MOCK_FULFILLMENT) {
     return mockDelay<Booking>(
-      { ...booking, customerPhone, paymentStatus: 'paid', paymentMethod: 'mpesa', status: 'completed' },
+      {
+        ...booking,
+        customerPhone,
+        paymentStatus: 'paid',
+        paymentMethod: 'mpesa',
+        paymentReference: generateMpesaReceipt(),
+        status: 'completed',
+      },
       2200,
     );
   }
@@ -143,8 +163,14 @@ export function chargeBookingPayment(booking: Booking, customerPhone: string): P
 // mockDelay so the UI's brief loading state is exercised the same way as
 // every other mock write.
 export function chargeBookingCash(booking: Booking): Promise<Booking> {
-  if (USE_MOCK_FULFILLMENT) {
-    return mockDelay<Booking>({ ...booking, paymentStatus: 'paid', paymentMethod: 'cash', status: 'completed' });
+  if (USE_MOCK_API) {
+    return mockDelay<Booking>({
+      ...booking,
+      paymentStatus: 'paid',
+      paymentMethod: 'cash',
+      paymentReference: null,
+      status: 'completed',
+    });
   }
 
   return apiRequest<Booking>(`/bookings/${booking.bookingId}/charge`, {

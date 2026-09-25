@@ -92,8 +92,10 @@ export type Service = {
 export type DepositRule = {
   required: boolean;
   type: 'fixed' | 'percent';
-  amount: Money;
+  amount: Money | null; // fixed deposits only
+  percent: number | null; // percent deposits only, 0–100
   appliesTo: 'all_services' | 'selected_services';
+  serviceIds: string[]; // selected_services only — the services that take a deposit
 };
 
 export type CancellationPolicy = {
@@ -123,3 +125,31 @@ export type PaymentDestination = {
 };
 
 export type TeamMode = 'solo' | 'team';
+
+// GET /payment-destinations/options — the server's description of each
+// payout method and its fields, so the form and its validation rules live
+// in one place (server-side) instead of being duplicated in the app.
+export type PaymentFieldOption = {
+  name: 'tillNumber' | 'paybillNumber' | 'paybillAccountNumber' | 'bankName' | 'bankShortcode' | 'bankAccountNumber';
+  label: string;
+  keyboard: 'number' | 'default' | 'picker';
+  pattern: string; // JS-compatible regex source
+  hint: string;
+};
+
+export type PaymentTypeOption = {
+  type: PaymentDestination['type'];
+  label: string;
+  description: string;
+  fields: PaymentFieldOption[];
+};
+
+export type BankOption = {
+  name: string;
+  shortcode: string;
+};
+
+export type PaymentDestinationOptions = {
+  types: PaymentTypeOption[];
+  banks: BankOption[];
+};

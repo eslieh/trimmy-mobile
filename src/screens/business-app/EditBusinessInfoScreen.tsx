@@ -62,13 +62,18 @@ export function EditBusinessInfoScreen() {
 
   const handleSave = async () => {
     if (!canSave || !location) return;
-    await updateBusinessInfo(business.businessId, {
-      name: name.trim(),
-      description: description.trim(),
-      categories,
-      phone: normalizePhoneNumber(rawPhone, country),
-      location,
-    });
+    // The store keeps the error for the inline message — stay on this step.
+    try {
+      await updateBusinessInfo(business.businessId, {
+        name: name.trim(),
+        description: description.trim(),
+        categories,
+        phone: normalizePhoneNumber(rawPhone, country),
+        location,
+      });
+    } catch {
+      return;
+    }
     router.back();
   };
 

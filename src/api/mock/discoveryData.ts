@@ -34,7 +34,7 @@ export const MOCK_BUSINESS_PROFILES: BusinessProfile[] = [
       sunday: null,
     },
     policies: {
-      deposit: { required: false, type: 'fixed', amount: { amount: 0, currency: 'KES' }, appliesTo: 'all_services' },
+      deposit: { required: false, type: 'fixed', amount: { amount: 0, currency: 'KES' }, appliesTo: 'all_services', percent: null, serviceIds: [] },
       cancellation: { freeCancellationHours: 24, lateFeePercent: 50 },
       noShow: { feePercent: 100 },
     },
@@ -104,7 +104,7 @@ export const MOCK_BUSINESS_PROFILES: BusinessProfile[] = [
       sunday: { open: '10:00', close: '16:00' },
     },
     policies: {
-      deposit: { required: true, type: 'fixed', amount: { amount: 200, currency: 'KES' }, appliesTo: 'all_services' },
+      deposit: { required: true, type: 'fixed', amount: { amount: 200, currency: 'KES' }, appliesTo: 'all_services', percent: null, serviceIds: [] },
       cancellation: { freeCancellationHours: 12, lateFeePercent: 100 },
       noShow: { feePercent: 100 },
     },
@@ -174,7 +174,7 @@ export const MOCK_BUSINESS_PROFILES: BusinessProfile[] = [
       sunday: { open: '10:00', close: '19:00' },
     },
     policies: {
-      deposit: { required: true, type: 'fixed', amount: { amount: 1000, currency: 'KES' }, appliesTo: 'all_services' },
+      deposit: { required: true, type: 'fixed', amount: { amount: 1000, currency: 'KES' }, appliesTo: 'all_services', percent: null, serviceIds: [] },
       cancellation: { freeCancellationHours: 48, lateFeePercent: 50 },
       noShow: { feePercent: 100 },
     },
@@ -228,7 +228,7 @@ export const MOCK_BUSINESS_PROFILES: BusinessProfile[] = [
       sunday: null,
     },
     policies: {
-      deposit: { required: false, type: 'fixed', amount: { amount: 0, currency: 'KES' }, appliesTo: 'all_services' },
+      deposit: { required: false, type: 'fixed', amount: { amount: 0, currency: 'KES' }, appliesTo: 'all_services', percent: null, serviceIds: [] },
       cancellation: { freeCancellationHours: 24, lateFeePercent: 30 },
       noShow: { feePercent: 100 },
     },
@@ -283,7 +283,7 @@ export const MOCK_BUSINESS_PROFILES: BusinessProfile[] = [
       sunday: null,
     },
     policies: {
-      deposit: { required: false, type: 'fixed', amount: { amount: 0, currency: 'KES' }, appliesTo: 'all_services' },
+      deposit: { required: false, type: 'fixed', amount: { amount: 0, currency: 'KES' }, appliesTo: 'all_services', percent: null, serviceIds: [] },
       cancellation: { freeCancellationHours: 24, lateFeePercent: 50 },
       noShow: { feePercent: 100 },
     },
@@ -337,7 +337,7 @@ export const MOCK_BUSINESS_PROFILES: BusinessProfile[] = [
       sunday: { open: '11:00', close: '16:00' },
     },
     policies: {
-      deposit: { required: true, type: 'fixed', amount: { amount: 500, currency: 'KES' }, appliesTo: 'all_services' },
+      deposit: { required: true, type: 'fixed', amount: { amount: 500, currency: 'KES' }, appliesTo: 'all_services', percent: null, serviceIds: [] },
       cancellation: { freeCancellationHours: 24, lateFeePercent: 50 },
       noShow: { feePercent: 100 },
     },

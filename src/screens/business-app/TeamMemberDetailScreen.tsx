@@ -7,11 +7,17 @@ import { Button } from '../../components/Button';
 import { DatePickerField } from '../../components/DatePickerField';
 import { Input } from '../../components/Input';
 import { WorkingDaysPicker } from '../../components/WorkingDaysPicker';
+import { TransactionList } from '../../components/TransactionList';
 import { BarChart } from '../../components/charts/BarChart';
 import { DonutChart } from '../../components/charts/DonutChart';
 import { useBookingsStore } from '../../store/useBookingsStore';
 import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
-import { INVITATION_STATUS_COLOR, INVITATION_STATUS_LABEL, TEAM_ROLE_LABEL } from '../../utils/team';
+import {
+  INVITATION_STATUS_COLOR,
+  INVITATION_STATUS_LABEL,
+  TEAM_ROLE_LABEL,
+  teamMemberDisplayName,
+} from '../../utils/team';
 import {
   buildCustomDateRange,
   getAppointmentStats,
@@ -19,10 +25,12 @@ import {
   getPaymentMethodBreakdown,
   getPresetDateRange,
   getServicesBreakdown,
+  getTransactionLines,
   type EarningsRange,
 } from '../../utils/earnings';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import type { WeeklyHours } from '../../types/business';
+import { showApiError } from '../../utils/showApiError';
 
 const RANGE_OPTIONS: { value: EarningsRange; label: string }[] = [
   { value: 'today', label: 'Today' },
@@ -103,6 +111,7 @@ export function TeamMemberDetailScreen() {
     [allServices, memberBookings, dateRange],
   );
   const stats = useMemo(() => getAppointmentStats(memberBookings, dateRange), [memberBookings, dateRange]);
+  const transactions = useMemo(() => getTransactionLines(memberBookings, dateRange), [memberBookings, dateRange]);
 
   if (!business || !invitation) {
     return (
@@ -122,15 +131,25 @@ export function TeamMemberDetailScreen() {
   const handleSave = async () => {
     if (!canSave || isSaving) return;
     setIsSaving(true);
-    await updateTeamMemberNow(business.businessId, invitation, { commissionPercent: commissionValue, workingDays });
-    setIsSaving(false);
+    try {
+      await updateTeamMemberNow(business.businessId, invitation, { commissionPercent: commissionValue, workingDays });
+    } catch (err) {
+      showApiError("Couldn't save changes", err);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleRemove = async () => {
     if (isRemoving) return;
     setIsRemoving(true);
-    await removeTeamMemberNow(business.businessId, invitation.invitationId);
-    router.back();
+    try {
+      await removeTeamMemberNow(business.businessId, invitation.invitationId);
+      router.back();
+    } catch (err) {
+      showApiError("Couldn't remove team member", err);
+      setIsRemoving(false);
+    }
   };
 
   const donutSegments = paymentBreakdown.map((slice) => ({
@@ -152,7 +171,7 @@ export function TeamMemberDetailScreen() {
         <View style={styles.card}>
           <View style={styles.contactHeader}>
             <Text style={styles.memberName}>
-              {invitation.name || invitation.phone || invitation.email || 'Team member'}
+              {teamMemberDisplayName(invitation)}
             </Text>
             <Text style={[styles.statusBadge, { color: INVITATION_STATUS_COLOR[invitation.status] }]}>
               {INVITATION_STATUS_LABEL[invitation.status]}
@@ -270,6 +289,15 @@ export function TeamMemberDetailScreen() {
             </View>
           </View>
         ) : null}
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Transactions</Text>
+          <TransactionList
+            transactions={transactions}
+            isCustomRange={range === 'custom'}
+            onPressTransaction={(bookingId) => router.push(`/appointment/${bookingId}`)}
+          />
+        </View>
 
         <Input
           label="Commission split (%)"

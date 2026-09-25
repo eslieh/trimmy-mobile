@@ -195,6 +195,44 @@ export function getServicesBreakdown(
     .sort((a, b) => b.amount - a.amount || a.name.localeCompare(b.name));
 }
 
+export type TransactionLine = {
+  bookingId: string;
+  serviceId: string;
+  date: string; // 'YYYY-MM-DD'
+  time: string; // 'HH:mm'
+  customerName: string;
+  serviceName: string;
+  amount: number;
+  paymentMethod: PaymentMethod | null;
+};
+
+// The line-by-line ledger behind every chart above — one row per service
+// actually performed (not per booking, so a 2-service booking is 2 rows,
+// each with its own allocated amount), newest first. Used by all three
+// earnings screens (Earnings, Team Member Detail, staff's own Earnings) for
+// the "show me the actual transactions" view underneath the aggregates.
+export function getTransactionLines(bookings: Booking[], range: DateRange): TransactionLine[] {
+  const paid = bookingsInRange(bookings, range).filter(isPaid);
+  const lines: TransactionLine[] = [];
+
+  for (const booking of paid) {
+    for (const line of booking.services) {
+      lines.push({
+        bookingId: booking.bookingId,
+        serviceId: line.serviceId,
+        date: booking.date,
+        time: booking.time,
+        customerName: booking.customerName,
+        serviceName: line.name,
+        amount: line.price.amount * line.quantity,
+        paymentMethod: booking.paymentMethod,
+      });
+    }
+  }
+
+  return lines.sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`));
+}
+
 export type AppointmentStats = {
   completed: number;
   noShow: number;

@@ -15,14 +15,25 @@ import { colors, radii, shadows, spacing, typography } from '../../../theme';
 import { formatBookingDate } from '../../../utils/date';
 import type { Money } from '../../../types/business';
 import type { BusinessProfile } from '../../../types/discovery';
+import type { BookingServiceLine } from '../../../types/booking';
 
-function computeDeposit(profile: BusinessProfile, totalAmount: number): Money | null {
+function computeDeposit(profile: BusinessProfile, services: BookingServiceLine[]): Money | null {
   const { deposit } = profile.policies;
   if (!deposit.required) return null;
+
+  // selected_services: only the listed services take a deposit, so a booking
+  // with none of them needs no deposit at all.
+  const covered =
+    deposit.appliesTo === 'selected_services'
+      ? services.filter((service) => (deposit.serviceIds ?? []).includes(service.serviceId))
+      : services;
+  if (covered.length === 0) return null;
+
   if (deposit.type === 'fixed') {
-    return { amount: deposit.amount.amount, currency: 'KES' };
+    return deposit.amount ? { amount: deposit.amount.amount, currency: 'KES' } : null;
   }
-  return { amount: Math.round((totalAmount * deposit.amount.amount) / 100), currency: 'KES' };
+  const coveredTotal = covered.reduce((sum, service) => sum + service.price.amount * service.quantity, 0);
+  return { amount: Math.round((coveredTotal * (deposit.percent ?? 0)) / 100), currency: 'KES' };
 }
 
 export function ReviewPoliciesScreen() {
@@ -49,7 +60,7 @@ export function ReviewPoliciesScreen() {
     () => draft.services.reduce((sum, service) => sum + service.durationMinutes * service.quantity, 0),
     [draft.services],
   );
-  const depositAmount = profile ? computeDeposit(profile, totalAmount) : null;
+  const depositAmount = profile ? computeDeposit(profile, draft.services) : null;
   const staffMember = profile && draft.staffId ? profile.staff.find((s) => s.staffId === draft.staffId) : null;
 
   const handleConfirm = async () => {

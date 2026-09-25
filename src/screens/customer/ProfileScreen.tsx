@@ -6,7 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { UserIcon } from '../../components/icons/UserIcon';
 import { CalendarIcon } from '../../components/icons/CalendarIcon';
 import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
-import { seedOwnedBusinessForTesting } from '../../utils/devSeed';
+import { seedOwnedBusinessForTesting, seedSelfAsStaffForTesting } from '../../utils/devSeed';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 
 type Row = {
@@ -20,7 +20,9 @@ export function ProfileScreen() {
   const router = useRouter();
   const { user, logout } = useAuth();
   const setOwnedBusiness = useOwnedBusinessStore((s) => s.setOwnedBusiness);
+  const setStaffSession = useOwnedBusinessStore((s) => s.setStaffSession);
   const setActiveMode = useOwnedBusinessStore((s) => s.setActiveMode);
+  const ownedBusiness = useOwnedBusinessStore((s) => s.business);
 
   const handleLogout = async () => {
     await logout();
@@ -45,10 +47,42 @@ export function ProfileScreen() {
     router.replace(teamMode === 'solo' ? '/today' : '/earnings');
   };
 
+  // Staff always seeds a team-mode business (staff only makes sense there)
+  // and a deterministic "you" TeamInvitation (role 'staff', already
+  // 'accepted' — skips the real invite/accept flow, which isn't reachable
+  // from this shortcut) so /staff/today etc. have a real invitationId to
+  // scope bookings to. See devSeed.ts. Lands on /staff/today, not /today —
+  // that's the business-owner app's Today tab, a different route entirely
+  // (see app/staff/_layout.tsx for why the staff app needed a real path
+  // segment instead of a route group).
+  const handleSwitchToStaff = () => {
+    setStaffSession(seedSelfAsStaffForTesting(1, displayName));
+    setActiveMode('staff');
+    router.dismissAll();
+    router.replace('/staff/today');
+  };
+
+  // The real way in: a published business, either just set by
+  // ReviewPublishScreen or restored from the server after login
+  // (utils/restoreOwnedBusiness.ts). Same landing rules as the testing
+  // shortcuts above.
+  const handleSwitchToOwnedBusiness = () => {
+    if (!ownedBusiness) return;
+    setActiveMode('business');
+    router.dismissAll();
+    router.replace(ownedBusiness.teamMode === 'solo' ? '/today' : '/earnings');
+  };
+
   const displayName = user ? [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Guest' : 'Guest';
 
   const accountRows: Row[] = [
-    { key: 'profile', label: 'Profile', icon: <UserIcon size={20} /> },
+    {
+      key: 'profile',
+      label: 'Profile',
+      icon: <UserIcon size={20} />,
+      onPress: user ? () => router.push('/account/edit-profile') : undefined,
+    },
+    ...(user ? [{ key: 'password', label: 'Change password', onPress: () => router.push('/account/change-password') }] : []),
     { key: 'messages', label: 'Messages' },
     { key: 'appointments', label: 'My appointments', icon: <CalendarIcon size={20} />, onPress: () => router.push('/activity') },
     { key: 'forms', label: 'Forms' },
@@ -78,20 +112,34 @@ export function ProfileScreen() {
             <Pressable style={styles.switchButton} onPress={() => handleSwitchToHosting('team')}>
               <Text style={styles.switchButtonText}>Business (team)</Text>
             </Pressable>
+            <Pressable style={styles.switchButton} onPress={handleSwitchToStaff}>
+              <Text style={styles.switchButtonText}>Staff</Text>
+            </Pressable>
           </View>
           <Text style={styles.testingHint}>
-            Staff and Front Desk aren't built as their own experience yet — there's nothing distinct to
-            switch into for those roles.
+            Front Desk isn't built as its own experience yet — there's nothing distinct to switch into
+            for that role.
           </Text>
         </View>
+
+        {ownedBusiness ? (
+          <Pressable style={styles.switchButton} onPress={handleSwitchToOwnedBusiness}>
+            <Text style={styles.switchButtonText}>Switch to {ownedBusiness.name}</Text>
+          </Pressable>
+        ) : null}
 
         <RowGroup rows={accountRows} />
         <RowGroup rows={supportRows} />
 
         <View style={styles.group}>
-          <Pressable style={[styles.row, styles.rowLast]} onPress={handleLogout}>
+          <Pressable style={[styles.row, !user && styles.rowLast]} onPress={handleLogout}>
             <Text style={[styles.rowLabel, styles.logoutLabel]}>Log out</Text>
           </Pressable>
+          {user ? (
+            <Pressable style={[styles.row, styles.rowLast]} onPress={() => router.push('/account/delete-account')}>
+              <Text style={[styles.rowLabel, styles.logoutLabel]}>Delete account</Text>
+            </Pressable>
+          ) : null}
         </View>
       </View>
     </SafeAreaView>
@@ -154,6 +202,7 @@ const styles = StyleSheet.create({
   },
   testingButtonRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'center',
     gap: spacing.md,
   },

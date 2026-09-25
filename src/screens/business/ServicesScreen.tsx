@@ -31,7 +31,12 @@ export function ServicesScreen() {
   const totalServices = categories.reduce((sum, c) => sum + c.services.length, 0);
 
   const handleContinue = async () => {
-    await submitServices();
+    // The store keeps the error for the inline message — stay on this step.
+    try {
+      await submitServices();
+    } catch {
+      return;
+    }
     router.push('/business-policies');
   };
 

@@ -21,7 +21,7 @@ export function OnboardingPasswordScreen() {
         <Button
           label="Continue"
           disabled={password.length < 8}
-          onPress={() => router.push({ pathname: '/onboarding-verification', params: { email, password } })}
+          onPress={() => router.push({ pathname: '/onboarding-mobile', params: { email, password } })}
         />
       }
     >

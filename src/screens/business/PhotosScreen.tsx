@@ -36,7 +36,12 @@ export function PhotosScreen() {
   };
 
   const handleContinue = async () => {
-    await submitPhotos();
+    // The store keeps the error for the inline message — stay on this step.
+    try {
+      await submitPhotos();
+    } catch {
+      return;
+    }
     router.push('/business-hours');
   };
 

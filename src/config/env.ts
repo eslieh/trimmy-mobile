@@ -21,8 +21,8 @@ export const config = {
 export const USE_MOCK_API = false;
 
 // Phase 3 Booking API (booking.json) — not built on the server yet.
-export const USE_MOCK_BOOKING = true;
+export const USE_MOCK_BOOKING = false;
 
 // Phase 4/5 fulfillment (fulfillment.json: walk-in, scheduled, charge,
 // status, customers) — not built on the server yet.
-export const USE_MOCK_FULFILLMENT = true;
+export const USE_MOCK_FULFILLMENT = false;

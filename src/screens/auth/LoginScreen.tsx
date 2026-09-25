@@ -1,19 +1,26 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { AuthScreenLayout } from '../../components/AuthScreenLayout';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
+import { Divider } from '../../components/Divider';
+import { GoogleIcon } from '../../components/icons/GoogleIcon';
+import { useGoogleSignIn } from '../../hooks/useGoogleSignIn';
 import { colors, typography } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
+import { getApiErrorCode, getApiErrorMessage } from '../../api/client';
 
 export function LoginScreen() {
   const router = useRouter();
   const { login } = useAuth();
-  const [email, setEmail] = useState('');
+  // Prefilled when Welcome's check-email found an existing account.
+  const params = useLocalSearchParams<{ email?: string }>();
+  const [email, setEmail] = useState(params.email ?? '');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const google = useGoogleSignIn();
 
   const handleLogin = async () => {
     setLoading(true);
@@ -29,12 +36,12 @@ export function LoginScreen() {
           nextRoute: '/',
         },
       });
-    } catch (err: any) {
-      const detail = err.response?.data?.detail;
-      if (detail?.error === 'not_verified') {
-        router.push({ pathname: '/onboarding-verification', params: { email: email.trim(), password } });
+    } catch (err) {
+      // 403 not_verified: the server has already emailed a fresh code.
+      if (getApiErrorCode(err) === 'not_verified') {
+        router.push({ pathname: '/onboarding-verification', params: { email: email.trim(), from: 'login' } });
       } else {
-        setError(detail?.message || 'Invalid email or password.');
+        setError(getApiErrorMessage(err, 'Invalid email or password.'));
       }
     } finally {
       setLoading(false);
@@ -80,6 +87,15 @@ export function LoginScreen() {
       <Pressable onPress={() => router.push('/forgot-password')} hitSlop={8} style={styles.forgotLink}>
         <Text style={styles.forgotLinkText}>Forgot password?</Text>
       </Pressable>
+      <Divider label="OR" />
+      <Button
+        label={google.loading ? 'Connecting to Google...' : 'Continue with Google'}
+        onPress={google.start}
+        disabled={google.loading}
+        variant="secondary"
+        icon={<GoogleIcon size={20} />}
+      />
+      {google.error ? <Text style={styles.errorText}>{google.error}</Text> : null}
     </AuthScreenLayout>
   );
 }

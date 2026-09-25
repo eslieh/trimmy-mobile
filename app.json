@@ -57,7 +57,8 @@
         {
           "photosPermission": "Trimyy uses your photo library so you can add cover photos for your business."
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

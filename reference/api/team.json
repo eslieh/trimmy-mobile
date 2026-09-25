@@ -24,7 +24,8 @@
           }
         ]
       },
-      "errors": []
+      "errors": [],
+      "status": "live"
     },
     {
       "id": "respond-to-invitation",
@@ -42,9 +43,18 @@
         "status": "accepted"
       },
       "errors": [
-        { "status": 404, "code": "not_found", "message": "No pending invitation found for this id" },
-        { "status": 409, "code": "already_responded", "message": "This invitation has already been accepted or declined" }
-      ]
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "No pending invitation found for this id"
+        },
+        {
+          "status": 409,
+          "code": "already_responded",
+          "message": "This invitation has already been accepted or declined"
+        }
+      ],
+      "status": "live"
     },
     {
       "id": "add-team-member",
@@ -75,9 +85,23 @@
         "sentAt": "2026-09-23T09:00:00Z"
       },
       "errors": [
-        { "status": 400, "code": "validation_error", "message": "email or phone is required" },
-        { "status": 409, "code": "already_invited", "message": "This email or phone already has a pending invitation" }
-      ]
+        {
+          "status": 400,
+          "code": "validation_error",
+          "message": "email or phone is required"
+        },
+        {
+          "status": 409,
+          "code": "already_invited",
+          "message": "This email or phone already has a pending invitation"
+        },
+        {
+          "status": 409,
+          "code": "already_member",
+          "message": "This person is already on the team"
+        }
+      ],
+      "status": "live"
     },
     {
       "id": "update-team-member",
@@ -85,21 +109,42 @@
       "story": "O2",
       "method": "PATCH",
       "path": "/businesses/{businessId}/team/members/{invitationId}",
-      "description": "Edits a team member's commission split and/or working days. Works the same whether the member's invitation is still pending or already accepted — no separate 'accepted member' record exists to edit instead.",
+      "description": "Edits a team member's commission split and/or working days. Works the same whether the member's invitation is still pending or already accepted — no separate 'accepted member' record exists to edit instead. Only the fields sent are changed; send workingDays: null to clear it. Returns the full member.",
       "auth": "owner",
       "request": {
         "commissionPercent": 45,
-        "workingDays": ["monday", "tuesday", "wednesday", "thursday", "friday"]
+        "workingDays": [
+          "monday",
+          "tuesday",
+          "wednesday",
+          "thursday",
+          "friday"
+        ]
       },
       "response": {
         "invitationId": "inv_01xy",
         "commissionPercent": 45,
-        "workingDays": ["monday", "tuesday", "wednesday", "thursday", "friday"]
+        "workingDays": [
+          "monday",
+          "tuesday",
+          "wednesday",
+          "thursday",
+          "friday"
+        ]
       },
       "errors": [
-        { "status": 400, "code": "validation_error", "message": "commissionPercent must be between 0 and 100" },
-        { "status": 404, "code": "not_found", "message": "invitationId does not exist for this business" }
-      ]
+        {
+          "status": 400,
+          "code": "validation_error",
+          "message": "commissionPercent must be between 0 and 100"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "invitationId does not exist for this business"
+        }
+      ],
+      "status": "live"
     },
     {
       "id": "remove-team-member",
@@ -107,13 +152,45 @@
       "story": "O2",
       "method": "DELETE",
       "path": "/businesses/{businessId}/team/members/{invitationId}",
-      "description": "Cancels a still-pending invitation, or removes an already-accepted member from the team — same request either way, the meaning just depends on the record's current status.",
+      "description": "Cancels a still-pending invitation, or removes an already-accepted member from the team — same request either way, the meaning just depends on the record's current status. Removing an accepted member also removes their staff record.",
       "auth": "owner",
       "request": null,
       "response": null,
       "errors": [
-        { "status": 404, "code": "not_found", "message": "invitationId does not exist for this business" }
-      ]
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "invitationId does not exist for this business"
+        }
+      ],
+      "status": "live"
+    },
+    {
+      "id": "list-team-members",
+      "status": "live",
+      "screen": "Team (business app)",
+      "story": "O2",
+      "method": "GET",
+      "path": "/businesses/{businessId}/team/members",
+      "auth": "owner",
+      "description": "All invitations/members for the business, with name, role, status, commissionPercent and workingDays. The Team screen currently shows only members added on this device in this session (client memory), so it's empty after a reinstall or on a second device.",
+      "request": null,
+      "response": {
+        "members": [
+          {
+            "invitationId": "uuid",
+            "businessId": "uuid",
+            "name": "Wanjiku",
+            "email": "wanjiku@example.com",
+            "phone": "+254712345678",
+            "role": "staff",
+            "status": "accepted",
+            "commissionPercent": 40,
+            "workingDays": null,
+            "sentAt": "2026-09-25T12:00:00Z"
+          }
+        ]
+      }
     }
   ]
 }

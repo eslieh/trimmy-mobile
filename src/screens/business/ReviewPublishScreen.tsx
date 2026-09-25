@@ -63,7 +63,12 @@ export function ReviewPublishScreen() {
   })();
 
   const handleContinue = async () => {
-    await submitReviewPublish(publish && canPublish);
+    // The store keeps the error for the inline message — stay on this step.
+    try {
+      await submitReviewPublish(publish && canPublish);
+    } catch {
+      return;
+    }
 
     if (publish && canPublish) {
       // canPublish guarantees workingHours is set (checked in `missing` above).

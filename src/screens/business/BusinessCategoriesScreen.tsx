@@ -5,6 +5,7 @@ import { AuthScreenLayout } from '../../components/AuthScreenLayout';
 import { Button } from '../../components/Button';
 import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
 import { BUSINESS_CATEGORIES } from '../../data/businessCategories';
+import { BUSINESS_AMENITIES } from '../../data/amenities';
 import { colors, radii, spacing, typography } from '../../theme';
 import type { BusinessCategory } from '../../types/business';
 
@@ -13,12 +14,20 @@ const TOTAL_STEPS = 11;
 export function BusinessCategoriesScreen() {
   const router = useRouter();
   const draftCategories = useBusinessOnboardingStore((s) => s.draft.categories);
+  const draftAmenities = useBusinessOnboardingStore((s) => s.draft.amenities);
   const updateDraft = useBusinessOnboardingStore((s) => s.updateDraft);
   const [categories, setCategories] = useState<BusinessCategory[]>(draftCategories);
+  const [amenities, setAmenities] = useState<string[]>(draftAmenities);
 
   const toggleCategory = (value: BusinessCategory) => {
     setCategories((current) =>
       current.includes(value) ? current.filter((c) => c !== value) : [...current, value],
+    );
+  };
+
+  const toggleAmenity = (value: string) => {
+    setAmenities((current) =>
+      current.includes(value) ? current.filter((a) => a !== value) : [...current, value],
     );
   };
 
@@ -33,7 +42,7 @@ export function BusinessCategoriesScreen() {
           label="Continue"
           disabled={categories.length === 0}
           onPress={() => {
-            updateDraft({ categories });
+            updateDraft({ categories, amenities });
             router.push('/business-phone');
           }}
         />
@@ -53,11 +62,38 @@ export function BusinessCategoriesScreen() {
           );
         })}
       </View>
+
+      {/* Optional — shown on the customer Business Profile. */}
+      <Text style={styles.sectionTitle}>Amenities</Text>
+      <Text style={styles.sectionHint}>Optional. Let customers know what to expect.</Text>
+      <View style={styles.pillRow}>
+        {BUSINESS_AMENITIES.map((amenity) => {
+          const selected = amenities.includes(amenity);
+          return (
+            <Pressable
+              key={amenity}
+              onPress={() => toggleAmenity(amenity)}
+              style={[styles.pill, selected && styles.pillSelected]}
+            >
+              <Text style={[styles.pillText, selected && styles.pillTextSelected]}>{amenity}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
     </AuthScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
+  sectionTitle: {
+    ...typography.h3,
+    color: colors.text.primary,
+    marginTop: spacing.xl,
+  },
+  sectionHint: {
+    ...typography.caption,
+    color: colors.text.secondary,
+  },
   pillRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',

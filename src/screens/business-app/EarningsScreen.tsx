@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { BarChart } from '../../components/charts/BarChart';
 import { DonutChart } from '../../components/charts/DonutChart';
 import { DatePickerField } from '../../components/DatePickerField';
+import { TransactionList } from '../../components/TransactionList';
 import { useBookingsStore } from '../../store/useBookingsStore';
 import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
 import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
@@ -14,6 +16,7 @@ import {
   getPaymentMethodBreakdown,
   getPresetDateRange,
   getServicesBreakdown,
+  getTransactionLines,
   type EarningsRange,
 } from '../../utils/earnings';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
@@ -55,6 +58,7 @@ function formatMoney(amount: number): string {
 // language as the rest of the app). Defaults to "Today" on open — that's
 // the question an owner checking in mid-shift actually has.
 export function EarningsScreen() {
+  const router = useRouter();
   const ownedBusiness = useOwnedBusinessStore((s) => s.business);
   const allServices = useBusinessOnboardingStore((s) => s.services);
   const bookings = useBookingsStore((s) => s.bookings);
@@ -82,6 +86,10 @@ export function EarningsScreen() {
     [allServices, businessBookings, dateRange],
   );
   const stats = useMemo(() => getAppointmentStats(businessBookings, dateRange), [businessBookings, dateRange]);
+  const transactions = useMemo(
+    () => getTransactionLines(businessBookings, dateRange),
+    [businessBookings, dateRange],
+  );
 
   if (!ownedBusiness) {
     return <SafeAreaView style={styles.flex} edges={['top']} />;
@@ -212,6 +220,15 @@ export function EarningsScreen() {
               })}
             </View>
           )}
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Transactions</Text>
+          <TransactionList
+            transactions={transactions}
+            isCustomRange={range === 'custom'}
+            onPressTransaction={(bookingId) => router.push(`/appointment/${bookingId}`)}
+          />
         </View>
       </ScrollView>
     </SafeAreaView>

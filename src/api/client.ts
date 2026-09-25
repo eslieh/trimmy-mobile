@@ -13,6 +13,45 @@ export class ApiError extends Error {
   }
 }
 
+// Backend errors come in two shapes (see main.py exception handlers):
+//   - app errors:        { error: 'invalid_otp', message: 'Invalid or expired verification code' }
+//   - FastAPI 422s:      { detail: [{ loc: ['body', 'email'], msg: '...' }, ...] }
+// Screens should go through these two helpers instead of poking at
+// err.response.data directly, so both axios (apiClient) and fetch
+// (apiRequest / ApiError) failures read the same way.
+type ErrorBody = {
+  error?: string;
+  message?: string;
+  detail?: Array<{ loc?: (string | number)[]; msg?: string }> | string;
+};
+
+function getErrorBody(err: unknown): ErrorBody | null {
+  if (axios.isAxiosError(err)) return (err.response?.data as ErrorBody) ?? null;
+  return null;
+}
+
+export function getApiErrorCode(err: unknown): string | null {
+  if (err instanceof ApiError) return err.code;
+  const body = getErrorBody(err);
+  if (body?.error) return body.error;
+  if (Array.isArray(body?.detail)) return 'validation_error';
+  return null;
+}
+
+export function getApiErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof ApiError) return err.message || fallback;
+  const body = getErrorBody(err);
+  if (!body) return fallback;
+  if (body.message) return body.message;
+  if (Array.isArray(body.detail) && body.detail[0]?.msg) {
+    // Pydantic prefixes some messages ("Value error, ...") — the first
+    // field's message is enough for a single inline error line.
+    return body.detail[0].msg.replace(/^Value error, /, '');
+  }
+  if (typeof body.detail === 'string') return body.detail;
+  return fallback;
+}
+
 type RequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
@@ -54,7 +93,8 @@ export async function apiRequest<TResponse>(path: string, options: RequestOption
     const headers: Record<string, string> = isFormData ? {} : { 'Content-Type': 'application/json' };
     Object.assign(headers, await getAuthHeaders());
 
-    return fetch(`${config.apiBaseUrl}${path}`, {
+    // `path` is relative to /api/v1, same as apiClient's baseURL below.
+    return fetch(`${config.apiBaseUrl}/api/v1${path}`, {
       method: options.method ?? 'GET',
       headers,
       body: isFormData ? (options.body as FormData) : options.body ? JSON.stringify(options.body) : undefined,
@@ -73,8 +113,14 @@ export async function apiRequest<TResponse>(path: string, options: RequestOption
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    // Backend error shape is { error, message } (see main.py exception handler).
-    throw new ApiError(response.status, data?.error ?? 'unknown_error', data?.message ?? 'Request failed');
+    // Backend error shape is { error, message } (see main.py exception
+    // handler); FastAPI's own 404/422s are { detail } instead.
+    const detail = Array.isArray(data?.detail) ? data.detail[0]?.msg : data?.detail;
+    throw new ApiError(
+      response.status,
+      data?.error ?? (Array.isArray(data?.detail) ? 'validation_error' : 'unknown_error'),
+      data?.message ?? (typeof detail === 'string' ? detail : 'Request failed'),
+    );
   }
 
   return data as TResponse;
@@ -95,6 +141,20 @@ apiClient.interceptors.request.use(async (requestConfig) => {
   }
   return requestConfig;
 });
+
+const PUBLIC_AUTH_PATHS = [
+  '/auth/register',
+  '/auth/login',
+  '/auth/refresh',
+  '/auth/check-email',
+  '/auth/verify-email',
+  '/auth/forgot-password',
+  '/auth/verify-reset-otp',
+  '/auth/reset-password',
+  '/auth/resend-otp',
+  '/auth/google/url',
+  '/auth/google/exchange',
+];
 
 let isRefreshing = false;
 let failedQueue: Array<{
@@ -118,7 +178,12 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // A 401 from the public auth endpoints (wrong password on login, bad
+    // refresh token) is the real answer, not an expired access token —
+    // retrying via refresh would swallow e.g. `invalid_credentials`.
+    const isPublicAuthEndpoint = PUBLIC_AUTH_PATHS.includes(originalRequest?.url);
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isPublicAuthEndpoint) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });

@@ -5,6 +5,7 @@ import { AuthScreenLayout } from '../../components/AuthScreenLayout';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { useAuth } from '../../contexts/AuthContext';
+import { getApiErrorMessage } from '../../api/client';
 import { colors, typography } from '../../theme';
 
 const TOTAL_STEPS = 5;
@@ -29,18 +30,11 @@ export function OnboardingNameScreen() {
         last_name: lastName.trim(),
         phone: mobile || undefined,
       });
-      router.push({
-        pathname: '/success',
-        params: {
-          title: "You're all set!",
-          subtitle: 'Your account is ready to go. Check your email for a verification code.',
-          ctaLabel: 'Get started',
-          nextRoute: '/get-started',
-        },
-      });
-    } catch (err: any) {
-      const detail = err.response?.data?.detail;
-      setError(detail?.message || 'Something went wrong. Please try again.');
+      // Register sends the verification code, so the OTP step has to come
+      // after this call, not before it.
+      router.push({ pathname: '/onboarding-verification', params: { email, from: 'signup' } });
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Something went wrong. Please try again.'));
     } finally {
       setLoading(false);
     }
@@ -50,7 +44,7 @@ export function OnboardingNameScreen() {
     <AuthScreenLayout
       title="What's your name?"
       subtitle="This is how you'll appear to your stylist."
-      progress={5 / TOTAL_STEPS}
+      progress={4 / TOTAL_STEPS}
       onBack={() => router.back()}
       footer={
         <>

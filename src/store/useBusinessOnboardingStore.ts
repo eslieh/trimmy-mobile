@@ -15,6 +15,7 @@ import {
   updateBusinessInfo as updateBusinessInfoApi,
   updateService,
   uploadBusinessPhoto,
+  type BusinessDetail,
   type InviteTeamMemberInput,
   type SetPaymentDestinationInput,
   type UpdateBusinessInfoInput,
@@ -22,6 +23,7 @@ import {
 } from '../api/businessSetup';
 import {
   addTeamMember,
+  listTeamMembers,
   removeTeamMember as removeTeamMemberApi,
   updateTeamMember as updateTeamMemberApi,
   type AddTeamMemberInput,
@@ -48,6 +50,7 @@ type BusinessBasicsDraft = {
   categories: BusinessCategory[];
   phone: string;
   location: BusinessLocation | null;
+  amenities: string[];
 };
 
 const initialDraft: BusinessBasicsDraft = {
@@ -56,6 +59,7 @@ const initialDraft: BusinessBasicsDraft = {
   categories: [],
   phone: '',
   location: null,
+  amenities: [],
 };
 
 export type ServiceDraftItem = {
@@ -152,6 +156,11 @@ type BusinessOnboardingState = {
   markTeamMemberActiveForTesting: (invitationId: string) => void;
 
   submitReviewPublish: (publish: boolean) => Promise<Business>;
+
+  // Server → store, for a business created in an earlier session (fresh
+  // install, re-login, second device). See utils/restoreOwnedBusiness.ts.
+  hydrateFromServer: (detail: BusinessDetail) => void;
+  loadTeamMembers: (businessId: string) => Promise<void>;
 };
 
 // Holds the draft business as the owner moves through the Business Basics
@@ -168,11 +177,11 @@ export const useBusinessOnboardingStore = create<BusinessOnboardingState>((set, 
   submitBusinessBasics: async () => {
     set({ isSubmitting: true, error: null });
     try {
-      const { name, description, categories, phone, location } = get().draft;
+      const { name, description, categories, phone, location, amenities } = get().draft;
       if (!location) {
         throw new Error('Business location is required');
       }
-      const business = await createBusiness({ name, description, categories, phone, location });
+      const business = await createBusiness({ name, description, categories, phone, location, amenities });
       set({ business, isSubmitting: false, draft: initialDraft });
       return business;
     } catch (err) {
@@ -465,6 +474,26 @@ export const useBusinessOnboardingStore = create<BusinessOnboardingState>((set, 
   removeTeamMemberNow: async (businessId, invitationId) => {
     await removeTeamMemberApi(businessId, invitationId);
     set((state) => ({ invitations: state.invitations.filter((i) => i.invitationId !== invitationId) }));
+  },
+  hydrateFromServer: (detail) => {
+    const { workingHours, serviceCategories, amenities: _amenities, ...rest } = detail;
+    set({
+      business: {
+        ...rest,
+        description: detail.description ?? '',
+        photos: detail.photos ?? [],
+        workingHours: workingHours?.weeklyHours,
+        policies: detail.policies ?? undefined,
+        paymentDestination: detail.paymentDestination ?? undefined,
+        teamMode: detail.teamMode ?? undefined,
+      },
+      serviceCategories: serviceCategories.map(({ services: _services, ...category }) => category),
+      services: serviceCategories.flatMap((category) => category.services ?? []),
+    });
+  },
+  loadTeamMembers: async (businessId) => {
+    const members = await listTeamMembers(businessId);
+    set({ invitations: members });
   },
   markTeamMemberActiveForTesting: (invitationId) => {
     set((state) => ({

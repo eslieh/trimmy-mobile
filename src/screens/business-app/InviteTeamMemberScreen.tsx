@@ -14,6 +14,7 @@ import { TEAM_ROLE_LABEL } from '../../utils/team';
 import { colors, radii, spacing, typography } from '../../theme';
 import type { TeamRole } from '../../types/team';
 import type { WeeklyHours } from '../../types/business';
+import { showApiError } from '../../utils/showApiError';
 
 const DEFAULT_COUNTRY = countries.find((c) => c.iso2 === 'KE') ?? countries[0];
 const DEFAULT_COMMISSION_PERCENT = '40';
@@ -59,16 +60,21 @@ export function InviteTeamMemberScreen() {
   const handleSubmit = async () => {
     if (!canSubmit) return;
     setIsSaving(true);
-    await addTeamMemberNow(ownedBusiness.businessId, {
-      name: trimmedName,
-      phone: rawPhone.length >= 4 ? normalizePhoneNumber(rawPhone, country) : undefined,
-      email: email.trim() || undefined,
-      role,
-      commissionPercent: commissionValue,
-      workingDays,
-    });
-    setIsSaving(false);
-    router.back();
+    try {
+      await addTeamMemberNow(ownedBusiness.businessId, {
+        name: trimmedName,
+        phone: rawPhone.length >= 4 ? normalizePhoneNumber(rawPhone, country) : undefined,
+        email: email.trim() || undefined,
+        role,
+        commissionPercent: commissionValue,
+        workingDays,
+      });
+      router.back();
+    } catch (err) {
+      showApiError("Couldn't send invite", err);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (

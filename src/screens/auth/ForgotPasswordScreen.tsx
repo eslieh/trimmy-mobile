@@ -6,6 +6,7 @@ import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { colors, typography } from '../../theme';
 import { authApi } from '../../api/auth';
+import { getApiErrorMessage } from '../../api/client';
 
 export function ForgotPasswordScreen() {
   const router = useRouter();
@@ -19,9 +20,8 @@ export function ForgotPasswordScreen() {
     try {
       await authApi.forgotPassword(email.trim());
       router.push({ pathname: '/forgot-password-verification', params: { email: email.trim() } });
-    } catch (err: any) {
-      const detail = err.response?.data?.detail;
-      setError(detail?.message || 'Something went wrong. Please try again.');
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Something went wrong. Please try again.'));
     } finally {
       setLoading(false);
     }

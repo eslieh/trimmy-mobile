@@ -1,27 +1,59 @@
+import { useEffect, useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Avatar } from '../../components/Avatar';
 import { BadgeIcon } from '../../components/icons/BadgeIcon';
+import { ChevronRightIcon } from '../../components/icons/ChevronRightIcon';
 import { PlusIcon } from '../../components/icons/PlusIcon';
 import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
-import { INVITATION_STATUS_COLOR, INVITATION_STATUS_LABEL, TEAM_ROLE_LABEL } from '../../utils/team';
+import { showApiError } from '../../utils/showApiError';
+import { usePayoutsStore } from '../../store/usePayoutsStore';
+import { INVITATION_STATUS_COLOR, INVITATION_STATUS_LABEL, TEAM_ROLE_LABEL, teamMemberDisplayName } from '../../utils/team';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
+
+function formatMoney(amount: number): string {
+  return `KSh ${amount.toLocaleString('en-US')}`;
+}
 
 // Its own tab (business-app)/team.tsx, visible only for teamMode 'team' —
 // promoted from a row inside Manage Business, per explicit request, since
 // team management is central enough to a team business's daily operation
 // to deserve a tab, not be buried a level deeper. An invitation IS the
-// roster record — see types/team.ts — so this just lists
+// roster record — see types/team.ts — so the member grid just lists
 // useBusinessOnboardingStore's invitations array, pending and accepted
 // alike, sorted so pending ones (which need the owner's attention) come
 // first. Rendered as a 2-column photo grid (Avatar's deterministic initials
 // placeholder, since no member has an actual photo yet) rather than a plain
 // list, per explicit request.
+//
+// The Payouts section at top is O4 (business-owner.md) — per explicit
+// request, a global queue visible the moment the owner opens Team, not
+// something buried inside each member's detail screen. See
+// PayoutDetailScreen for the accept/reject actions themselves.
 export function TeamScreen() {
   const router = useRouter();
   const business = useBusinessOnboardingStore((s) => s.business);
   const invitations = useBusinessOnboardingStore((s) => s.invitations);
+  const payouts = usePayoutsStore((s) => s.payouts);
+  const loadTeamMembers = useBusinessOnboardingStore((s) => s.loadTeamMembers);
+
+  // The server's roster is the source of truth — pending and accepted,
+  // including members added from another device.
+  const businessId = business?.businessId;
+  useEffect(() => {
+    if (businessId) loadTeamMembers(businessId).catch((err) => showApiError("Couldn't load your team", err));
+  }, [businessId, loadTeamMembers]);
+
+  const pendingPayouts = useMemo(
+    () =>
+      business
+        ? payouts
+            .filter((p) => p.businessId === business.businessId && p.status === 'pending')
+            .sort((a, b) => a.requestedAt.localeCompare(b.requestedAt))
+        : [],
+    [payouts, business],
+  );
 
   if (!business) {
     return <SafeAreaView style={styles.flex} edges={['top']} />;
@@ -32,6 +64,11 @@ export function TeamScreen() {
     return a.status === 'pending' ? -1 : b.status === 'pending' ? 1 : 0;
   });
 
+  const nameForInvitation = (invitationId: string) => {
+    const invitation = invitations.find((i) => i.invitationId === invitationId);
+    return invitation ? teamMemberDisplayName(invitation) : 'Team member';
+  };
+
   return (
     <SafeAreaView style={styles.flex} edges={['top']}>
       <View style={styles.header}>
@@ -41,17 +78,46 @@ export function TeamScreen() {
         </Pressable>
       </View>
 
-      {sorted.length === 0 ? (
-        <View style={styles.empty}>
-          <BadgeIcon size={40} color={colors.text.tertiary} />
-          <Text style={styles.emptyTitle}>No team members yet</Text>
-          <Text style={styles.emptyBody}>Invite front desk staff or stylists to help run the business.</Text>
+      <ScrollView contentContainerStyle={styles.list}>
+        <View style={styles.payoutsCard}>
+          <View style={styles.payoutsHeader}>
+            <Text style={styles.payoutsTitle}>Payouts</Text>
+            <Pressable onPress={() => router.push('/payouts')} hitSlop={8}>
+              <Text style={styles.viewAllLink}>View all</Text>
+            </Pressable>
+          </View>
+
+          {pendingPayouts.length === 0 ? (
+            <Text style={styles.emptyHint}>No pending payout requests.</Text>
+          ) : (
+            <View style={styles.payoutsList}>
+              {pendingPayouts.map((payout) => (
+                <Pressable
+                  key={payout.payoutId}
+                  style={styles.payoutRow}
+                  onPress={() => router.push(`/payouts/${payout.payoutId}`)}
+                >
+                  <Text style={styles.payoutRowName} numberOfLines={1}>
+                    {nameForInvitation(payout.invitationId)}
+                  </Text>
+                  <Text style={styles.payoutRowAmount}>{formatMoney(payout.amount)}</Text>
+                  <ChevronRightIcon size={16} color={colors.text.tertiary} />
+                </Pressable>
+              ))}
+            </View>
+          )}
         </View>
-      ) : (
-        <ScrollView contentContainerStyle={styles.list}>
+
+        {sorted.length === 0 ? (
+          <View style={styles.empty}>
+            <BadgeIcon size={40} color={colors.text.tertiary} />
+            <Text style={styles.emptyTitle}>No team members yet</Text>
+            <Text style={styles.emptyBody}>Invite front desk staff or stylists to help run the business.</Text>
+          </View>
+        ) : (
           <View style={styles.grid}>
             {sorted.map((invitation) => {
-              const displayName = invitation.name || invitation.phone || invitation.email || 'Team member';
+              const displayName = teamMemberDisplayName(invitation);
               return (
                 <Pressable
                   key={invitation.invitationId}
@@ -70,8 +136,8 @@ export function TeamScreen() {
               );
             })}
           </View>
-        </ScrollView>
-      )}
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -104,6 +170,49 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xxl,
     paddingTop: spacing.lg,
     paddingBottom: spacing.xxl,
+    gap: spacing.lg,
+  },
+  payoutsCard: {
+    borderRadius: radii.lg,
+    backgroundColor: colors.background.secondary,
+    padding: spacing.lg,
+    gap: spacing.md,
+    ...shadows.card,
+  },
+  payoutsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  payoutsTitle: {
+    ...typography.h3,
+    color: colors.text.primary,
+  },
+  viewAllLink: {
+    ...typography.bodyMedium,
+    color: colors.brand.purple,
+  },
+  payoutsList: {
+    gap: spacing.sm,
+  },
+  payoutRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  payoutRowName: {
+    ...typography.bodyMedium,
+    color: colors.text.primary,
+    flex: 1,
+  },
+  payoutRowAmount: {
+    ...typography.bodyMedium,
+    color: colors.text.primary,
+  },
+  emptyHint: {
+    ...typography.caption,
+    color: colors.text.tertiary,
   },
   grid: {
     flexDirection: 'row',
@@ -135,10 +244,9 @@ const styles = StyleSheet.create({
     ...typography.caption,
   },
   empty: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing.xxl,
+    paddingVertical: spacing.xxl,
     gap: spacing.xs,
   },
   emptyTitle: {

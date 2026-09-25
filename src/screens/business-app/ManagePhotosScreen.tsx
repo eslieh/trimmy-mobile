@@ -6,6 +6,7 @@ import { BackButton } from '../../components/BackButton';
 import { CloseIcon } from '../../components/icons/CloseIcon';
 import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
 import { colors, radii, spacing, typography } from '../../theme';
+import { showApiError } from '../../utils/showApiError';
 
 const THUMB_SIZE = 100;
 
@@ -42,7 +43,9 @@ export function ManagePhotosScreen() {
     });
 
     if (!result.canceled && result.assets[0]) {
-      await addPhotoNow(business.businessId, result.assets[0].uri);
+      await addPhotoNow(business.businessId, result.assets[0].uri).catch((err) =>
+        showApiError("Couldn't upload photo", err),
+      );
     }
   };
 
@@ -67,7 +70,11 @@ export function ManagePhotosScreen() {
               ) : null}
               <Pressable
                 style={styles.removeButton}
-                onPress={() => removePhotoNow(business.businessId, photo.photoId)}
+                onPress={() =>
+                  removePhotoNow(business.businessId, photo.photoId).catch((err) =>
+                    showApiError("Couldn't remove photo", err),
+                  )
+                }
                 hitSlop={8}
               >
                 <CloseIcon size={14} color={colors.white} />

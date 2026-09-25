@@ -29,6 +29,16 @@ export function respondToInvitation(
   return apiRequest(`/invitations/${invitationId}/respond`, { method: 'POST', body: { action } });
 }
 
+// See reference/api/team.json#list-team-members. The business's full
+// roster — pending invitations and accepted members alike.
+export function listTeamMembers(businessId: string): Promise<TeamInvitation[]> {
+  if (USE_MOCK_API) {
+    return mockDelay<TeamInvitation[]>([]);
+  }
+
+  return apiRequest<{ members: TeamInvitation[] }>(`/businesses/${businessId}/team/members`).then((res) => res.members);
+}
+
 // See reference/api/team.json#add-team-member for the contract this
 // implements. The post-publish equivalent of businessSetup.ts's
 // inviteTeamMember (onboarding's Team invite step) — this one is reachable
@@ -71,9 +81,11 @@ export function addTeamMember(businessId: string, input: AddTeamMemberInput): Pr
 // Mock-only quirk: takes the full invitation rather than just an id, same
 // reason as booking.ts's chargeBookingPayment/confirmBookingPayment — the
 // mock layer has no server-side record to merge partial updates into.
+// PATCH only changes the fields sent; workingDays: null clears it (back to
+// following the business's own working days).
 export type UpdateTeamMemberInput = {
-  commissionPercent: number;
-  workingDays: (keyof WeeklyHours)[] | null;
+  commissionPercent?: number;
+  workingDays?: (keyof WeeklyHours)[] | null;
 };
 
 export function updateTeamMember(

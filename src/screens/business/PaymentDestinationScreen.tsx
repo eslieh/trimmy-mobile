@@ -1,25 +1,30 @@
-import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { AuthScreenLayout } from '../../components/AuthScreenLayout';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { CheckmarkIcon } from '../../components/icons/CheckmarkIcon';
 import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
-import { KENYA_BANKS, KenyaBank } from '../../data/kenyaBanks';
+import { getPaymentDestinationOptions } from '../../api/businessSetup';
+import { getApiErrorMessage } from '../../api/client';
 import { colors, radii, spacing, typography } from '../../theme';
-import type { PaymentDestination } from '../../types/business';
+import type {
+  BankOption,
+  PaymentDestination,
+  PaymentDestinationOptions,
+  PaymentFieldOption,
+} from '../../types/business';
 
 const TOTAL_STEPS = 11;
 
 type DestinationType = PaymentDestination['type'];
+type FieldName = PaymentFieldOption['name'];
+type FieldValues = Partial<Record<FieldName, string>>;
 
-const TYPE_OPTIONS: { value: DestinationType; label: string }[] = [
-  { value: 'mpesa_till', label: 'M-Pesa Till' },
-  { value: 'mpesa_paybill', label: 'M-Pesa Paybill' },
-  { value: 'bank_account', label: 'Bank Account' },
-];
-
+// The methods, their fields, validation patterns and the bank list all come
+// from GET /payment-destinations/options, so the form always matches what
+// the server will accept. The server re-checks the same patterns.
 export function PaymentDestinationScreen() {
   const router = useRouter();
   const { mode } = useLocalSearchParams<{ mode?: string }>();
@@ -29,39 +34,58 @@ export function PaymentDestinationScreen() {
   const isSubmitting = useBusinessOnboardingStore((s) => s.isSubmitting);
   const error = useBusinessOnboardingStore((s) => s.error);
 
+  const [options, setOptions] = useState<PaymentDestinationOptions | null>(null);
+  const [loadError, setLoadError] = useState('');
   const [type, setType] = useState<DestinationType>(existing?.type ?? 'mpesa_till');
-  const [tillNumber, setTillNumber] = useState(existing?.tillNumber ?? '');
-  const [paybillNumber, setPaybillNumber] = useState(existing?.paybillNumber ?? '');
-  const [paybillAccountNumber, setPaybillAccountNumber] = useState(existing?.paybillAccountNumber ?? '');
-  const [selectedBank, setSelectedBank] = useState<KenyaBank | null>(
-    existing?.bankShortcode ? KENYA_BANKS.find((b) => b.shortcode === existing.bankShortcode) ?? null : null,
-  );
-  const [bankAccountNumber, setBankAccountNumber] = useState(existing?.bankAccountNumber ?? '');
+  const [values, setValues] = useState<FieldValues>({
+    tillNumber: existing?.tillNumber ?? '',
+    paybillNumber: existing?.paybillNumber ?? '',
+    paybillAccountNumber: existing?.paybillAccountNumber ?? '',
+    bankName: existing?.bankName ?? '',
+    bankShortcode: existing?.bankShortcode ?? '',
+    bankAccountNumber: existing?.bankAccountNumber ?? '',
+  });
   const [bankPickerVisible, setBankPickerVisible] = useState(false);
 
-  const canContinue =
-    type === 'mpesa_till'
-      ? tillNumber.trim().length > 0
-      : type === 'mpesa_paybill'
-        ? paybillNumber.trim().length > 0 && paybillAccountNumber.trim().length > 0
-        : selectedBank !== null && bankAccountNumber.trim().length > 0;
+  const loadOptions = () => {
+    setLoadError('');
+    getPaymentDestinationOptions()
+      .then(setOptions)
+      .catch((err) => setLoadError(getApiErrorMessage(err, "Couldn't load payment methods.")));
+  };
+
+  useEffect(loadOptions, []);
+
+  const typeOption = options?.types.find((t) => t.type === type);
+  const fields = typeOption?.fields ?? [];
+
+  // The server strips spaces before checking, so do the same here.
+  const valueOf = (name: FieldName) => (values[name] ?? '').replace(/\s+/g, '');
+  const isFieldValid = (field: PaymentFieldOption) => new RegExp(field.pattern).test(field.name === 'bankName' ? (values.bankName ?? '').trim() : valueOf(field.name));
+  const canContinue = fields.length > 0 && fields.every(isFieldValid);
+
+  const setValue = (name: FieldName, value: string) => setValues((current) => ({ ...current, [name]: value }));
+
+  const handleSelectBank = (bank: BankOption) => {
+    setValues((current) => ({ ...current, bankName: bank.name, bankShortcode: bank.shortcode }));
+    setBankPickerVisible(false);
+  };
 
   const handleContinue = async () => {
     if (!canContinue) return;
 
-    const input: Parameters<typeof submitPaymentDestination>[0] =
-      type === 'mpesa_till'
-        ? { type, tillNumber: tillNumber.trim() }
-        : type === 'mpesa_paybill'
-          ? { type, paybillNumber: paybillNumber.trim(), paybillAccountNumber: paybillAccountNumber.trim() }
-          : {
-              type,
-              bankName: selectedBank!.name,
-              bankShortcode: selectedBank!.shortcode,
-              bankAccountNumber: bankAccountNumber.trim(),
-            };
+    // Only the chosen method's fields — the server clears the others.
+    const input: Parameters<typeof submitPaymentDestination>[0] = { type };
+    for (const field of fields) {
+      input[field.name] = field.name === 'bankName' ? (values.bankName ?? '').trim() : valueOf(field.name);
+    }
 
-    await submitPaymentDestination(input);
+    // The store keeps the error for the inline message — stay on this step.
+    try {
+      await submitPaymentDestination(input);
+    } catch {
+      return;
+    }
 
     if (isEditMode) {
       router.back();
@@ -87,104 +111,99 @@ export function PaymentDestinationScreen() {
         </>
       }
     >
-      <View style={styles.pillRow}>
-        {TYPE_OPTIONS.map((option) => {
-          const selected = type === option.value;
-          return (
-            <Pressable
-              key={option.value}
-              onPress={() => setType(option.value)}
-              style={[styles.pill, selected && styles.pillSelected]}
-            >
-              <Text style={[styles.pillText, selected && styles.pillTextSelected]}>{option.label}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      {type === 'mpesa_till' ? (
-        <Input
-          label="Till number"
-          value={tillNumber}
-          onChangeText={setTillNumber}
-          placeholder="174379"
-          keyboardType="number-pad"
-        />
-      ) : null}
-
-      {type === 'mpesa_paybill' ? (
-        <>
-          <Input
-            label="Paybill number"
-            value={paybillNumber}
-            onChangeText={setPaybillNumber}
-            placeholder="400200"
-            keyboardType="number-pad"
-          />
-          <Input
-            label="Account number"
-            value={paybillAccountNumber}
-            onChangeText={setPaybillAccountNumber}
-            placeholder="e.g. your business name"
-          />
-        </>
-      ) : null}
-
-      {type === 'bank_account' ? (
-        <>
-          <View>
-            <Text style={styles.fieldLabel}>Bank</Text>
-            <Pressable style={styles.bankSelector} onPress={() => setBankPickerVisible(true)}>
-              <Text style={selectedBank ? styles.bankSelectorText : styles.bankSelectorPlaceholder}>
-                {selectedBank ? selectedBank.name : 'Select your bank'}
-              </Text>
-            </Pressable>
+      {!options ? (
+        loadError ? (
+          <View style={styles.loadState}>
+            <Text style={styles.error}>{loadError}</Text>
+            <Button label="Try again" variant="secondary" onPress={loadOptions} />
           </View>
-          <Input
-            label="Account number"
-            value={bankAccountNumber}
-            onChangeText={setBankAccountNumber}
-            placeholder="1234567890"
-            keyboardType="number-pad"
+        ) : (
+          <ActivityIndicator style={styles.loadState} color={colors.brand.purple} />
+        )
+      ) : (
+        <>
+          <View style={styles.pillRow}>
+            {options.types.map((option) => {
+              const selected = type === option.type;
+              return (
+                <Pressable
+                  key={option.type}
+                  onPress={() => setType(option.type)}
+                  style={[styles.pill, selected && styles.pillSelected]}
+                >
+                  <Text style={[styles.pillText, selected && styles.pillTextSelected]}>{option.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          {typeOption ? <Text style={styles.typeDescription}>{typeOption.description}</Text> : null}
+
+          {fields.map((field) =>
+            field.keyboard === 'picker' ? (
+              <View key={field.name}>
+                <Text style={styles.fieldLabel}>{field.label}</Text>
+                <Pressable style={styles.bankSelector} onPress={() => setBankPickerVisible(true)}>
+                  <Text style={values.bankName ? styles.bankSelectorText : styles.bankSelectorPlaceholder}>
+                    {values.bankName || 'Select your bank'}
+                  </Text>
+                </Pressable>
+              </View>
+            ) : (
+              <View key={field.name}>
+                <Input
+                  label={field.label}
+                  value={values[field.name] ?? ''}
+                  onChangeText={(value) => setValue(field.name, value)}
+                  keyboardType={field.keyboard === 'number' ? 'number-pad' : 'default'}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <Text
+                  style={[
+                    styles.fieldHint,
+                    valueOf(field.name).length > 0 && !isFieldValid(field) && styles.fieldHintInvalid,
+                  ]}
+                >
+                  {field.hint}
+                </Text>
+              </View>
+            ),
+          )}
+
+          <BankPickerSheet
+            visible={bankPickerVisible}
+            banks={options.banks}
+            selectedName={values.bankName ?? ''}
+            onSelect={handleSelectBank}
+            onClose={() => setBankPickerVisible(false)}
           />
         </>
-      ) : null}
-
-      <BankPickerSheet
-        visible={bankPickerVisible}
-        selected={selectedBank}
-        onSelect={(bank) => {
-          setSelectedBank(bank);
-          setBankPickerVisible(false);
-        }}
-        onClose={() => setBankPickerVisible(false)}
-      />
+      )}
     </AuthScreenLayout>
   );
 }
 
 interface BankPickerSheetProps {
   visible: boolean;
-  selected: KenyaBank | null;
-  onSelect: (bank: KenyaBank) => void;
+  banks: BankOption[];
+  selectedName: string;
+  onSelect: (bank: BankOption) => void;
   onClose: () => void;
 }
 
-function BankPickerSheet({ visible, selected, onSelect, onClose }: BankPickerSheetProps) {
+// Picking a bank also fills in its paybill (bankShortcode), which stays
+// editable in case the listed code is wrong for this account.
+function BankPickerSheet({ visible, banks, selectedName, onSelect, onClose }: BankPickerSheetProps) {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
           <Text style={styles.sheetTitle}>Select your bank</Text>
           <ScrollView style={styles.bankList}>
-            {KENYA_BANKS.map((bank) => (
-              <Pressable
-                key={bank.shortcode}
-                style={styles.bankRow}
-                onPress={() => onSelect(bank)}
-              >
+            {banks.map((bank) => (
+              <Pressable key={bank.name} style={styles.bankRow} onPress={() => onSelect(bank)}>
                 <Text style={styles.bankRowText}>{bank.name}</Text>
-                {selected?.shortcode === bank.shortcode ? <CheckmarkIcon size={18} /> : null}
+                {selectedName === bank.name ? <CheckmarkIcon size={18} /> : null}
               </Pressable>
             ))}
           </ScrollView>
@@ -215,6 +234,22 @@ const styles = StyleSheet.create({
   },
   pillTextSelected: {
     color: colors.pill.selectedText,
+  },
+  loadState: {
+    marginTop: spacing.xl,
+    gap: spacing.md,
+  },
+  typeDescription: {
+    ...typography.body,
+    color: colors.text.secondary,
+  },
+  fieldHint: {
+    ...typography.caption,
+    color: colors.text.tertiary,
+    marginTop: spacing.xs,
+  },
+  fieldHintInvalid: {
+    color: colors.feedback.danger,
   },
   fieldLabel: {
     ...typography.label,

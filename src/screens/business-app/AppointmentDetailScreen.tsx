@@ -171,6 +171,17 @@ export function AppointmentDetailScreen() {
           </View>
         </View>
 
+        {booking.paymentStatus === 'paid' && booking.paymentMethod ? (
+          <View style={styles.card}>
+            <Text style={styles.cardLabel}>Payment</Text>
+            <Text style={styles.cardValue}>{PAYMENT_METHOD_LABEL[booking.paymentMethod]}</Text>
+            <Text style={styles.cardValue}>KSh {booking.totalAmount.amount} paid</Text>
+            {booking.paymentReference ? (
+              <Text style={styles.cardValueMuted}>M-Pesa ref: {booking.paymentReference}</Text>
+            ) : null}
+          </View>
+        ) : null}
+
         <View style={styles.card}>
           <Text style={styles.cardLabel}>Staff</Text>
           <Text style={styles.cardValue}>{booking.staffName}</Text>
@@ -374,6 +385,10 @@ const styles = StyleSheet.create({
   cardValue: {
     ...typography.bodyMedium,
     color: colors.text.primary,
+  },
+  cardValueMuted: {
+    ...typography.caption,
+    color: colors.text.tertiary,
   },
   customerRow: {
     flexDirection: 'row',

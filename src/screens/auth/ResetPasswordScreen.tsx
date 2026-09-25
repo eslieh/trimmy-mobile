@@ -6,6 +6,7 @@ import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { colors, typography } from '../../theme';
 import { authApi } from '../../api/auth';
+import { getApiErrorMessage } from '../../api/client';
 
 export function ResetPasswordScreen() {
   const router = useRouter();
@@ -27,7 +28,7 @@ export function ResetPasswordScreen() {
     setError('');
     setLoading(true);
     try {
-      await authApi.resetPassword(otp!, password);
+      await authApi.resetPassword(email!, otp!, password);
       router.push({
         pathname: '/success',
         params: {
@@ -37,9 +38,8 @@ export function ResetPasswordScreen() {
           nextRoute: '/login',
         },
       });
-    } catch (err: any) {
-      const detail = err.response?.data?.detail;
-      setError(detail?.message || 'Something went wrong. Please try again.');
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Something went wrong. Please try again.'));
     } finally {
       setLoading(false);
     }

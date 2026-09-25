@@ -41,3 +41,25 @@ export interface LoginRequest {
 export interface RefreshRequest {
   refresh_token: string;
 }
+
+export interface UpdateMeRequest {
+  first_name?: string;
+  last_name?: string;
+  phone?: string | null;
+}
+
+export interface MessageResponse {
+  message: string;
+}
+
+export interface ChangePasswordResponse {
+  message: string;
+  tokens: Tokens;
+}
+
+export interface MyBusiness {
+  businessId: string;
+  name: string;
+  status: string;
+  role: string;
+}
