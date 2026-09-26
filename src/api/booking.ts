@@ -1,6 +1,6 @@
 import { apiRequest, toQueryString } from './client';
 import { mockDelay } from './mock/delay';
-import { USE_MOCK_BOOKING, USE_MOCK_FULFILLMENT } from '../config/env';
+import { USE_MOCK_BOOKING, USE_MOCK_CHARGE, USE_MOCK_FULFILLMENT } from '../config/env';
 import type { Booking, BookingServiceLine } from '../types/booking';
 import type { Money } from '../types/business';
 
@@ -98,50 +98,101 @@ export function listMyBookings(
   return apiRequest(`/me/bookings?${toQueryString([['filter', filter], ['limit', limit], ['cursor', cursor]])}`);
 }
 
+// See reference/api/fulfillment.json#list-business-bookings. Owner / front
+// desk see every booking; staff only their own. Pass one date, or an
+// inclusive from/to range (≤62 days). Soonest first. unassigned=true lists
+// "Any available" bookings waiting for staff; refund='due' lists every
+// booking with a refund owed (no date needed).
+export type BusinessBookingsQuery =
+  | { date: string; from?: never; to?: never }
+  | { from: string; to: string; date?: never }
+  | { refund: 'due'; date?: never; from?: never; to?: never };
+
+export function listBusinessBookings(
+  businessId: string,
+  query: BusinessBookingsQuery & { status?: Booking['status'][]; staffId?: string; unassigned?: boolean },
+): Promise<Booking[]> {
+  if (USE_MOCK_FULFILLMENT) {
+    return mockDelay<Booking[]>([]);
+  }
+
+  const qs = toQueryString([
+    ['date', query.date],
+    ['from', query.from],
+    ['to', query.to],
+    ['status', query.status?.join(',')],
+    ['staffId', query.staffId],
+    ['unassigned', query.unassigned ? 'true' : undefined],
+    ['refund', 'refund' in query ? query.refund : undefined],
+  ]);
+  return apiRequest<{ bookings: Booking[] }>(`/businesses/${businessId}/bookings?${qs}`).then((res) => res.bookings);
+}
+
 // See reference/api/fulfillment.json#create-walk-in-booking and
-// #create-scheduled-booking for the contracts this shared input implements
-// — owner-recorded appointments (walk-in or manually scheduled), not part
-// of the customer-facing booking flow this file otherwise documents.
+// #create-scheduled-booking — owner/front-desk-recorded appointments. Like
+// create-booking, only choices go up: the server prices it and fills in
+// names and duration. staffId is the member's staffId (null = unassigned);
+// the server checks they're free. source is 'walk_in' for both.
 export type CreateOwnerBookingInput = {
   businessId: string;
-  businessName: string;
-  customerName: string;
+  customerName: string; // server defaults to 'Walk-in customer' when blank
   customerPhone: string | null;
   customerEmail: string | null;
-  services: BookingServiceLine[];
-  durationMinutes: number;
-  totalAmount: Money;
-  // staffId is the member's staff record id (TeamInvitation.staffId, same as
-  // the profile's staff[].staffId) — only accepted members have one. This is
-  // how TeamMemberDetailScreen's earnings know which bookings are theirs.
-  // null = "Any available"/unassigned, same as online bookings.
+  services: { serviceId: string; quantity: number }[];
   staffId: string | null;
-  staffName: string;
+  notes?: string | null;
 };
 
-// A walk-in is already physically present and being served, so it skips
-// pending_payment/confirmed entirely and starts life as in_progress — no
-// deposit, no date/time picking (uses right now).
-export function createWalkInBooking(input: CreateOwnerBookingInput): Promise<Booking> {
-  const now = new Date();
-  const date = now.toISOString().slice(0, 10);
-  const time = now.toTimeString().slice(0, 5);
+// Mock mode only: what the server would otherwise fill in.
+export type OwnerBookingMockContext = {
+  businessName: string;
+  staffName: string;
+  lines: BookingServiceLine[];
+};
 
+function mockOwnerBooking(
+  input: CreateOwnerBookingInput,
+  mock: OwnerBookingMockContext | undefined,
+  fields: Pick<Booking, 'date' | 'time' | 'status'>,
+): Booking {
+  mockBookingSequence += 1;
+  const lines = mock?.lines ?? [];
+  return {
+    bookingId: `booking_mock_${mockBookingSequence}`,
+    businessId: input.businessId,
+    businessName: mock?.businessName ?? '',
+    customerName: input.customerName || 'Walk-in customer',
+    customerPhone: input.customerPhone,
+    customerEmail: input.customerEmail,
+    staffId: input.staffId,
+    staffName: mock?.staffName ?? 'Any available',
+    services: lines,
+    durationMinutes: lines.reduce((sum, line) => sum + line.durationMinutes * line.quantity, 0),
+    totalAmount: { amount: lines.reduce((sum, line) => sum + line.price.amount * line.quantity, 0), currency: 'KES' },
+    depositAmount: null,
+    source: 'walk_in',
+    paymentStatus: 'unpaid',
+    paymentMethod: null,
+    paymentReference: null,
+    createdAt: new Date().toISOString(),
+    notes: input.notes ?? null,
+    ...fields,
+  };
+}
+
+// The customer is here now: the server stamps the current time and starts
+// it in_progress (no deposit). 409 slot_unavailable if the chosen staff
+// member isn't free right now.
+export function createWalkInBooking(input: CreateOwnerBookingInput, mock?: OwnerBookingMockContext): Promise<Booking> {
   if (USE_MOCK_FULFILLMENT) {
-    mockBookingSequence += 1;
-    return mockDelay<Booking>({
-      ...input,
-      bookingId: `booking_mock_${mockBookingSequence}`,
-      date,
-      time,
-      depositAmount: null,
-      status: 'in_progress',
-      source: 'walk_in',
-      paymentStatus: 'unpaid',
-      paymentMethod: null,
-      paymentReference: null,
-      createdAt: now.toISOString(),
-    });
+    const now = new Date();
+    return mockDelay(
+      mockOwnerBooking(input, mock, {
+        date: now.toISOString().slice(0, 10),
+        time: now.toTimeString().slice(0, 5),
+        status: 'in_progress',
+      }),
+    );
   }
 
   return apiRequest<Booking>('/bookings/walk-in', { method: 'POST', body: input });
@@ -152,27 +203,15 @@ export type CreateScheduledBookingInput = CreateOwnerBookingInput & {
   time: string;
 };
 
-// Owner manually books a future appointment on someone's behalf (Today tab
-// "+" → Schedule) — same "in-app-only" caveat as createWalkInBooking, and
-// deliberately the same source ('walk_in': owner-recorded, as opposed to
-// 'online' via the customer-facing flow) since the only real difference
-// from a walk-in is that it starts life as 'confirmed' rather than
-// 'in_progress' — the owner still has to check the customer in when they
-// arrive.
-export function createScheduledBooking(input: CreateScheduledBookingInput): Promise<Booking> {
+// Book on a customer's behalf: starts confirmed, no deposit. Must be in the
+// future and within working hours, but may be off the customer slot grid
+// and needs no lead time.
+export function createScheduledBooking(
+  input: CreateScheduledBookingInput,
+  mock?: OwnerBookingMockContext,
+): Promise<Booking> {
   if (USE_MOCK_FULFILLMENT) {
-    mockBookingSequence += 1;
-    return mockDelay<Booking>({
-      ...input,
-      bookingId: `booking_mock_${mockBookingSequence}`,
-      depositAmount: null,
-      status: 'confirmed',
-      source: 'walk_in',
-      paymentStatus: 'unpaid',
-      paymentMethod: null,
-      paymentReference: null,
-      createdAt: new Date().toISOString(),
-    });
+    return mockDelay(mockOwnerBooking(input, mock, { date: input.date, time: input.time, status: 'confirmed' }));
   }
 
   return apiRequest<Booking>('/bookings/scheduled', { method: 'POST', body: input });
@@ -185,7 +224,7 @@ export function createScheduledBooking(input: CreateScheduledBookingInput): Prom
 // push. Mock-only quirk: takes the full booking rather than just an id,
 // same reason as confirmBookingPayment below.
 export function chargeBookingPayment(booking: Booking, customerPhone: string): Promise<Booking> {
-  if (USE_MOCK_FULFILLMENT) {
+  if (USE_MOCK_CHARGE) {
     return mockDelay<Booking>(
       {
         ...booking,
@@ -211,7 +250,7 @@ export function chargeBookingPayment(booking: Booking, customerPhone: string): P
 // mockDelay so the UI's brief loading state is exercised the same way as
 // every other mock write.
 export function chargeBookingCash(booking: Booking): Promise<Booking> {
-  if (USE_MOCK_API) {
+  if (USE_MOCK_CHARGE) {
     return mockDelay<Booking>({
       ...booking,
       paymentStatus: 'paid',
@@ -274,10 +313,55 @@ export function assignBookingStaff(booking: Booking, staffId: string, staffName:
 // useBookingsStore's local state directly with no API call at all, unlike
 // every other write in the app. Same mock-only "takes the full booking"
 // quirk as confirmBookingPayment/chargeBookingPayment above.
-export function updateBookingStatus(booking: Booking, status: Booking['status']): Promise<Booking> {
+// Returns the whole Booking. Cancelling here is the business cancelling
+// (cancelReason 'business' unless a reason is sent), which makes any paid
+// deposit refundable. no_show only after the start time; staff may set
+// in_progress / completed on their own bookings.
+export function updateBookingStatus(booking: Booking, status: Booking['status'], reason?: string): Promise<Booking> {
   if (USE_MOCK_FULFILLMENT) {
     return mockDelay<Booking>({ ...booking, status });
   }
 
-  return apiRequest<Booking>(`/bookings/${booking.bookingId}/status`, { method: 'PATCH', body: { status } });
+  return apiRequest<Booking>(`/bookings/${booking.bookingId}/status`, {
+    method: 'PATCH',
+    body: { status, reason: reason ?? null },
+  });
+}
+
+// See reference/api/booking.json#cancel-preview / #cancel-booking (BK-60).
+// Deposits sit in the business's own account, so any refund is paid back
+// by the business by hand (see markBookingRefunded).
+export type CancelPreview = {
+  bookingId: string;
+  canCancel: boolean;
+  reasonBlocked: string | null;
+  freeUntil: string;
+  withinFreeWindow: boolean;
+  depositPaid: Money;
+  fee: Money;
+  refund: Money;
+  lateFeePercent: number;
+  message: string; // show as-is
+};
+
+export function getCancelPreview(bookingId: string): Promise<CancelPreview> {
+  return apiRequest<CancelPreview>(`/bookings/${bookingId}/cancel-preview`);
+}
+
+// Customer cancels with the outcome the preview showed. 409 cannot_cancel
+// once the appointment has started.
+export function cancelBooking(bookingId: string, reason?: string): Promise<Booking> {
+  return apiRequest<Booking>(`/bookings/${bookingId}/cancel`, {
+    method: 'POST',
+    body: { reason: reason ?? null },
+  });
+}
+
+// Owner / front desk: record that the business has sent back a refund it
+// owed. reference is optional (e.g. the refund's M-Pesa code).
+export function markBookingRefunded(bookingId: string, reference?: string): Promise<Booking> {
+  return apiRequest<Booking>(`/bookings/${bookingId}/refund`, {
+    method: 'POST',
+    body: { reference: reference || null },
+  });
 }

@@ -9,6 +9,7 @@ import { useBookingsStore } from '../../store/useBookingsStore';
 import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { colors, radii, spacing, typography } from '../../theme';
 import type { Booking } from '../../types/booking';
+import { useSyncBusinessBookings } from '../../hooks/useSyncBusinessBookings';
 
 const RESOLVED_STATUSES: Booking['status'][] = ['completed', 'no_show', 'cancelled'];
 
@@ -49,6 +50,8 @@ export function StaffTodayScreen() {
   };
 
   const dateKey = dateKeyForOffset(dayOffset);
+  // Staff only get their own bookings from the server.
+  useSyncBusinessBookings(staffSession?.businessId, dateKey, dateKey);
 
   const dayBookings = useMemo(() => {
     if (!staffSession) return [];

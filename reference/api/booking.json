@@ -2,7 +2,7 @@
   "domain": "booking",
   "baseUrl": "/api/v1",
   "auth": "Requires a Bearer token for a signed-in, verified user unless noted.",
-  "note": "As of 2026-09-27: availability (BK-11), create-booking (BK-22), get/list bookings (BK-23) and M-Pesa deposit payment (BK-31/32) are live and wired in the app (src/api/availability.ts, src/api/booking.ts). USE_MOCK_BOOKING_PAYMENT=true simulates payment without M-Pesa. There's no cancel endpoint yet; Appointment Detail tells the customer to contact the business.",
+  "note": "As of 2026-09-27: availability, create/get/list bookings, M-Pesa deposit payment, and cancel with manual refunds (BK-60) are live and wired in the app. Deposits sit in the business's own account, so refunds are paid back by the business by hand (decision D10). Customers get an SMS when a booking becomes confirmed (BK-40; not for walk-ins); Booking Confirmed mentions it when the booking has a customerPhone.",
   "endpoints": [
     {
       "id": "get-availability-days",
@@ -153,7 +153,9 @@
         "cancelReason": null,
         "depositPayment": null,
         "notes": "Short on the sides",
-        "createdAt": "2026-09-27T10:00:00Z"
+        "createdAt": "2026-09-27T10:00:00Z",
+        "cancellationFee": null,
+        "refund": null
       },
       "errors": [
         {
@@ -364,6 +366,97 @@
           "message": "Payments are temporarily unavailable"
         }
       ]
+    },
+    {
+      "id": "cancel-preview",
+      "status": "live",
+      "screen": "Appointment Detail → Cancel sheet: refund/fee breakdown",
+      "story": "C3",
+      "method": "GET",
+      "path": "/bookings/{bookingId}/cancel-preview",
+      "auth": "the customer who booked",
+      "description": "What cancelling right now would cost. Free before freeUntil (the business's freeCancellationHours before the start): the whole paid deposit is refunded. Later: lateFeePercent of the booking total is kept, capped at the deposit, and the rest refunded. No deposit paid: free. The app shows message as-is, and blocks Cancel with reasonBlocked when canCancel is false.",
+      "request": null,
+      "response": {
+        "bookingId": "uuid",
+        "canCancel": true,
+        "reasonBlocked": null,
+        "freeUntil": "2026-10-04T14:30:00Z",
+        "withinFreeWindow": true,
+        "depositPaid": {
+          "amount": 300,
+          "currency": "KES"
+        },
+        "fee": {
+          "amount": 0,
+          "currency": "KES"
+        },
+        "refund": {
+          "amount": 300,
+          "currency": "KES"
+        },
+        "lateFeePercent": 50,
+        "message": "Free cancellation: your KES 300 deposit will be refunded by the business."
+      },
+      "errors": []
+    },
+    {
+      "id": "cancel-booking",
+      "status": "live",
+      "screen": "Appointment Detail → Cancel sheet: confirm",
+      "story": "C3",
+      "method": "POST",
+      "path": "/bookings/{bookingId}/cancel",
+      "auth": "the customer who booked",
+      "description": "Cancels with the same outcome the preview showed. pending_payment and confirmed bookings only, before the start time. reason is the optional note from the reason picker (Something came up / Found another time / Booked by mistake / Other).",
+      "request": {
+        "reason": "Something came up"
+      },
+      "response": "Booking (status cancelled, cancelReason customer, cancellationFee and refund set when money was involved)",
+      "errors": [
+        {
+          "status": 409,
+          "code": "cannot_cancel",
+          "message": "This appointment has already started"
+        }
+      ]
+    },
+    {
+      "id": "mark-refunded",
+      "status": "live",
+      "screen": "Owner / front desk: Refunds owed and Appointment Detail → Mark refunded",
+      "story": "S1",
+      "method": "POST",
+      "path": "/bookings/{bookingId}/refund",
+      "auth": "owner or front desk",
+      "description": "Records that the business has sent a refund it owed back to the customer. reference is optional (e.g. the M-Pesa code of the refund).",
+      "request": {
+        "reference": "SJK4R2T8QX"
+      },
+      "response": "Booking (refund.status refunded)",
+      "errors": [
+        {
+          "status": 409,
+          "code": "no_refund_due",
+          "message": "There's no refund owed on this booking"
+        }
+      ]
     }
-  ]
+  ],
+  "bookingRefundFields": {
+    "description": "Booking gains two fields, both null unless a cancellation involved money. A late payment into a taken slot (BK-32) also shows up as a refund owed.",
+    "cancellationFee": {
+      "amount": 300,
+      "currency": "KES"
+    },
+    "refund": {
+      "amount": {
+        "amount": 100,
+        "currency": "KES"
+      },
+      "status": "due | refunded",
+      "refundedAt": null,
+      "reference": null
+    }
+  }
 }

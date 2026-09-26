@@ -11,6 +11,7 @@ import { useBookingsStore } from '../../store/useBookingsStore';
 import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { colors, radii, spacing, typography } from '../../theme';
 import type { Booking } from '../../types/booking';
+import { useSyncBusinessBookings } from '../../hooks/useSyncBusinessBookings';
 
 // Still open/in-flight vs already wrapped up — the owner only needs to *act*
 // on the former, so that's what gets top billing; resolved appointments are
@@ -56,6 +57,7 @@ export function TodayTimelineScreen() {
   };
 
   const dateKey = dateKeyForOffset(dayOffset);
+  useSyncBusinessBookings(ownedBusiness?.businessId, dateKey, dateKey);
 
   const dayBookings = useMemo(() => {
     if (!ownedBusiness) return [];

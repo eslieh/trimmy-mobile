@@ -8,7 +8,9 @@ import { Button } from '../../components/Button';
 import { PhoneInput } from '../../components/PhoneInput';
 import { CheckIcon } from '../../components/icons/CheckIcon';
 import { PhoneIcon } from '../../components/icons/PhoneIcon';
-import { assignBookingStaff, chargeBookingCash, chargeBookingPayment, updateBookingStatus } from '../../api/booking';
+import { assignBookingStaff, chargeBookingCash, chargeBookingPayment, getBooking, updateBookingStatus } from '../../api/booking';
+import { MarkRefundedSheet } from '../../components/MarkRefundedSheet';
+import { showApiError } from '../../utils/showApiError';
 import { getApiErrorCode, getApiErrorMessage } from '../../api/client';
 import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
 import { bookableStaff, teamMemberDisplayName } from '../../utils/team';
@@ -45,6 +47,14 @@ export function AppointmentDetailScreen() {
   const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
   const booking = useBookingsStore((s) => s.bookings.find((b) => b.bookingId === bookingId));
   const updateBooking = useBookingsStore((s) => s.updateBooking);
+  const upsertBooking = useBookingsStore((s) => s.upsertBooking);
+  const [refundSheetVisible, setRefundSheetVisible] = useState(false);
+
+  // Always refresh from the server — this may be opened from a list that
+  // hasn't cached the booking (e.g. Unassigned or Refunds owed).
+  useEffect(() => {
+    getBooking(bookingId).then(upsertBooking).catch(() => {});
+  }, [bookingId, upsertBooking]);
 
   const [chargeSheetVisible, setChargeSheetVisible] = useState(false);
   const [chargeMethod, setChargeMethod] = useState<PaymentMethod>('mpesa');
@@ -75,9 +85,16 @@ export function AppointmentDetailScreen() {
   const setStatus = async (status: BookingStatus) => {
     if (isUpdatingStatus) return;
     setIsUpdatingStatus(true);
-    const updated = await updateBookingStatus(booking, status);
-    updateBooking(updated);
-    setIsUpdatingStatus(false);
+    try {
+      // Returns the whole Booking — e.g. a business cancellation comes back
+      // with any paid deposit marked as a refund owed.
+      const updated = await updateBookingStatus(booking, status);
+      updateBooking(updated);
+    } catch (err) {
+      showApiError("Couldn't update this appointment", err);
+    } finally {
+      setIsUpdatingStatus(false);
+    }
   };
 
   // Only active bookings can be (re)assigned; the server checks the rest
@@ -213,6 +230,25 @@ export function AppointmentDetailScreen() {
           </View>
         ) : null}
 
+        {booking.refund ? (
+          <View style={styles.card}>
+            <Text style={styles.cardLabel}>Refund</Text>
+            {booking.refund.status === 'due' ? (
+              <>
+                <Text style={styles.cardValue}>
+                  KES {booking.refund.amount.amount} owed back to {booking.customerName}
+                </Text>
+                <Button label="Mark refunded" variant="secondary" onPress={() => setRefundSheetVisible(true)} />
+              </>
+            ) : (
+              <Text style={styles.cardValue}>
+                Refunded KES {booking.refund.amount.amount}
+                {booking.refund.reference ? ` · ${booking.refund.reference}` : ''}
+              </Text>
+            )}
+          </View>
+        ) : null}
+
         <View style={styles.card}>
           <Text style={styles.cardLabel}>Staff</Text>
           <Text style={styles.cardValue}>{booking.staffId ? booking.staffName : 'Unassigned'}</Text>
@@ -255,6 +291,15 @@ export function AppointmentDetailScreen() {
           <Button label="Charge customer" onPress={() => setChargeSheetVisible(true)} />
         ) : null}
       </View>
+
+      <MarkRefundedSheet
+        booking={refundSheetVisible ? booking : null}
+        onClose={() => setRefundSheetVisible(false)}
+        onRefunded={(updated) => {
+          updateBooking(updated);
+          setRefundSheetVisible(false);
+        }}
+      />
 
       <Modal
         visible={assignSheetVisible}

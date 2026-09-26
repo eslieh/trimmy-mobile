@@ -24,6 +24,7 @@ import {
   type EarningsRange,
 } from '../../utils/earnings';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
+import { dateRangeKeys, useSyncBusinessBookings } from '../../hooks/useSyncBusinessBookings';
 
 const RANGE_OPTIONS: { value: EarningsRange; label: string }[] = [
   { value: 'today', label: 'Today' },
@@ -116,6 +117,8 @@ export function StaffEarningsScreen() {
     () => (range === 'custom' ? buildCustomDateRange(customStart, customEnd) : getPresetDateRange(range)),
     [range, customStart, customEnd],
   );
+  const [syncFrom, syncTo] = dateRangeKeys(dateRange);
+  useSyncBusinessBookings(staffSession?.businessId, syncFrom, syncTo);
 
   const buckets = useMemo(() => getEarningsBuckets(myBookings, dateRange), [myBookings, dateRange]);
   const paymentBreakdown = useMemo(() => getPaymentMethodBreakdown(myBookings, dateRange), [myBookings, dateRange]);

@@ -8,57 +8,28 @@
       "screen": "Today / Calendar / Earnings (business-owner app)",
       "story": "S1",
       "method": "GET",
-      "path": "/businesses/{businessId}/bookings",
-      "description": "Fetches bookings for a business. Supports optional `date` (single day, for Today), `from`/`to` (range, for Calendar's month view and Earnings), and `status` query params. Today/Calendar/Earnings currently all read from one client-side array that only ever holds bookings created during the current app session — a real backend needs this endpoint to actually list bookings that already existed, not just ones the app itself just created.",
-      "auth": "owner",
+      "path": "/businesses/{businessId}/bookings?date=2026-09-25 | ?from=2026-09-01&to=2026-09-30 [&status=confirmed,in_progress] [&staffId=uuid] [&unassigned=true] | ?refund=due",
+      "description": "Soonest first. date = one day; from/to = an inclusive range of at most 62 days (one is required, except with refund=due). status is comma-separated. unassigned=true lists 'Any available' bookings waiting for someone (see assign-booking-staff). refund=due lists every booking with a refund owed. App: hooks/useSyncBusinessBookings loads Today (day), Calendar (month), Earnings and Member Detail (their range, split into ≤62-day chunks) into useBookingsStore as a cache; Manage Business → Unassigned bookings / Refunds owed use unassigned=true and refund=due.",
+      "auth": "owner or front desk (all bookings); staff (only their own)",
       "request": null,
       "response": {
         "bookings": [
-          {
-            "bookingId": "booking_01a1",
-            "businessId": "biz_01hxyz",
-            "businessName": "Glow Beauty Lounge",
-            "customerName": "Jane Doe",
-            "customerPhone": "+254798765432",
-            "customerEmail": "jane@example.com",
-            "staffId": null,
-            "staffName": "Any available",
-            "services": [
-              {
-                "serviceId": "svc_01a1",
-                "name": "Classic Haircut",
-                "durationMinutes": 45,
-                "price": {
-                  "amount": 800,
-                  "currency": "KES"
-                },
-                "quantity": 1
-              }
-            ],
-            "date": "2026-09-25",
-            "time": "14:00",
-            "durationMinutes": 45,
-            "totalAmount": {
-              "amount": 800,
-              "currency": "KES"
-            },
-            "depositAmount": null,
-            "status": "confirmed",
-            "source": "walk_in",
-            "paymentStatus": "unpaid",
-            "paymentMethod": null,
-            "paymentReference": null,
-            "createdAt": "2026-09-20T09:00:00Z"
-          }
+          "Booking"
         ]
       },
       "errors": [
+        {
+          "status": 400,
+          "code": "validation_error",
+          "message": "Pass date, or from and to"
+        },
         {
           "status": 404,
           "code": "not_found",
           "message": "No business found for this id"
         }
-      ]
+      ],
+      "status": "live"
     },
     {
       "id": "create-walk-in-booking",
@@ -66,77 +37,36 @@
       "story": "S1",
       "method": "POST",
       "path": "/bookings/walk-in",
-      "description": "Records a walk-in: the customer is already physically present, so this skips pending_payment/confirmed entirely and starts life as in_progress — no deposit, no date/time picking (server should stamp the current date/time, not trust a client-sent one). customerName falls back to \"Walk-in customer\" client-side if left blank; customerPhone/customerEmail are optional. staffId is optional too — null/omitted means unassigned (\"Any available\"/\"Walk-in\"); when present it's a team.json add-team-member invitationId, which is how a member's earnings view (see get-earnings-summary) knows which bookings are theirs.",
-      "auth": "owner",
+      "description": "The customer is here now: the server stamps the current time, status starts in_progress, no deposit. Prices come from the server. customerName defaults to 'Walk-in customer'. staffId optional (null = unassigned); it must be free right now, else 409.",
+      "auth": "owner or front desk",
       "request": {
-        "businessId": "biz_01hxyz",
-        "businessName": "Glow Beauty Lounge",
-        "customerName": "Walk-in customer",
-        "customerPhone": null,
+        "businessId": "uuid",
+        "customerName": "Baraka",
+        "customerPhone": "+254733000111",
         "customerEmail": null,
         "services": [
           {
-            "serviceId": "svc_01a1",
-            "name": "Classic Haircut",
-            "durationMinutes": 45,
-            "price": {
-              "amount": 800,
-              "currency": "KES"
-            },
+            "serviceId": "uuid",
             "quantity": 1
           }
         ],
-        "durationMinutes": 45,
-        "totalAmount": {
-          "amount": 800,
-          "currency": "KES"
-        },
-        "staffId": null,
-        "staffName": "Walk-in"
+        "staffId": "uuid | null",
+        "notes": null
       },
-      "response": {
-        "bookingId": "booking_01a2",
-        "businessId": "biz_01hxyz",
-        "businessName": "Glow Beauty Lounge",
-        "customerName": "Walk-in customer",
-        "customerPhone": null,
-        "customerEmail": null,
-        "staffId": null,
-        "staffName": "Walk-in",
-        "services": [
-          {
-            "serviceId": "svc_01a1",
-            "name": "Classic Haircut",
-            "durationMinutes": 45,
-            "price": {
-              "amount": 800,
-              "currency": "KES"
-            },
-            "quantity": 1
-          }
-        ],
-        "date": "2026-09-22",
-        "time": "11:30",
-        "durationMinutes": 45,
-        "totalAmount": {
-          "amount": 800,
-          "currency": "KES"
-        },
-        "depositAmount": null,
-        "status": "in_progress",
-        "source": "walk_in",
-        "paymentStatus": "unpaid",
-        "paymentMethod": null,
-        "paymentReference": null,
-        "createdAt": "2026-09-22T11:30:00Z"
-      },
+      "response": "Booking (status in_progress, source walk_in)",
       "errors": [
         {
-          "status": 400,
-          "code": "validation_error",
-          "message": "services must include at least one item"
+          "status": 409,
+          "code": "slot_unavailable",
+          "message": "This time is no longer available"
+        },
+        {
+          "status": 403,
+          "code": "forbidden",
+          "message": "Only the owner or front desk can do this"
         }
-      ]
+      ],
+      "status": "live"
     },
     {
       "id": "create-scheduled-booking",
@@ -144,72 +74,14 @@
       "story": "S1",
       "method": "POST",
       "path": "/bookings/scheduled",
-      "description": "Owner manually books a future appointment on someone's behalf. Same shape as create-walk-in-booking (including the optional staffId assignment) plus date/time, and starts life as confirmed rather than in_progress — the owner still has to check the customer in (see update-booking-status) when they actually arrive. Uses source `walk_in` (owner-recorded) rather than a separate value, since the only real difference from a walk-in is the starting status.",
-      "auth": "owner",
+      "description": "Book on a customer's behalf: same body as the walk-in plus date and time. Starts confirmed, no deposit. Must be in the future and inside working hours, but may be off the customer slot grid (e.g. 14:05) and needs no lead time.",
+      "auth": "owner or front desk",
       "request": {
-        "businessId": "biz_01hxyz",
-        "businessName": "Glow Beauty Lounge",
-        "customerName": "Jane Doe",
-        "customerPhone": "+254798765432",
-        "customerEmail": "jane@example.com",
-        "services": [
-          {
-            "serviceId": "svc_01a1",
-            "name": "Classic Haircut",
-            "durationMinutes": 45,
-            "price": {
-              "amount": 800,
-              "currency": "KES"
-            },
-            "quantity": 1
-          }
-        ],
-        "durationMinutes": 45,
-        "totalAmount": {
-          "amount": 800,
-          "currency": "KES"
-        },
+        "…": "as create-walk-in-booking",
         "date": "2026-09-25",
-        "time": "14:00",
-        "staffId": "inv_01xy",
-        "staffName": "Jane Wanjiru"
+        "time": "14:00"
       },
-      "response": {
-        "bookingId": "booking_01a3",
-        "businessId": "biz_01hxyz",
-        "businessName": "Glow Beauty Lounge",
-        "customerName": "Jane Doe",
-        "customerPhone": "+254798765432",
-        "customerEmail": "jane@example.com",
-        "staffId": null,
-        "staffName": "Any available",
-        "services": [
-          {
-            "serviceId": "svc_01a1",
-            "name": "Classic Haircut",
-            "durationMinutes": 45,
-            "price": {
-              "amount": 800,
-              "currency": "KES"
-            },
-            "quantity": 1
-          }
-        ],
-        "date": "2026-09-25",
-        "time": "14:00",
-        "durationMinutes": 45,
-        "totalAmount": {
-          "amount": 800,
-          "currency": "KES"
-        },
-        "depositAmount": null,
-        "status": "confirmed",
-        "source": "walk_in",
-        "paymentStatus": "unpaid",
-        "paymentMethod": null,
-        "paymentReference": null,
-        "createdAt": "2026-09-22T11:35:00Z"
-      },
+      "response": "Booking (status confirmed, source walk_in)",
       "errors": [
         {
           "status": 400,
@@ -217,11 +89,17 @@
           "message": "time is not within the business's working hours for that date"
         },
         {
+          "status": 400,
+          "code": "validation_error",
+          "message": "time is in the past"
+        },
+        {
           "status": 409,
           "code": "slot_unavailable",
           "message": "This time is no longer available"
         }
-      ]
+      ],
+      "status": "live"
     },
     {
       "id": "update-booking-status",
@@ -229,15 +107,13 @@
       "story": "S1",
       "method": "PATCH",
       "path": "/bookings/{bookingId}/status",
-      "description": "Drives Appointment Detail's status stepper: check-in (confirmed → in_progress), no-show, and cancel. (in_progress → completed happens via charge-booking below, not this endpoint, since completing always goes through a payment record.)",
-      "auth": "owner",
+      "description": "status: in_progress (check in / start), completed, no_show (only after the start time), cancelled (cancelReason 'business' unless a reason is sent; makes the whole paid deposit refundable). Returns the full Booking. Completing is allowed here until charge-booking exists.",
+      "auth": "owner or front desk; staff can set in_progress and completed on their own bookings",
       "request": {
-        "status": "in_progress"
+        "status": "in_progress",
+        "reason": null
       },
-      "response": {
-        "bookingId": "booking_01a1",
-        "status": "in_progress"
-      },
+      "response": "Booking",
       "errors": [
         {
           "status": 400,
@@ -245,11 +121,17 @@
           "message": "Cannot move from completed to in_progress"
         },
         {
+          "status": 403,
+          "code": "forbidden",
+          "message": "Only the owner or front desk can do this"
+        },
+        {
           "status": 404,
           "code": "not_found",
           "message": "bookingId does not exist"
         }
-      ]
+      ],
+      "status": "live"
     },
     {
       "id": "charge-booking",
@@ -282,7 +164,8 @@
           "code": "payment_failed",
           "message": "Could not confirm payment"
         }
-      ]
+      ],
+      "status": "requested (not built; app mocks it: USE_MOCK_CHARGE / USE_MOCK_CUSTOMERS)"
     },
     {
       "id": "get-earnings-summary",
@@ -354,7 +237,8 @@
           "code": "not_found",
           "message": "No business found for this id"
         }
-      ]
+      ],
+      "status": "requested (not built; app mocks it: USE_MOCK_CHARGE / USE_MOCK_CUSTOMERS)"
     },
     {
       "id": "save-customer",
@@ -384,7 +268,8 @@
           "code": "validation_error",
           "message": "name is required"
         }
-      ]
+      ],
+      "status": "requested (not built; app mocks it: USE_MOCK_CHARGE / USE_MOCK_CUSTOMERS)"
     },
     {
       "id": "list-customers",
@@ -413,7 +298,8 @@
           "code": "not_found",
           "message": "No business found for this id"
         }
-      ]
+      ],
+      "status": "requested (not built; app mocks it: USE_MOCK_CHARGE / USE_MOCK_CUSTOMERS)"
     },
     {
       "id": "request-payout",

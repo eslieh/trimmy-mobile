@@ -37,6 +37,8 @@ export function BookingConfirmedScreen() {
           {booking.status === 'confirmed' && booking.depositAmount
             ? "Your deposit was received — see you soon."
             : "You're all set — see you soon."}
+          {/* The server texts the booking's phone once it's confirmed (BK-40). */}
+          {booking.customerPhone ? " We've sent you an SMS confirmation." : ''}
         </Text>
 
         <View style={styles.card}>

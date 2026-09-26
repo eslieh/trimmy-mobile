@@ -9,6 +9,7 @@ import { useBookingsStore } from '../../store/useBookingsStore';
 import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { getTimeSlots } from '../../utils/availability';
 import { colors, radii, spacing, typography } from '../../theme';
+import { useSyncBusinessBookings } from '../../hooks/useSyncBusinessBookings';
 
 // Just for browsing what's open on a day before any services are picked —
 // the real availability check (against the actual service duration) happens
@@ -46,6 +47,10 @@ export function CalendarScreen() {
   const today = useMemo(() => new Date(), []);
   const [month, setMonth] = useState(today);
   const [selectedDate, setSelectedDate] = useState(toDateKey(today));
+  // Load the visible month from the server.
+  const monthStart = toDateKey(new Date(month.getFullYear(), month.getMonth(), 1));
+  const monthEnd = toDateKey(new Date(month.getFullYear(), month.getMonth() + 1, 0));
+  useSyncBusinessBookings(ownedBusiness?.businessId, monthStart, monthEnd);
 
   const businessBookings = useMemo(
     () => (ownedBusiness ? bookings.filter((b) => b.businessId === ownedBusiness.businessId) : []),

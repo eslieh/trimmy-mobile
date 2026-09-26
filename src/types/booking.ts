@@ -62,6 +62,16 @@ export type Booking = {
   cancelReason?: string | null; // e.g. payment_expired
   notes?: string | null;
   depositPayment?: DepositPayment | null; // null until a deposit payment is started (BK-31)
+  // Both null unless a cancellation involved money (BK-60).
+  cancellationFee?: Money | null; // kept by the business for a late cancellation
+  refund?: BookingRefund | null; // owed back to the customer, paid by the business by hand
+};
+
+export type BookingRefund = {
+  amount: Money;
+  status: 'due' | 'refunded';
+  refundedAt: string | null;
+  reference: string | null; // e.g. the refund's M-Pesa code
 };
 
 export type DepositPayment = {

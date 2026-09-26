@@ -14,10 +14,10 @@ export const config = {
   apiBaseUrl: API_BASE_URL,
 } as const;
 
-// Live against the real backend for domains it fully implements:
-// auth, business setup (incl. post-publish management), discovery, team.
-// Booking and customer fulfillment stay on mock until Phase 3/4 ship
-// (see USE_MOCK_BOOKING / USE_MOCK_FULFILLMENT below).
+// Live against the real backend: auth, business setup (incl. post-publish
+// management), discovery, team, booking, deposit payment and business-side
+// bookings. Charge-at-checkout and the customer list stay on mock until
+// they ship (see USE_MOCK_CHARGE / USE_MOCK_CUSTOMERS below).
 export const USE_MOCK_API = false;
 
 // Phase 3 Booking API (booking.json): create, get and list bookings are live.
@@ -27,6 +27,14 @@ export const USE_MOCK_BOOKING = false;
 // poll the booking. Flip to true to simulate payment without M-Pesa.
 export const USE_MOCK_BOOKING_PAYMENT = false;
 
-// Phase 4/5 fulfillment (fulfillment.json: walk-in, scheduled, charge,
-// status, customers) — not built on the server yet.
+// Phase 4 fulfillment bookings (fulfillment.json: list business bookings,
+// walk-in, scheduled, status, assign staff) — live (BK-26, BK-63).
 export const USE_MOCK_FULFILLMENT = false;
+
+// Charging for the service at the end (fulfillment.json#charge-booking) —
+// not built on the server yet.
+export const USE_MOCK_CHARGE = true;
+
+// Business customer list (fulfillment.json#save-customer / list-customers)
+// — not built on the server yet.
+export const USE_MOCK_CUSTOMERS = true;

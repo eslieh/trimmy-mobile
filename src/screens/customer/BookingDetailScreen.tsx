@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Avatar } from '../../components/Avatar';
@@ -7,13 +7,13 @@ import { BackButton } from '../../components/BackButton';
 import { Button } from '../../components/Button';
 import { EmbeddedLocationMap } from '../../components/EmbeddedLocationMap';
 import { getBusinessProfile } from '../../api/discovery';
-import { getBooking } from '../../api/booking';
+import { cancelBooking, getBooking, getCancelPreview, type CancelPreview } from '../../api/booking';
 import { getApiErrorMessage } from '../../api/client';
 import { useBookingDraftStore } from '../../store/useBookingDraftStore';
 import { useBookingsStore } from '../../store/useBookingsStore';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import { BOOKING_STATUS_COLOR, BOOKING_STATUS_LABEL } from '../../utils/bookingStatus';
-import { formatBookingDateLong, getBookingDateTime, isUpcomingBooking } from '../../utils/date';
+import { formatBookingDateLong, isUpcomingBooking } from '../../utils/date';
 import type { Booking, BookingServiceLine } from '../../types/booking';
 import type { BusinessProfile } from '../../types/discovery';
 
@@ -24,6 +24,8 @@ import type { BusinessProfile } from '../../types/discovery';
 // trigger. There's no cancel endpoint yet, so confirming only explains
 // that — flipping the status locally would be undone by the next refresh
 // from the server.
+const CANCEL_REASONS = ['Something came up', 'Found another time', 'Booked by mistake', 'Other'];
+
 export function BookingDetailScreen() {
   const router = useRouter();
   const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
@@ -37,6 +39,11 @@ export function BookingDetailScreen() {
   const setStaff = useBookingDraftStore((s) => s.setStaff);
   const [profile, setProfile] = useState<BusinessProfile | null>(null);
   const [cancelSheetVisible, setCancelSheetVisible] = useState(false);
+  // Cancel flow (BK-60): the server's preview decides what cancelling costs.
+  const [preview, setPreview] = useState<CancelPreview | null>(null);
+  const [previewError, setPreviewError] = useState('');
+  const [cancelReason, setCancelReason] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     getBooking(bookingId)
@@ -71,12 +78,9 @@ export function BookingDetailScreen() {
   }
 
   const upcoming = isUpcomingBooking(booking.date, booking.time);
-  const canCancel = upcoming && booking.status !== 'cancelled';
+  const canCancel = upcoming && (booking.status === 'confirmed' || booking.status === 'pending_payment');
   const staffMember = booking.staffId ? profile.staff.find((s) => s.staffId === booking.staffId) : null;
 
-  const hoursUntil = (getBookingDateTime(booking.date, booking.time).getTime() - Date.now()) / (1000 * 60 * 60);
-  const withinFreeWindow = hoursUntil >= profile.policies.cancellation.freeCancellationHours;
-  const lateFeeAmount = Math.round((booking.totalAmount.amount * profile.policies.cancellation.lateFeePercent) / 100);
 
   const handleRebook = () => {
     const lines: BookingServiceLine[] = booking.services.map((service) => ({ ...service }));
@@ -85,12 +89,27 @@ export function BookingDetailScreen() {
     router.push(`/business/${booking.businessId}/book/datetime`);
   };
 
-  const handleConfirmCancel = () => {
-    setCancelSheetVisible(false);
-    Alert.alert(
-      "Can't cancel in the app yet",
-      `Please contact ${booking.businessName} to cancel this appointment.`,
-    );
+  const openCancelSheet = () => {
+    setPreview(null);
+    setPreviewError('');
+    setCancelReason(null);
+    setCancelSheetVisible(true);
+    getCancelPreview(booking.bookingId)
+      .then(setPreview)
+      .catch((err) => setPreviewError(getApiErrorMessage(err, "Couldn't check the cancellation terms.")));
+  };
+
+  const handleConfirmCancel = async () => {
+    setCancelling(true);
+    try {
+      const cancelled = await cancelBooking(booking.bookingId, cancelReason ?? undefined);
+      setFetched(cancelled);
+      setCancelSheetVisible(false);
+    } catch (err) {
+      setPreviewError(getApiErrorMessage(err, "Couldn't cancel this appointment."));
+    } finally {
+      setCancelling(false);
+    }
   };
 
   return (
@@ -114,6 +133,13 @@ export function BookingDetailScreen() {
                 : ''}
             </Text>
             {booking.reference ? <Text style={styles.reference}>Ref {booking.reference}</Text> : null}
+            {booking.refund ? (
+              <Text style={styles.reference}>
+                {booking.refund.status === 'due'
+                  ? `KES ${booking.refund.amount.amount} refund pending from the business`
+                  : `Refunded KES ${booking.refund.amount.amount}${booking.refund.reference ? ` · ${booking.refund.reference}` : ''}`}
+              </Text>
+            ) : null}
           </View>
         </View>
 
@@ -185,7 +211,7 @@ export function BookingDetailScreen() {
           <Button
             label="Cancel appointment"
             variant="secondary"
-            onPress={() => setCancelSheetVisible(true)}
+            onPress={openCancelSheet}
             style={styles.actionButton}
           />
         ) : null}
@@ -210,19 +236,40 @@ export function BookingDetailScreen() {
                 before your appointment, {profile.policies.cancellation.lateFeePercent}% fee after.
               </Text>
             </View>
-            {withinFreeWindow ? (
-              <Text style={styles.feeText}>
-                You're cancelling within the free window — no fee will be charged.
-              </Text>
+            {previewError ? (
+              <Text style={styles.feeTextWarning}>{previewError}</Text>
+            ) : !preview ? (
+              <ActivityIndicator color={colors.text.secondary} />
+            ) : !preview.canCancel ? (
+              <Text style={styles.feeTextWarning}>{preview.reasonBlocked ?? "This appointment can't be cancelled."}</Text>
             ) : (
-              <Text style={styles.feeTextWarning}>
-                This is within {profile.policies.cancellation.freeCancellationHours}h of your appointment, so a{' '}
-                {profile.policies.cancellation.lateFeePercent}% fee (KSh {lateFeeAmount}) applies.
-              </Text>
+              <>
+                {/* The server's message already explains fee and refund in words. */}
+                <Text style={preview.fee.amount > 0 ? styles.feeTextWarning : styles.feeText}>{preview.message}</Text>
+                <Text style={styles.reasonLabel}>Reason (optional)</Text>
+                <View style={styles.reasonRow}>
+                  {CANCEL_REASONS.map((reason) => {
+                    const selected = cancelReason === reason;
+                    return (
+                      <Pressable
+                        key={reason}
+                        style={[styles.reasonPill, selected && styles.reasonPillSelected]}
+                        onPress={() => setCancelReason(selected ? null : reason)}
+                      >
+                        <Text style={[styles.reasonText, selected && styles.reasonTextSelected]}>{reason}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </>
             )}
           </View>
           <View style={styles.sheetFooter}>
-            <Button label="Confirm cancellation" onPress={handleConfirmCancel} />
+            <Button
+              label={cancelling ? 'Cancelling…' : 'Confirm cancellation'}
+              disabled={!preview?.canCancel || cancelling}
+              onPress={handleConfirmCancel}
+            />
             <Button
               label="Keep appointment"
               variant="secondary"
@@ -293,6 +340,31 @@ const styles = StyleSheet.create({
   status: {
     ...typography.caption,
     marginTop: 2,
+  },
+  reasonLabel: {
+    ...typography.label,
+    color: colors.text.primary,
+  },
+  reasonRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  reasonPill: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.pill,
+    backgroundColor: colors.pill.unselectedBg,
+  },
+  reasonPillSelected: {
+    backgroundColor: colors.pill.selectedBg,
+  },
+  reasonText: {
+    ...typography.bodyMedium,
+    color: colors.pill.unselectedText,
+  },
+  reasonTextSelected: {
+    color: colors.pill.selectedText,
   },
   reference: {
     ...typography.caption,

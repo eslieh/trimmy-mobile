@@ -20,7 +20,8 @@ import { getTimeSlots, getUpcomingDays } from '../../utils/availability';
 import { formatBookingDate } from '../../utils/date';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import type { BookingServiceLine } from '../../types/booking';
-import { bookableStaff } from '../../utils/team';
+import { bookableStaff, teamMemberDisplayName } from '../../utils/team';
+import { showApiError } from '../../utils/showApiError';
 
 const DEFAULT_COUNTRY = countries.find((c) => c.iso2 === 'KE') ?? countries[0];
 
@@ -134,24 +135,32 @@ export function ScheduleAppointmentScreen() {
 
     const assignedStaff = staffMembers.find((m) => m.staffId === assignedStaffId);
 
-    const booking = await createScheduledBooking({
-      businessId: ownedBusiness.businessId,
-      businessName: ownedBusiness.name,
-      customerName: trimmedName,
-      customerPhone,
-      customerEmail,
-      services: serviceLines,
-      durationMinutes: totalDuration,
-      totalAmount: { amount: totalAmount, currency },
-      date: selectedDate,
-      time: selectedTime,
-      staffId: assignedStaff?.staffId ?? null,
-      staffName: assignedStaff?.name ?? assignedStaff?.phone ?? assignedStaff?.email ?? 'Any available',
-    });
-
-    addBooking(booking);
-    setIsSubmitting(false);
-    router.back();
+    try {
+      const booking = await createScheduledBooking(
+        {
+          businessId: ownedBusiness.businessId,
+          customerName: trimmedName,
+          customerPhone,
+          customerEmail,
+          services: serviceLines.map((line) => ({ serviceId: line.serviceId, quantity: line.quantity })),
+          date: selectedDate,
+          time: selectedTime,
+          staffId: assignedStaff?.staffId ?? null,
+        },
+        {
+          businessName: ownedBusiness.name,
+          staffName: assignedStaff ? teamMemberDisplayName(assignedStaff) : 'Any available',
+          lines: serviceLines,
+        },
+      );
+      addBooking(booking);
+      router.back();
+    } catch (err) {
+      // e.g. outside working hours, in the past, or 409 slot_unavailable.
+      showApiError("Couldn't schedule the appointment", err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

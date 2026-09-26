@@ -8,6 +8,7 @@ import { CalendarIcon } from '../../components/icons/CalendarIcon';
 import { useBookingsStore } from '../../store/useBookingsStore';
 import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { colors, spacing, typography } from '../../theme';
+import { useSyncBusinessBookings } from '../../hooks/useSyncBusinessBookings';
 
 function toDateKey(date: Date): string {
   const year = date.getFullYear();
@@ -37,6 +38,11 @@ export function StaffCalendarScreen() {
   const today = useMemo(() => new Date(), []);
   const [month, setMonth] = useState(today);
   const [selectedDate, setSelectedDate] = useState(toDateKey(today));
+  useSyncBusinessBookings(
+    staffSession?.businessId,
+    toDateKey(new Date(month.getFullYear(), month.getMonth(), 1)),
+    toDateKey(new Date(month.getFullYear(), month.getMonth() + 1, 0)),
+  );
 
   const myBookings = useMemo(
     () =>

@@ -17,7 +17,8 @@ import { countries } from '../../data/countries';
 import { normalizePhoneNumber } from '../../utils/phone';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import type { BookingServiceLine } from '../../types/booking';
-import { bookableStaff } from '../../utils/team';
+import { bookableStaff, teamMemberDisplayName } from '../../utils/team';
+import { showApiError } from '../../utils/showApiError';
 
 const DEFAULT_COUNTRY = countries.find((c) => c.iso2 === 'KE') ?? countries[0];
 
@@ -97,22 +98,30 @@ export function StartWalkInScreen() {
 
     const assignedStaff = staffMembers.find((m) => m.staffId === assignedStaffId);
 
-    const booking = await createWalkInBooking({
-      businessId: ownedBusiness.businessId,
-      businessName: ownedBusiness.name,
-      customerName: trimmedName || 'Walk-in customer',
-      customerPhone,
-      customerEmail,
-      services: serviceLines,
-      durationMinutes: totalDuration,
-      totalAmount: { amount: totalAmount, currency },
-      staffId: assignedStaff?.staffId ?? null,
-      staffName: assignedStaff?.name ?? assignedStaff?.phone ?? assignedStaff?.email ?? 'Walk-in',
-    });
-
-    addBooking(booking);
-    setIsSubmitting(false);
-    router.replace(`/appointment/${booking.bookingId}`);
+    try {
+      const booking = await createWalkInBooking(
+        {
+          businessId: ownedBusiness.businessId,
+          customerName: trimmedName,
+          customerPhone,
+          customerEmail,
+          services: serviceLines.map((line) => ({ serviceId: line.serviceId, quantity: line.quantity })),
+          staffId: assignedStaff?.staffId ?? null,
+        },
+        {
+          businessName: ownedBusiness.name,
+          staffName: assignedStaff ? teamMemberDisplayName(assignedStaff) : 'Any available',
+          lines: serviceLines,
+        },
+      );
+      addBooking(booking);
+      router.replace(`/appointment/${booking.bookingId}`);
+    } catch (err) {
+      // e.g. 409 slot_unavailable: the chosen staff member isn't free right now.
+      showApiError("Couldn't start the walk-in", err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

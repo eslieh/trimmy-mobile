@@ -40,6 +40,18 @@ export function ManageBusinessScreen() {
 
   const rows: Row[] = [
     {
+      key: 'unassigned',
+      label: 'Unassigned bookings',
+      icon: <UsersIcon size={20} color={colors.text.secondary} />,
+      onPress: () => router.push('/manage-business/unassigned'),
+    },
+    {
+      key: 'refunds',
+      label: 'Refunds owed',
+      icon: <WalletIcon size={20} color={colors.text.secondary} />,
+      onPress: () => router.push('/manage-business/refunds'),
+    },
+    {
       key: 'services',
       label: 'Services',
       icon: <ListIcon size={20} color={colors.text.secondary} />,
