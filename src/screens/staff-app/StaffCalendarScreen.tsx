@@ -28,7 +28,7 @@ function formatSelectedDate(dateKey: string): string {
 // Read-only version of the business-owner app's CalendarScreen — browsing
 // only, no "+" and no open-slots section, since scheduling/walk-ins are an
 // owner/front-desk permission, not staff's. Scoped to bookings assigned to
-// this staff member (staffId === staffSession.invitationId).
+// this staff member (staffId === staffSession.staffId).
 export function StaffCalendarScreen() {
   const router = useRouter();
   const staffSession = useOwnedBusinessStore((s) => s.staffSession);
@@ -41,7 +41,7 @@ export function StaffCalendarScreen() {
   const myBookings = useMemo(
     () =>
       staffSession
-        ? bookings.filter((b) => b.businessId === staffSession.businessId && b.staffId === staffSession.invitationId)
+        ? bookings.filter((b) => b.businessId === staffSession.businessId && b.staffId === staffSession.staffId)
         : [],
     [bookings, staffSession],
   );

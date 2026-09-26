@@ -9,6 +9,7 @@ import type {
   BusinessLocation,
   BusinessPhoto,
   BusinessPolicies,
+  BookingSettings,
   Money,
   PaymentDestination,
   PaymentDestinationOptions,
@@ -67,7 +68,24 @@ export type BusinessDetail = Omit<
   paymentDestination: PaymentDestination | null;
   teamMode: TeamMode | null;
   serviceCategories: (ServiceCategory & { services: Service[] })[];
+  bookingSettings: BookingSettings;
 };
+
+// PATCH /businesses/{id}/booking-settings — only the fields sent change.
+export function updateBookingSettings(businessId: string, patch: Partial<BookingSettings>): Promise<BookingSettings> {
+  if (USE_MOCK_API) {
+    return mockDelay({
+      timezone: 'Africa/Nairobi',
+      slotIntervalMinutes: 15,
+      bufferMinutes: 0,
+      minLeadMinutes: 30,
+      maxDaysAhead: 30,
+      ...patch,
+    });
+  }
+
+  return apiRequest<BookingSettings>(`/businesses/${businessId}/booking-settings`, { method: 'PATCH', body: patch });
+}
 
 export function getBusiness(businessId: string): Promise<BusinessDetail> {
   return apiRequest<BusinessDetail>(`/businesses/${businessId}`);
@@ -332,6 +350,7 @@ export function inviteTeamMember(businessId: string, input: InviteTeamMemberInpu
       businessId,
       email: input.email,
       phone: input.phone,
+      staffId: null,
       role: input.role,
       status: 'pending',
       commissionPercent: 40,

@@ -29,6 +29,10 @@ export type MyInvitation = {
 export type TeamInvitation = {
   invitationId: string;
   businessId: string;
+  // The person's staff record — null while the invitation is pending, set
+  // once accepted. This (not invitationId) is the id bookings, availability
+  // and earnings use; it's the same as the business profile's staff[].staffId.
+  staffId: string | null;
   name?: string;
   email?: string;
   phone?: string;

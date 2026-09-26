@@ -41,6 +41,7 @@ export function BookingConfirmedScreen() {
 
         <View style={styles.card}>
           <Text style={styles.businessName}>{booking.businessName}</Text>
+          {booking.reference ? <Text style={styles.metaLine}>Ref {booking.reference}</Text> : null}
           <Text style={styles.metaLine}>{booking.staffName}</Text>
           {booking.services.map((service) => (
             <Text key={service.serviceId} style={styles.metaLine}>

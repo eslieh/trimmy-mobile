@@ -57,6 +57,18 @@ export type Business = {
   policies?: BusinessPolicies;
   paymentDestination?: PaymentDestination;
   teamMode?: TeamMode;
+  bookingSettings?: BookingSettings;
+};
+
+// How customers can book (availability uses these). All times are in
+// `timezone`. Defaults: Africa/Nairobi, 15-min grid, no buffer, 30-min lead
+// time, 30 days ahead.
+export type BookingSettings = {
+  timezone: string; // IANA name
+  slotIntervalMinutes: number; // start-time grid: 5, 10, 15, 20, 30 or 60
+  bufferMinutes: number; // kept free after each booking
+  minLeadMinutes: number; // how soon the earliest slot can be
+  maxDaysAhead: number; // how far ahead customers can book
 };
 
 export type DayHours = { open: string; close: string } | null;

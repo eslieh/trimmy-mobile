@@ -20,8 +20,12 @@ export const config = {
 // (see USE_MOCK_BOOKING / USE_MOCK_FULFILLMENT below).
 export const USE_MOCK_API = false;
 
-// Phase 3 Booking API (booking.json) — not built on the server yet.
+// Phase 3 Booking API (booking.json): create, get and list bookings are live.
 export const USE_MOCK_BOOKING = false;
+
+// Deposit payment (M-Pesa STK, BK-31/32) — live: start the prompt, then
+// poll the booking. Flip to true to simulate payment without M-Pesa.
+export const USE_MOCK_BOOKING_PAYMENT = false;
 
 // Phase 4/5 fulfillment (fulfillment.json: walk-in, scheduled, charge,
 // status, customers) — not built on the server yet.

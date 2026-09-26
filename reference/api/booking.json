@@ -1,80 +1,368 @@
 {
   "domain": "booking",
   "baseUrl": "/api/v1",
-  "auth": "Requires a Bearer token for a user with role `customer`, unless noted.",
-  "note": "Availability (getUpcomingDays/getTimeSlots in src/utils/availability.ts) is computed client-side from the business's workingHours only — there's no server-side conflict check against existing bookings yet, since this is the first phase to create bookings at all. A real implementation should move slot generation server-side once it has bookings to check against. STK push is fully mocked (confirm-booking-payment below) — no real M-Pesa integration exists yet; that's still an open decision (sandbox vs. provider).",
+  "auth": "Requires a Bearer token for a signed-in, verified user unless noted.",
+  "note": "As of 2026-09-27: availability (BK-11), create-booking (BK-22), get/list bookings (BK-23) and M-Pesa deposit payment (BK-31/32) are live and wired in the app (src/api/availability.ts, src/api/booking.ts). USE_MOCK_BOOKING_PAYMENT=true simulates payment without M-Pesa. There's no cancel endpoint yet; Appointment Detail tells the customer to contact the business.",
   "endpoints": [
     {
+      "id": "get-availability-days",
+      "status": "live",
+      "screen": "Select Date & Time: date strip",
+      "story": "C2",
+      "method": "GET",
+      "path": "/businesses/{businessId}/availability/days?serviceIds={id}&serviceIds={id}&staffId={staffId}&from=2026-09-28&days=14",
+      "auth": "public",
+      "description": "Which days are open and have at least one bookable slot. serviceIds is repeated once per service in the cart (required). staffId is optional; omit it for 'Any available'. from defaults to today in the business's timezone; days is 1-31 (default 14).",
+      "request": null,
+      "response": {
+        "timezone": "Africa/Nairobi",
+        "durationMinutes": 45,
+        "days": [
+          {
+            "date": "2026-09-28",
+            "isOpen": true,
+            "hasSlots": true
+          },
+          {
+            "date": "2026-09-29",
+            "isOpen": false,
+            "hasSlots": false
+          }
+        ]
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "validation_error",
+          "message": "serviceIds contains services not in this business: …"
+        },
+        {
+          "status": 400,
+          "code": "validation_error",
+          "message": "days must be between 1 and 31"
+        },
+        {
+          "status": 400,
+          "code": "staff_cannot_perform",
+          "message": "This staff member doesn't offer all of the chosen services"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "No published business found for this id"
+        }
+      ]
+    },
+    {
+      "id": "get-availability",
+      "status": "live",
+      "screen": "Select Date & Time: time slots",
+      "story": "C2",
+      "method": "GET",
+      "path": "/businesses/{businessId}/availability?date=2026-09-28&serviceIds={id}&staffId={staffId}",
+      "auth": "public",
+      "description": "Bookable start times for one day. durationMinutes is the sum of the chosen services. time is business local time (show as-is); startsAt is the same moment with its UTC offset. staffIds lists who is free for that slot; with no staffId the booking is left unassigned, so staffIds is only a hint. Slot grid and lead time come from booking settings (default every 15 min, earliest 30 min from now).",
+      "request": null,
+      "response": {
+        "date": "2026-09-28",
+        "timezone": "Africa/Nairobi",
+        "durationMinutes": 45,
+        "slots": [
+          {
+            "time": "09:00",
+            "startsAt": "2026-09-28T09:00:00+03:00",
+            "staffIds": [
+              "uuid",
+              "uuid"
+            ]
+          },
+          {
+            "time": "09:15",
+            "startsAt": "2026-09-28T09:15:00+03:00",
+            "staffIds": [
+              "uuid"
+            ]
+          }
+        ]
+      },
+      "errors": "same as get-availability-days (except the days range)"
+    },
+    {
       "id": "create-booking",
+      "status": "live",
       "screen": "Review & Policies",
       "story": "C2",
       "method": "POST",
       "path": "/bookings",
-      "description": "Creates a booking once the customer confirms service(s), staff, and date/time on the Review & Policies screen. Returns status=confirmed immediately if the business requires no deposit; otherwise status=pending_payment until confirm-booking-payment (or a real STK push webhook) settles it.",
-      "auth": "customer",
+      "auth": "any signed-in, verified user",
+      "description": "Send only what the customer chose: names, prices, totals and the deposit come from the server. staffId null = 'Any available' (left unassigned for the owner to assign). time must be one of the slots from get-availability. No deposit: status confirmed. Deposit due: status pending_payment, and the slot is held until expiresAt (10 minutes). expectedTotal is optional: send the total the customer saw, and if prices changed you get 409 price_changed with the new total instead of a booking. The app sends it always; on price_changed it shows the new total and resends it as expectedTotal when the customer confirms again. On slot_unavailable it returns to Select Date & Time.",
       "request": {
-        "businessId": "biz_01hxyz",
-        "businessName": "Glow Beauty Lounge",
-        "staffId": "staff_01a1",
-        "staffName": "Jane Wanjiru",
+        "businessId": "uuid",
+        "staffId": "uuid | null",
         "services": [
           {
-            "serviceId": "svc_01a1",
-            "name": "Classic Haircut",
-            "durationMinutes": 45,
-            "price": { "amount": 800, "currency": "KES" },
+            "serviceId": "uuid",
             "quantity": 1
           }
         ],
-        "date": "2026-09-24",
+        "date": "2026-10-05",
         "time": "14:30",
-        "durationMinutes": 45,
-        "totalAmount": { "amount": 800, "currency": "KES" },
-        "depositAmount": null
+        "notes": "Short on the sides",
+        "expectedTotal": {
+          "amount": 800,
+          "currency": "KES"
+        }
       },
       "response": {
-        "bookingId": "booking_01hxyz",
-        "businessId": "biz_01hxyz",
+        "bookingId": "uuid",
+        "reference": "BK7F3AQ9",
+        "businessId": "uuid",
         "businessName": "Glow Beauty Lounge",
-        "staffId": "staff_01a1",
-        "staffName": "Jane Wanjiru",
+        "customerName": "Amina W",
+        "customerPhone": "+254722000111",
+        "customerEmail": "amina@example.com",
+        "staffId": "uuid | null",
+        "staffName": "Jane Wanjiru | Any available",
         "services": [
           {
-            "serviceId": "svc_01a1",
+            "serviceId": "uuid",
             "name": "Classic Haircut",
             "durationMinutes": 45,
-            "price": { "amount": 800, "currency": "KES" },
+            "price": {
+              "amount": 800,
+              "currency": "KES"
+            },
             "quantity": 1
           }
         ],
-        "date": "2026-09-24",
+        "date": "2026-10-05",
         "time": "14:30",
+        "startsAt": "2026-10-05T14:30:00+03:00",
         "durationMinutes": 45,
-        "totalAmount": { "amount": 800, "currency": "KES" },
+        "totalAmount": {
+          "amount": 800,
+          "currency": "KES"
+        },
         "depositAmount": null,
         "status": "confirmed",
-        "createdAt": "2026-09-22T10:00:00Z"
+        "source": "online",
+        "paymentStatus": "unpaid",
+        "paymentMethod": null,
+        "paymentReference": null,
+        "expiresAt": null,
+        "cancelReason": null,
+        "depositPayment": null,
+        "notes": "Short on the sides",
+        "createdAt": "2026-09-27T10:00:00Z"
       },
       "errors": [
-        { "status": 409, "code": "slot_unavailable", "message": "The selected time is no longer available" }
+        {
+          "status": 409,
+          "code": "slot_unavailable",
+          "message": "The selected time is no longer available"
+        },
+        {
+          "status": 409,
+          "code": "price_changed",
+          "message": "Prices have changed since you started; please review the new total",
+          "totalAmount": {
+            "amount": 900,
+            "currency": "KES"
+          }
+        },
+        {
+          "status": 400,
+          "code": "staff_cannot_perform",
+          "message": "This staff member doesn't offer all of the chosen services"
+        },
+        {
+          "status": 400,
+          "code": "own_business",
+          "message": "You can't book your own business as a customer"
+        },
+        {
+          "status": 400,
+          "code": "validation_error",
+          "message": "serviceIds contains services not in this business: …"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "No published business found for this id"
+        }
       ]
     },
     {
-      "id": "confirm-booking-payment",
-      "screen": "STK Push Pending",
+      "id": "get-booking",
+      "status": "live",
+      "screen": "Appointment Detail; STK Push Pending (poll while paying, from BK-31)",
       "story": "C2",
-      "method": "POST",
-      "path": "/bookings/{bookingId}/confirm-payment",
-      "description": "Sends the M-Pesa STK push for a pending_payment booking's deposit and returns once it settles. A real implementation is async (STK push, then a callback/webhook updates the booking; this endpoint would need to either poll or the client would subscribe to a status endpoint) — the mock layer (src/api/booking.ts#confirmBookingPayment) simplifies this to a single request that resolves after a fixed delay, always succeeding.",
-      "auth": "customer",
+      "method": "GET",
+      "path": "/bookings/{bookingId}",
+      "auth": "the customer who booked, or the business's owner or staff",
+      "description": "The same Booking shape create-booking returns. depositPayment is null until a deposit payment is started, then { paymentId, status: pending | succeeded | failed | timeout, failureReason: cancelled | insufficient_funds | wrong_pin | timeout | busy | provider_error | failed }. paymentReference (M-Pesa receipt) and paymentMethod 'mpesa' are set once it succeeds. An unpaid booking whose hold ran out shows status cancelled with cancelReason payment_expired. paymentStatus is unpaid | deposit_paid | paid. STK Push Pending polls this every 3s while paying.",
+      "request": null,
+      "response": "Booking (see create-booking)",
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "No booking found for this id"
+        }
+      ]
+    },
+    {
+      "id": "list-my-bookings",
+      "status": "live",
+      "screen": "My Appointments (Upcoming / Past / Cancelled)",
+      "story": "C3",
+      "method": "GET",
+      "path": "/me/bookings?filter=upcoming&limit=20&cursor={nextCursor}",
+      "auth": "any signed-in, verified user",
+      "description": "filter: upcoming = pending_payment, confirmed or in_progress and not yet over, soonest first. past = completed and no_show, plus confirmed bookings whose time has passed, newest first. cancelled = newest first. limit 1-50 (default 20). Pass nextCursor back as cursor for the next page; it's null on the last page.",
       "request": null,
       "response": {
-        "bookingId": "booking_01hxyz",
-        "status": "confirmed"
+        "bookings": [
+          "Booking"
+        ],
+        "nextCursor": "string | null"
       },
       "errors": [
-        { "status": 402, "code": "payment_failed", "message": "The M-Pesa payment was not completed" },
-        { "status": 408, "code": "payment_timeout", "message": "No payment confirmation received in time" }
+        {
+          "status": 400,
+          "code": "validation_error",
+          "message": "filter must be one of upcoming, past, cancelled"
+        },
+        {
+          "status": 400,
+          "code": "validation_error",
+          "message": "Invalid cursor"
+        }
+      ]
+    },
+    {
+      "id": "start-booking-payment",
+      "status": "live",
+      "screen": "Payment Method → STK Push Pending",
+      "story": "C2",
+      "method": "POST",
+      "path": "/bookings/{bookingId}/payments",
+      "auth": "the customer who booked",
+      "description": "Sends the M-Pesa prompt for a pending_payment booking's deposit. phone is optional (defaults to the phone on the booking; any Kenyan format). Returns 202 immediately, while the customer enters their PIN. Then poll GET /bookings/{bookingId} every 3 seconds until status is confirmed (paid) or depositPayment.status is failed/timeout; stop after about 2 minutes. On failure the customer can try again (a new prompt) until expiresAt. At most one prompt per 2 minutes and 5 per booking. The money goes straight to the business's own till, paybill or bank. App: PaymentMethodScreen starts it (on payment_in_progress / already_paid / no_deposit_due it goes straight to polling); StkPendingScreen polls and routes per `pollingOutcomes`.",
+      "request": {
+        "phone": "0712345678"
+      },
+      "response": {
+        "paymentId": "uuid",
+        "bookingId": "uuid",
+        "status": "pending",
+        "amount": 300,
+        "currency": "KES",
+        "phone": "254712345678",
+        "customerMessage": "Success. Request accepted for processing",
+        "expiresAt": "2026-09-27T10:10:00Z"
+      },
+      "pollingOutcomes": [
+        {
+          "outcome": "Paid",
+          "status": "confirmed",
+          "paymentStatus": "deposit_paid",
+          "depositPayment": {
+            "status": "succeeded"
+          },
+          "other": "paymentReference = M-Pesa receipt, paymentMethod = mpesa, expiresAt = null",
+          "app": "Booking Confirmed"
+        },
+        {
+          "outcome": "Dismissed / wrong PIN / no money",
+          "status": "pending_payment",
+          "paymentStatus": "unpaid",
+          "depositPayment": {
+            "status": "failed",
+            "failureReason": "cancelled | insufficient_funds | wrong_pin | busy | provider_error | failed"
+          },
+          "other": "can retry until expiresAt",
+          "app": "back to Payment Method with the reason explained"
+        },
+        {
+          "outcome": "No answer",
+          "status": "pending_payment",
+          "paymentStatus": "unpaid",
+          "depositPayment": {
+            "status": "timeout",
+            "failureReason": "timeout"
+          },
+          "other": "can retry until expiresAt",
+          "app": "back to Payment Method with the reason explained"
+        },
+        {
+          "outcome": "Paid after the hold ran out, slot still free",
+          "status": "confirmed",
+          "paymentStatus": "deposit_paid",
+          "depositPayment": {
+            "status": "succeeded"
+          },
+          "other": "cancelReason back to null",
+          "app": "Booking Confirmed"
+        },
+        {
+          "outcome": "Paid after the hold ran out, slot taken",
+          "status": "cancelled",
+          "paymentStatus": "deposit_paid",
+          "depositPayment": {
+            "status": "succeeded"
+          },
+          "other": "cancelReason payment_expired; refund is manual for now (BK-60)",
+          "app": "'Your payment arrived after the booking expired; the business will refund you'"
+        }
+      ],
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_phone",
+          "message": "Enter a Kenyan mobile number, e.g. 0712 345 678"
+        },
+        {
+          "status": 409,
+          "code": "payment_in_progress",
+          "message": "An M-Pesa prompt was just sent; complete or cancel it on your phone first",
+          "paymentId": "uuid"
+        },
+        {
+          "status": 409,
+          "code": "hold_expired",
+          "message": "This booking's hold ran out; please book again"
+        },
+        {
+          "status": 409,
+          "code": "no_deposit_due",
+          "message": "This booking has no deposit to pay (status confirmed)"
+        },
+        {
+          "status": 409,
+          "code": "already_paid",
+          "message": "The deposit is already paid"
+        },
+        {
+          "status": 409,
+          "code": "business_cannot_take_payments",
+          "message": "This business can't take M-Pesa payments right now"
+        },
+        {
+          "status": 429,
+          "code": "too_many_attempts",
+          "message": "Too many payment attempts for this booking"
+        },
+        {
+          "status": 502,
+          "code": "payment_provider_error",
+          "message": "M-Pesa couldn't send the prompt; please try again"
+        },
+        {
+          "status": 503,
+          "code": "payments_unavailable",
+          "message": "Payments are temporarily unavailable"
+        }
       ]
     }
   ]

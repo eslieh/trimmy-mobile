@@ -49,6 +49,15 @@ export function SelectStaffScreen() {
 
   const hasSelection = staffName !== '';
 
+  // Only offer staff who can do everything in the cart (allServices, or
+  // their serviceIds cover every booked service).
+  const eligibleStaff = profile
+    ? profile.staff.filter(
+        (member) =>
+          member.allServices || draftServices.every((service) => member.serviceIds.includes(service.serviceId)),
+      )
+    : [];
+
   if (!profile) {
     return (
       <AuthScreenLayout title="Choose a staff member" progress={1 / TOTAL_STEPS} onBack={() => router.back()}>
@@ -85,7 +94,7 @@ export function SelectStaffScreen() {
         {staffId === null && hasSelection ? <CheckmarkIcon size={18} color={colors.brand.purple} /> : null}
       </Pressable>
 
-      {profile.staff.map((member) => {
+      {eligibleStaff.map((member) => {
         const selected = staffId === member.staffId;
         return (
           <Pressable

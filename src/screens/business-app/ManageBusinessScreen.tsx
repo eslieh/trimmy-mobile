@@ -58,6 +58,12 @@ export function ManageBusinessScreen() {
       onPress: () => router.push('/business-hours?mode=edit'),
     },
     {
+      key: 'booking-rules',
+      label: 'Booking rules',
+      icon: <ClockIcon size={20} color={colors.text.secondary} />,
+      onPress: () => router.push('/manage-business/booking-rules'),
+    },
+    {
       key: 'policies',
       label: 'Deposit & cancellation policy',
       icon: <ShieldIcon size={20} color={colors.text.secondary} />,

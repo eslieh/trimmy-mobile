@@ -74,7 +74,7 @@ const LIFETIME_RANGE = { start: new Date(2000, 0, 1), end: new Date(2100, 0, 1) 
 // earnings can't be requested twice while a request is still pending. The
 // charts/range-toggle section below deliberately mirrors EarningsScreen/
 // TeamMemberDetailScreen's earnings section exactly, just scoped to "my"
-// bookings via staffSession.invitationId instead of a businessId or a
+// bookings via staffSession.staffId instead of a businessId or a
 // member being viewed by the owner.
 export function StaffEarningsScreen() {
   const router = useRouter();
@@ -97,7 +97,7 @@ export function StaffEarningsScreen() {
   const myBookings = useMemo(
     () =>
       staffSession
-        ? bookings.filter((b) => b.businessId === staffSession.businessId && b.staffId === staffSession.invitationId)
+        ? bookings.filter((b) => b.businessId === staffSession.businessId && b.staffId === staffSession.staffId)
         : [],
     [bookings, staffSession],
   );

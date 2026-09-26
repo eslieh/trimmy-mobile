@@ -15,6 +15,7 @@ import {
   updateBusinessInfo as updateBusinessInfoApi,
   updateService,
   uploadBusinessPhoto,
+  updateBookingSettings as updateBookingSettingsApi,
   type BusinessDetail,
   type InviteTeamMemberInput,
   type SetPaymentDestinationInput,
@@ -41,6 +42,7 @@ import type {
   ServiceCategory,
   TeamMode,
   WeeklyHours,
+  BookingSettings,
 } from '../types/business';
 import type { TeamInvitation } from '../types/team';
 
@@ -160,6 +162,7 @@ type BusinessOnboardingState = {
   // Server → store, for a business created in an earlier session (fresh
   // install, re-login, second device). See utils/restoreOwnedBusiness.ts.
   hydrateFromServer: (detail: BusinessDetail) => void;
+  saveBookingSettings: (businessId: string, patch: Partial<BookingSettings>) => Promise<BookingSettings>;
   loadTeamMembers: (businessId: string) => Promise<void>;
 };
 
@@ -491,6 +494,11 @@ export const useBusinessOnboardingStore = create<BusinessOnboardingState>((set, 
       services: serviceCategories.flatMap((category) => category.services ?? []),
     });
   },
+  saveBookingSettings: async (businessId, patch) => {
+    const saved = await updateBookingSettingsApi(businessId, patch);
+    set((state) => ({ business: state.business ? { ...state.business, bookingSettings: saved } : state.business }));
+    return saved;
+  },
   loadTeamMembers: async (businessId) => {
     const members = await listTeamMembers(businessId);
     set({ invitations: members });
@@ -498,7 +506,8 @@ export const useBusinessOnboardingStore = create<BusinessOnboardingState>((set, 
   markTeamMemberActiveForTesting: (invitationId) => {
     set((state) => ({
       invitations: state.invitations.map((i) =>
-        i.invitationId === invitationId ? { ...i, status: 'accepted' } : i,
+        // A real accept creates a staff record; fake one so the member is bookable.
+        i.invitationId === invitationId ? { ...i, status: 'accepted', staffId: i.staffId ?? `staff_${invitationId}` } : i,
       ),
     }));
   },

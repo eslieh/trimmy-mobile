@@ -20,6 +20,7 @@ import { getTimeSlots, getUpcomingDays } from '../../utils/availability';
 import { formatBookingDate } from '../../utils/date';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import type { BookingServiceLine } from '../../types/booking';
+import { bookableStaff } from '../../utils/team';
 
 const DEFAULT_COUNTRY = countries.find((c) => c.iso2 === 'KE') ?? countries[0];
 
@@ -55,10 +56,7 @@ export function ScheduleAppointmentScreen() {
   const addBooking = useBookingsStore((s) => s.addBooking);
   const saveCustomer = useCustomersStore((s) => s.saveCustomer);
 
-  const staffMembers = useMemo(
-    () => invitations.filter((i) => i.role === 'staff' && i.status !== 'declined'),
-    [invitations],
-  );
+  const staffMembers = useMemo(() => bookableStaff(invitations), [invitations]);
 
   const presetParsedPhone = presetCustomerPhone ? parsePhoneNumberFromString(presetCustomerPhone) : undefined;
   const presetCountry =
@@ -134,7 +132,7 @@ export function ScheduleAppointmentScreen() {
 
     await saveCustomer(ownedBusiness.businessId, { name: trimmedName, phone: customerPhone, email: customerEmail });
 
-    const assignedStaff = staffMembers.find((m) => m.invitationId === assignedStaffId);
+    const assignedStaff = staffMembers.find((m) => m.staffId === assignedStaffId);
 
     const booking = await createScheduledBooking({
       businessId: ownedBusiness.businessId,
@@ -147,7 +145,7 @@ export function ScheduleAppointmentScreen() {
       totalAmount: { amount: totalAmount, currency },
       date: selectedDate,
       time: selectedTime,
-      staffId: assignedStaff?.invitationId ?? null,
+      staffId: assignedStaff?.staffId ?? null,
       staffName: assignedStaff?.name ?? assignedStaff?.phone ?? assignedStaff?.email ?? 'Any available',
     });
 

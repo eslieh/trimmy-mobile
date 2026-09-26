@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Avatar } from '../../components/Avatar';
@@ -7,38 +7,57 @@ import { BackButton } from '../../components/BackButton';
 import { Button } from '../../components/Button';
 import { EmbeddedLocationMap } from '../../components/EmbeddedLocationMap';
 import { getBusinessProfile } from '../../api/discovery';
+import { getBooking } from '../../api/booking';
+import { getApiErrorMessage } from '../../api/client';
 import { useBookingDraftStore } from '../../store/useBookingDraftStore';
 import { useBookingsStore } from '../../store/useBookingsStore';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import { BOOKING_STATUS_COLOR, BOOKING_STATUS_LABEL } from '../../utils/bookingStatus';
 import { formatBookingDateLong, getBookingDateTime, isUpcomingBooking } from '../../utils/date';
-import type { BookingServiceLine } from '../../types/booking';
+import type { Booking, BookingServiceLine } from '../../types/booking';
 import type { BusinessProfile } from '../../types/discovery';
 
 // Reached from Activity's list. No reschedule yet (that's C3, sequenced
 // separately) — cancellation is built here since it's simple enough to not
 // need its own dedicated flow: a confirm sheet showing the business's real
 // cancellation policy and the fee (if any) this specific cancellation would
-// trigger, then just flips the booking's status client-side (no cancel
-// endpoint exists yet).
+// trigger. There's no cancel endpoint yet, so confirming only explains
+// that — flipping the status locally would be undone by the next refresh
+// from the server.
 export function BookingDetailScreen() {
   const router = useRouter();
   const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
-  const booking = useBookingsStore((s) => s.bookings.find((b) => b.bookingId === bookingId));
-  const updateBooking = useBookingsStore((s) => s.updateBooking);
+  // The server is the source of truth (get-booking); the local cache only
+  // fills the screen while that loads.
+  const cached = useBookingsStore((s) => s.bookings.find((b) => b.bookingId === bookingId));
+  const [fetched, setFetched] = useState<Booking | null>(null);
+  const [loadError, setLoadError] = useState('');
+  const booking = fetched ?? cached;
   const startBookingDraft = useBookingDraftStore((s) => s.startDraft);
   const setStaff = useBookingDraftStore((s) => s.setStaff);
   const [profile, setProfile] = useState<BusinessProfile | null>(null);
   const [cancelSheetVisible, setCancelSheetVisible] = useState(false);
 
   useEffect(() => {
-    if (booking) getBusinessProfile(booking.businessId).then(setProfile);
-  }, [booking]);
+    getBooking(bookingId)
+      .then(setFetched)
+      .catch((err) => setLoadError(getApiErrorMessage(err, "Couldn't load this booking.")));
+  }, [bookingId]);
+
+  const bookingBusinessId = booking?.businessId;
+  useEffect(() => {
+    if (bookingBusinessId) getBusinessProfile(bookingBusinessId).then(setProfile);
+  }, [bookingBusinessId]);
 
   if (!booking) {
     return (
       <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
         <BackButton onPress={() => router.back()} />
+        {loadError ? (
+          <Text style={styles.loadError}>{loadError}</Text>
+        ) : (
+          <ActivityIndicator style={styles.loading} color={colors.text.secondary} />
+        )}
       </SafeAreaView>
     );
   }
@@ -67,8 +86,11 @@ export function BookingDetailScreen() {
   };
 
   const handleConfirmCancel = () => {
-    updateBooking({ ...booking, status: 'cancelled' });
     setCancelSheetVisible(false);
+    Alert.alert(
+      "Can't cancel in the app yet",
+      `Please contact ${booking.businessName} to cancel this appointment.`,
+    );
   };
 
   return (
@@ -85,9 +107,22 @@ export function BookingDetailScreen() {
             <Text style={styles.businessName}>{booking.businessName}</Text>
             <Text style={[styles.status, { color: BOOKING_STATUS_COLOR[booking.status] }]}>
               {BOOKING_STATUS_LABEL[booking.status]}
+              {booking.cancelReason === 'payment_expired'
+                ? booking.paymentStatus === 'deposit_paid'
+                  ? ' · your payment arrived after it expired; the business will refund you'
+                  : ' · deposit not paid in time'
+                : ''}
             </Text>
+            {booking.reference ? <Text style={styles.reference}>Ref {booking.reference}</Text> : null}
           </View>
         </View>
+
+        {booking.notes ? (
+          <View style={styles.card}>
+            <Text style={styles.cardLabel}>Your notes</Text>
+            <Text style={styles.notes}>{booking.notes}</Text>
+          </View>
+        ) : null}
 
         <View style={styles.card}>
           <Text style={styles.cardLabel}>Staff</Text>
@@ -206,6 +241,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background.primary,
   },
+  loadError: {
+    ...typography.body,
+    color: colors.text.secondary,
+    textAlign: 'center',
+    marginTop: spacing.xl,
+  },
   loading: {
     flex: 1,
   },
@@ -252,6 +293,15 @@ const styles = StyleSheet.create({
   status: {
     ...typography.caption,
     marginTop: 2,
+  },
+  reference: {
+    ...typography.caption,
+    color: colors.text.tertiary,
+    marginTop: 2,
+  },
+  notes: {
+    ...typography.body,
+    color: colors.text.primary,
   },
   card: {
     borderRadius: radii.lg,

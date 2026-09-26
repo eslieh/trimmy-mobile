@@ -17,6 +17,7 @@ import { countries } from '../../data/countries';
 import { normalizePhoneNumber } from '../../utils/phone';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import type { BookingServiceLine } from '../../types/booking';
+import { bookableStaff } from '../../utils/team';
 
 const DEFAULT_COUNTRY = countries.find((c) => c.iso2 === 'KE') ?? countries[0];
 
@@ -36,10 +37,7 @@ export function StartWalkInScreen() {
   const addBooking = useBookingsStore((s) => s.addBooking);
   const saveCustomer = useCustomersStore((s) => s.saveCustomer);
 
-  const staffMembers = useMemo(
-    () => invitations.filter((i) => i.role === 'staff' && i.status !== 'declined'),
-    [invitations],
-  );
+  const staffMembers = useMemo(() => bookableStaff(invitations), [invitations]);
 
   const [customerName, setCustomerName] = useState('');
   const [country, setCountry] = useState(DEFAULT_COUNTRY);
@@ -97,7 +95,7 @@ export function StartWalkInScreen() {
       });
     }
 
-    const assignedStaff = staffMembers.find((m) => m.invitationId === assignedStaffId);
+    const assignedStaff = staffMembers.find((m) => m.staffId === assignedStaffId);
 
     const booking = await createWalkInBooking({
       businessId: ownedBusiness.businessId,
@@ -108,7 +106,7 @@ export function StartWalkInScreen() {
       services: serviceLines,
       durationMinutes: totalDuration,
       totalAmount: { amount: totalAmount, currency },
-      staffId: assignedStaff?.invitationId ?? null,
+      staffId: assignedStaff?.staffId ?? null,
       staffName: assignedStaff?.name ?? assignedStaff?.phone ?? assignedStaff?.email ?? 'Walk-in',
     });
 

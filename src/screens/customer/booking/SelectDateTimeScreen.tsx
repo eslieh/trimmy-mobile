@@ -3,41 +3,73 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { AuthScreenLayout } from '../../../components/AuthScreenLayout';
 import { Button } from '../../../components/Button';
-import { getBusinessProfile } from '../../../api/discovery';
+import { getAvailability, getAvailabilityDays, type AvailabilityDay, type AvailabilitySlot } from '../../../api/availability';
+import { getApiErrorMessage } from '../../../api/client';
 import { useBookingDraftStore } from '../../../store/useBookingDraftStore';
-import { getTimeSlots, getUpcomingDays } from '../../../utils/availability';
 import { colors, radii, spacing, typography } from '../../../theme';
-import type { BusinessProfile } from '../../../types/discovery';
 
 const TOTAL_STEPS = 4;
+const DAYS_AHEAD = 14;
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+// Dates are business-local YYYY-MM-DD; noon keeps the weekday right in any
+// device timezone.
+function dayLabels(date: string) {
+  const d = new Date(`${date}T12:00:00`);
+  return { weekdayLabel: WEEKDAYS[d.getDay()], dayNumber: d.getDate() };
+}
+
+// Days and start times come from the server (get-availability-days /
+// get-availability), which knows staff schedules, booking settings and
+// existing bookings — the app no longer computes slots from working hours.
 export function SelectDateTimeScreen() {
   const router = useRouter();
   const { businessId } = useLocalSearchParams<{ businessId: string }>();
-  const [profile, setProfile] = useState<BusinessProfile | null>(null);
 
   const draftServices = useBookingDraftStore((s) => s.services);
+  const staffId = useBookingDraftStore((s) => s.staffId);
   const date = useBookingDraftStore((s) => s.date);
   const time = useBookingDraftStore((s) => s.time);
   const setDateTime = useBookingDraftStore((s) => s.setDateTime);
 
+  const [days, setDays] = useState<AvailabilityDay[] | null>(null);
+  const [durationMinutes, setDurationMinutes] = useState<number | null>(null);
+  const [slots, setSlots] = useState<AvailabilitySlot[] | null>(null);
+  const [error, setError] = useState('');
+
+  const serviceIdsKey = draftServices.map((s) => s.serviceId).join(',');
+  const query = useMemo(
+    () => ({ serviceIds: draftServices.map((s) => s.serviceId), staffId }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [serviceIdsKey, staffId],
+  );
+
   useEffect(() => {
-    getBusinessProfile(businessId).then(setProfile);
-  }, [businessId]);
+    setDays(null);
+    setError('');
+    getAvailabilityDays(businessId, query, DAYS_AHEAD)
+      .then((res) => {
+        setDays(res.days);
+        setDurationMinutes(res.durationMinutes);
+      })
+      .catch((err) => setError(getApiErrorMessage(err, "Couldn't load available days.")));
+  }, [businessId, query]);
 
-  const totalDuration = useMemo(
-    () => draftServices.reduce((sum, service) => sum + service.durationMinutes * service.quantity, 0),
-    [draftServices],
-  );
+  const selectedDate = date ?? days?.find((d) => d.hasSlots)?.date ?? null;
 
-  const days = useMemo(() => (profile ? getUpcomingDays(profile.workingHours, 10) : []), [profile]);
-
-  const selectedDate = date ?? days.find((d) => d.isOpen)?.date ?? null;
-
-  const timeSlots = useMemo(
-    () => (profile && selectedDate ? getTimeSlots(profile.workingHours, selectedDate, totalDuration) : []),
-    [profile, selectedDate, totalDuration],
-  );
+  useEffect(() => {
+    if (!selectedDate) return;
+    setSlots(null);
+    getAvailability(businessId, selectedDate, query)
+      .then((res) => {
+        setSlots(res.slots);
+        // A previously picked time that's no longer offered (taken since,
+        // or staff changed) must not carry through to Review.
+        if (time && !res.slots.some((slot) => slot.time === time)) setDateTime(selectedDate, '');
+      })
+      .catch((err) => setError(getApiErrorMessage(err, "Couldn't load times.")));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [businessId, selectedDate, query]);
 
   const handlePickDate = (dateKey: string) => {
     setDateTime(dateKey, '');
@@ -47,10 +79,10 @@ export function SelectDateTimeScreen() {
     if (selectedDate) setDateTime(selectedDate, timeValue);
   };
 
-  if (!profile) {
+  if (!days) {
     return (
       <AuthScreenLayout title="Pick a date & time" progress={2 / TOTAL_STEPS} onBack={() => router.back()}>
-        <ActivityIndicator color={colors.text.secondary} />
+        {error ? <Text style={styles.emptyText}>{error}</Text> : <ActivityIndicator color={colors.text.secondary} />}
       </AuthScreenLayout>
     );
   }
@@ -58,7 +90,7 @@ export function SelectDateTimeScreen() {
   return (
     <AuthScreenLayout
       title="Pick a date & time"
-      subtitle={`Takes about ${totalDuration} min in total.`}
+      subtitle={durationMinutes ? `Takes about ${durationMinutes} min in total.` : undefined}
       progress={2 / TOTAL_STEPS}
       onBack={() => router.back()}
       footer={
@@ -72,18 +104,20 @@ export function SelectDateTimeScreen() {
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dayScroll}>
         {days.map((day) => {
           const selected = day.date === selectedDate;
+          const bookable = day.hasSlots;
+          const { weekdayLabel, dayNumber } = dayLabels(day.date);
           return (
             <Pressable
               key={day.date}
-              disabled={!day.isOpen}
-              style={[styles.dayPill, selected && styles.dayPillSelected, !day.isOpen && styles.dayPillDisabled]}
+              disabled={!bookable}
+              style={[styles.dayPill, selected && styles.dayPillSelected, !bookable && styles.dayPillDisabled]}
               onPress={() => handlePickDate(day.date)}
             >
-              <Text style={[styles.dayWeekday, selected && styles.dayTextSelected, !day.isOpen && styles.dayTextDisabled]}>
-                {day.weekdayLabel}
+              <Text style={[styles.dayWeekday, selected && styles.dayTextSelected, !bookable && styles.dayTextDisabled]}>
+                {weekdayLabel}
               </Text>
-              <Text style={[styles.dayNumber, selected && styles.dayTextSelected, !day.isOpen && styles.dayTextDisabled]}>
-                {day.dayNumber}
+              <Text style={[styles.dayNumber, selected && styles.dayTextSelected, !bookable && styles.dayTextDisabled]}>
+                {dayNumber}
               </Text>
             </Pressable>
           );
@@ -91,21 +125,25 @@ export function SelectDateTimeScreen() {
       </ScrollView>
 
       <Text style={styles.sectionTitle}>Available times</Text>
-      {timeSlots.length === 0 ? (
-        <Text style={styles.emptyText}>
-          {selectedDate ? 'No time slots left on this day — try another date.' : 'Choose a date to see times.'}
-        </Text>
+      {error ? (
+        <Text style={styles.emptyText}>{error}</Text>
+      ) : !selectedDate ? (
+        <Text style={styles.emptyText}>No open times in the next two weeks — try another staff member.</Text>
+      ) : !slots ? (
+        <ActivityIndicator color={colors.text.secondary} />
+      ) : slots.length === 0 ? (
+        <Text style={styles.emptyText}>No time slots left on this day — try another date.</Text>
       ) : (
         <View style={styles.timeGrid}>
-          {timeSlots.map((slot) => {
-            const selected = slot === time;
+          {slots.map((slot) => {
+            const selected = slot.time === time;
             return (
               <Pressable
-                key={slot}
+                key={slot.time}
                 style={[styles.timeSlot, selected && styles.timeSlotSelected]}
-                onPress={() => handlePickTime(slot)}
+                onPress={() => handlePickTime(slot.time)}
               >
-                <Text style={[styles.timeSlotText, selected && styles.timeSlotTextSelected]}>{slot}</Text>
+                <Text style={[styles.timeSlotText, selected && styles.timeSlotTextSelected]}>{slot.time}</Text>
               </Pressable>
             );
           })}

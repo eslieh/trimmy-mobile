@@ -8,7 +8,10 @@ import { Button } from '../../components/Button';
 import { PhoneInput } from '../../components/PhoneInput';
 import { CheckIcon } from '../../components/icons/CheckIcon';
 import { PhoneIcon } from '../../components/icons/PhoneIcon';
-import { chargeBookingCash, chargeBookingPayment, updateBookingStatus } from '../../api/booking';
+import { assignBookingStaff, chargeBookingCash, chargeBookingPayment, updateBookingStatus } from '../../api/booking';
+import { getApiErrorCode, getApiErrorMessage } from '../../api/client';
+import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
+import { bookableStaff, teamMemberDisplayName } from '../../utils/team';
 import { useBookingsStore } from '../../store/useBookingsStore';
 import { BOOKING_STATUS_COLOR, BOOKING_STATUS_LABEL } from '../../utils/bookingStatus';
 import { formatBookingDateLong } from '../../utils/date';
@@ -49,6 +52,10 @@ export function AppointmentDetailScreen() {
   const [rawPhone, setRawPhone] = useState('');
   const [chargeStep, setChargeStep] = useState<ChargeStep>('form');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const invitations = useBusinessOnboardingStore((s) => s.invitations);
+  const [assignSheetVisible, setAssignSheetVisible] = useState(false);
+  const [assigningStaffId, setAssigningStaffId] = useState<string | null>(null);
+  const [assignError, setAssignError] = useState('');
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -71,6 +78,30 @@ export function AppointmentDetailScreen() {
     const updated = await updateBookingStatus(booking, status);
     updateBooking(updated);
     setIsUpdatingStatus(false);
+  };
+
+  // Only active bookings can be (re)assigned; the server checks the rest
+  // (offers the services, works that day, is free).
+  const canAssign = ['pending_payment', 'confirmed', 'in_progress'].includes(booking.status);
+  const assignableStaff = bookableStaff(invitations);
+
+  const handleAssign = async (staffId: string, staffName: string) => {
+    setAssigningStaffId(staffId);
+    setAssignError('');
+    try {
+      const updated = await assignBookingStaff(booking, staffId, staffName);
+      updateBooking(updated);
+      setAssignSheetVisible(false);
+    } catch (err) {
+      // staff_unavailable: keep the picker open so they can choose someone else.
+      setAssignError(
+        getApiErrorCode(err) === 'staff_unavailable'
+          ? `${staffName} can't take this booking — busy, off that day, or doesn't offer the service. Choose someone else.`
+          : getApiErrorMessage(err, "Couldn't assign staff. Please try again."),
+      );
+    } finally {
+      setAssigningStaffId(null);
+    }
   };
 
   const handleCall = () => {
@@ -184,7 +215,17 @@ export function AppointmentDetailScreen() {
 
         <View style={styles.card}>
           <Text style={styles.cardLabel}>Staff</Text>
-          <Text style={styles.cardValue}>{booking.staffName}</Text>
+          <Text style={styles.cardValue}>{booking.staffId ? booking.staffName : 'Unassigned'}</Text>
+          {canAssign && assignableStaff.length > 0 ? (
+            <Button
+              label={booking.staffId ? 'Reassign' : 'Assign staff'}
+              variant="secondary"
+              onPress={() => {
+                setAssignError('');
+                setAssignSheetVisible(true);
+              }}
+            />
+          ) : null}
         </View>
       </ScrollView>
 
@@ -214,6 +255,38 @@ export function AppointmentDetailScreen() {
           <Button label="Charge customer" onPress={() => setChargeSheetVisible(true)} />
         ) : null}
       </View>
+
+      <Modal
+        visible={assignSheetVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setAssignSheetVisible(false)}
+      >
+        <Pressable style={styles.overlay} onPress={() => setAssignSheetVisible(false)}>
+          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.sheetTitle}>{booking.staffId ? 'Reassign booking' : 'Assign staff'}</Text>
+            {assignError ? <Text style={styles.assignError}>{assignError}</Text> : null}
+            {assignableStaff.map((member) => {
+              const name = teamMemberDisplayName(member);
+              const current = member.staffId === booking.staffId;
+              return (
+                <Pressable
+                  key={member.staffId}
+                  style={styles.assignRow}
+                  disabled={current || assigningStaffId !== null}
+                  onPress={() => handleAssign(member.staffId, name)}
+                >
+                  <Text style={[styles.cardValue, current && styles.cardValueMuted]}>
+                    {name}
+                    {current ? ' (assigned)' : ''}
+                  </Text>
+                  {assigningStaffId === member.staffId ? <ActivityIndicator color={colors.text.secondary} /> : null}
+                </Pressable>
+              );
+            })}
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <Modal visible={chargeSheetVisible} transparent animationType="slide" onRequestClose={closeChargeSheet}>
         <Pressable style={styles.overlay} onPress={closeChargeSheet}>
@@ -469,6 +542,19 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xl,
     paddingBottom: spacing.xxxl,
     gap: spacing.lg,
+  },
+  assignRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border.subtle,
+  },
+  assignError: {
+    ...typography.caption,
+    color: colors.feedback.danger,
+    marginBottom: spacing.sm,
   },
   sheetTitle: {
     ...typography.h2,

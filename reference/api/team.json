@@ -74,6 +74,7 @@
       },
       "response": {
         "invitationId": "inv_01xy",
+        "staffId": "uuid | null",
         "businessId": "biz_01hxyz",
         "name": "Jane Doe",
         "email": "jane@example.com",
@@ -123,6 +124,7 @@
       },
       "response": {
         "invitationId": "inv_01xy",
+        "staffId": "uuid | null",
         "commissionPercent": 45,
         "workingDays": [
           "monday",
@@ -179,6 +181,7 @@
         "members": [
           {
             "invitationId": "uuid",
+            "staffId": "uuid | null",
             "businessId": "uuid",
             "name": "Wanjiku",
             "email": "wanjiku@example.com",
@@ -191,6 +194,75 @@
           }
         ]
       }
+    },
+    {
+      "id": "get-staff-services",
+      "status": "live",
+      "screen": "Member Detail (business-owner app): services they perform",
+      "story": "O2",
+      "method": "GET",
+      "path": "/businesses/{businessId}/staff/{staffId}/services",
+      "auth": "owner",
+      "request": null,
+      "response": {
+        "staffId": "uuid",
+        "allServices": false,
+        "serviceIds": [
+          "uuid"
+        ]
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "staffId does not exist for this business"
+        }
+      ]
+    },
+    {
+      "id": "set-staff-services",
+      "status": "live",
+      "screen": "Member Detail (business-owner app): services they perform",
+      "story": "O2",
+      "method": "PUT",
+      "path": "/businesses/{businessId}/staff/{staffId}/services",
+      "auth": "owner",
+      "description": "allServices: true = performs every service, including ones added later (the default for everyone). allServices: false = performs exactly serviceIds, which may be empty (e.g. front desk). Replaces the whole list. Deleting a service removes it from everyone's list; it never flips someone back to allServices.",
+      "request": {
+        "allServices": false,
+        "serviceIds": [
+          "uuid",
+          "uuid"
+        ]
+      },
+      "response": {
+        "staffId": "uuid",
+        "allServices": false,
+        "serviceIds": [
+          "uuid",
+          "uuid"
+        ]
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "validation_error",
+          "message": "serviceIds must be empty when allServices is true"
+        },
+        {
+          "status": 400,
+          "code": "validation_error",
+          "message": "serviceIds contains services not in this business: …"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "staffId does not exist for this business"
+        }
+      ]
     }
+  ],
+  "notes": [
+    "2026-09-26 (BK-02): members carry staffId, which is null while the invitation is pending and set once accepted. It's the same id as the business profile's staff[].staffId, and it's the id bookings, availability and earnings use. Editing commission/working days still goes through PATCH /team/members/{invitationId}; the server keeps the staff record in sync. Only accepted members (non-null staffId) are bookable."
   ]
 }

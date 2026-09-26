@@ -24,6 +24,14 @@ export const INVITATION_STATUS_COLOR: Record<InvitationStatus, string> = {
 // InviteTeamMemberScreen) — an invitation sent through onboarding's Team
 // invite step never collects it, so this falls back to whatever contact
 // info is available rather than showing a blank.
+// Who a booking can be assigned to: accepted staff (pending invitees have
+// no staff record yet, and front desk doesn't perform services).
+export function bookableStaff(invitations: TeamInvitation[]): (TeamInvitation & { staffId: string })[] {
+  return invitations.filter(
+    (i): i is TeamInvitation & { staffId: string } => i.role === 'staff' && i.status === 'accepted' && i.staffId !== null,
+  );
+}
+
 export function teamMemberDisplayName(invitation: Pick<TeamInvitation, 'name' | 'phone' | 'email'>): string {
   return invitation.name || invitation.phone || invitation.email || 'Team member';
 }

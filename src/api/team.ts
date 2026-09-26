@@ -65,6 +65,7 @@ export function addTeamMember(businessId: string, input: AddTeamMemberInput): Pr
       email: input.email,
       phone: input.phone,
       role: input.role,
+      staffId: null,
       status: 'pending',
       commissionPercent: input.commissionPercent,
       workingDays: input.workingDays,
@@ -113,4 +114,33 @@ export function removeTeamMember(businessId: string, invitationId: string): Prom
   }
 
   return apiRequest<void>(`/businesses/${businessId}/team/members/${invitationId}`, { method: 'DELETE' });
+}
+
+// See reference/api/team.json#get-staff-services / #set-staff-services.
+// Keyed by the member's staffId (accepted members only), not invitationId.
+// allServices: true = performs every service, including ones added later;
+// false = exactly serviceIds (may be empty, e.g. front desk).
+export type StaffServices = {
+  allServices: boolean;
+  serviceIds: string[];
+};
+
+export function getStaffServices(businessId: string, staffId: string): Promise<StaffServices> {
+  if (USE_MOCK_API) {
+    return mockDelay<StaffServices>({ allServices: true, serviceIds: [] });
+  }
+
+  return apiRequest<StaffServices>(`/businesses/${businessId}/staff/${staffId}/services`);
+}
+
+// Replaces the whole list. serviceIds must be empty when allServices is true.
+export function setStaffServices(businessId: string, staffId: string, input: StaffServices): Promise<StaffServices> {
+  if (USE_MOCK_API) {
+    return mockDelay(input);
+  }
+
+  return apiRequest<StaffServices>(`/businesses/${businessId}/staff/${staffId}/services`, {
+    method: 'PUT',
+    body: { allServices: input.allServices, serviceIds: input.allServices ? [] : input.serviceIds },
+  });
 }

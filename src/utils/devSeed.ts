@@ -69,6 +69,7 @@ export function seedOwnedBusinessForTesting(seedIndex: number, teamMode: TeamMod
 // Fixed id so re-tapping the test button updates the same record instead
 // of piling up duplicates.
 const SELF_STAFF_INVITATION_ID = 'inv_self_test';
+const SELF_STAFF_ID = 'staff_self_testing';
 
 // Dev/testing-only, same spirit as seedOwnedBusinessForTesting above but
 // for the staff app: seeds a team-mode business (staff only makes sense
@@ -85,6 +86,7 @@ export function seedSelfAsStaffForTesting(seedIndex: number, displayName: string
   const selfInvitation: TeamInvitation = {
     invitationId: SELF_STAFF_INVITATION_ID,
     businessId: seed.businessId,
+    staffId: SELF_STAFF_ID,
     name: displayName,
     role: 'staff',
     status: 'accepted',
@@ -101,5 +103,6 @@ export function seedSelfAsStaffForTesting(seedIndex: number, displayName: string
     businessId: seed.businessId,
     businessName: seed.name,
     invitationId: SELF_STAFF_INVITATION_ID,
+    staffId: SELF_STAFF_ID,
   };
 }

@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Avatar } from '../../../components/Avatar';
 import { BackButton } from '../../../components/BackButton';
 import { Button } from '../../../components/Button';
 import { createBooking } from '../../../api/booking';
+import { ApiError, getApiErrorCode, getApiErrorMessage } from '../../../api/client';
+import { Input } from '../../../components/Input';
 import { getBusinessProfile } from '../../../api/discovery';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useBookingDraftStore } from '../../../store/useBookingDraftStore';
@@ -41,6 +43,11 @@ export function ReviewPoliciesScreen() {
   const { businessId } = useLocalSearchParams<{ businessId: string }>();
   const [profile, setProfile] = useState<BusinessProfile | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [notes, setNotes] = useState('');
+  const [error, setError] = useState('');
+  // Set when the server answers 409 price_changed: the new total the
+  // customer has to see and confirm (sent back as expectedTotal).
+  const [repricedTotal, setRepricedTotal] = useState<number | null>(null);
 
   const draft = useBookingDraftStore();
   const addBooking = useBookingsStore((s) => s.addBooking);
@@ -63,23 +70,27 @@ export function ReviewPoliciesScreen() {
   const depositAmount = profile ? computeDeposit(profile, draft.services) : null;
   const staffMember = profile && draft.staffId ? profile.staff.find((s) => s.staffId === draft.staffId) : null;
 
+  const shownTotal = repricedTotal ?? totalAmount;
+
   const handleConfirm = async () => {
     if (!profile || !draft.date || !draft.time) return;
     setSubmitting(true);
+    setError('');
     try {
-      const booking = await createBooking({
-        businessId,
-        businessName: profile.name,
-        customerName,
-        staffId: draft.staffId,
-        staffName: draft.staffName,
-        services: draft.services,
-        date: draft.date,
-        time: draft.time,
-        durationMinutes: totalDuration,
-        totalAmount: { amount: totalAmount, currency: 'KES' },
-        depositAmount,
-      });
+      // Only what the customer chose — the server prices it. expectedTotal
+      // is what they're looking at, so a price change can't slip through.
+      const booking = await createBooking(
+        {
+          businessId,
+          staffId: draft.staffId,
+          services: draft.services.map((line) => ({ serviceId: line.serviceId, quantity: line.quantity })),
+          date: draft.date,
+          time: draft.time,
+          notes: notes.trim() || undefined,
+          expectedTotal: { amount: shownTotal, currency: 'KES' },
+        },
+        { businessName: profile.name, customerName, staffName: draft.staffName, lines: draft.services, depositAmount },
+      );
       draft.setCurrentBooking(booking);
 
       if (booking.status === 'confirmed') {
@@ -88,6 +99,21 @@ export function ReviewPoliciesScreen() {
         router.replace(`/business/${businessId}/book/confirmed`);
       } else {
         router.push(`/business/${businessId}/book/payment`);
+      }
+    } catch (err) {
+      const code = getApiErrorCode(err);
+      if (code === 'slot_unavailable') {
+        // Someone else got it — back to the time picker, which refetches.
+        draft.setDateTime(draft.date, '');
+        Alert.alert('That time was just taken', 'Please pick another time.', [
+          { text: 'OK', onPress: () => router.push(`/business/${businessId}/book/datetime`) },
+        ]);
+      } else if (code === 'price_changed' && err instanceof ApiError) {
+        const newTotal = (err.body?.totalAmount as { amount?: number } | undefined)?.amount;
+        if (typeof newTotal === 'number') setRepricedTotal(newTotal);
+        setError(getApiErrorMessage(err, 'Prices have changed — please review the new total.'));
+      } else {
+        setError(getApiErrorMessage(err, "Couldn't book this appointment. Please try again."));
       }
     } finally {
       setSubmitting(false);
@@ -167,10 +193,11 @@ export function ReviewPoliciesScreen() {
           <Text style={styles.cardLabel}>Total</Text>
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Amount due at business</Text>
-            <Text style={styles.totalValue}>KSh {totalAmount}</Text>
+            <Text style={styles.totalValue}>KSh {shownTotal}</Text>
           </View>
           {depositAmount ? (
             <View style={styles.totalRow}>
+              {/* An estimate from the profile's policy; the server's figure is final. */}
               <Text style={styles.totalLabel}>Deposit to pay now</Text>
               <Text style={styles.depositValue}>KSh {depositAmount.amount}</Text>
             </View>
@@ -178,6 +205,14 @@ export function ReviewPoliciesScreen() {
             <Text style={styles.cardMeta}>No deposit required — pay at the business.</Text>
           )}
         </View>
+
+        <Input
+          label="Notes for the business (optional)"
+          value={notes}
+          onChangeText={setNotes}
+          placeholder="e.g. Short on the sides"
+          multiline
+        />
 
         <View style={styles.policyCard}>
           <Text style={styles.policyText}>
@@ -189,6 +224,7 @@ export function ReviewPoliciesScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
         <Button
           label={depositAmount ? 'Continue to payment' : 'Confirm booking'}
           onPress={handleConfirm}
@@ -309,6 +345,11 @@ const styles = StyleSheet.create({
   policyText: {
     ...typography.caption,
     color: colors.text.secondary,
+  },
+  errorText: {
+    ...typography.caption,
+    color: colors.feedback.danger,
+    marginBottom: spacing.sm,
   },
   footer: {
     paddingHorizontal: spacing.xxl,

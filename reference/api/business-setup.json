@@ -611,6 +611,7 @@
       },
       "response": {
         "invitationId": "inv_01xy",
+        "staffId": "uuid | null",
         "businessId": "biz_01hxyz",
         "email": "jane@example.com",
         "phone": "+254798765432",
@@ -692,6 +693,40 @@
           }
         ]
       }
+    },
+    {
+      "id": "update-booking-settings",
+      "status": "live",
+      "screen": "Manage Business → Booking rules",
+      "story": "O1",
+      "method": "PATCH",
+      "path": "/businesses/{businessId}/booking-settings",
+      "auth": "owner",
+      "description": "Only the fields sent change. timezone is an IANA name. slotIntervalMinutes is the grid customers pick start times on (5-60, must divide 60). bufferMinutes is kept free after each booking. minLeadMinutes is how soon the earliest slot is. maxDaysAhead is how far ahead customers can book. get-business-draft also returns this object as bookingSettings (defaults: Africa/Nairobi, 15, 0, 30, 30).",
+      "request": {
+        "slotIntervalMinutes": 15,
+        "bufferMinutes": 10
+      },
+      "response": {
+        "businessId": "uuid",
+        "timezone": "Africa/Nairobi",
+        "slotIntervalMinutes": 15,
+        "bufferMinutes": 10,
+        "minLeadMinutes": 30,
+        "maxDaysAhead": 30
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "validation_error",
+          "message": "slotIntervalMinutes must divide 60 evenly (5, 10, 15, 20, 30 or 60)"
+        },
+        {
+          "status": 400,
+          "code": "validation_error",
+          "message": "Unknown timezone 'X'; use an IANA name like Africa/Nairobi"
+        }
+      ]
     }
   ],
   "notes": [

@@ -5,11 +5,15 @@ import { tokenStorage } from '../storage/tokenStorage';
 export class ApiError extends Error {
   status: number;
   code: string;
+  // The whole error body — some errors carry extra fields (e.g. 409
+  // price_changed includes the new totalAmount).
+  body: Record<string, unknown> | null;
 
-  constructor(status: number, code: string, message: string) {
+  constructor(status: number, code: string, message: string, body: Record<string, unknown> | null = null) {
     super(message);
     this.status = status;
     this.code = code;
+    this.body = body;
   }
 }
 
@@ -50,6 +54,16 @@ export function getApiErrorMessage(err: unknown, fallback: string): string {
   }
   if (typeof body.detail === 'string') return body.detail;
   return fallback;
+}
+
+// Query string from key/value pairs — repeat a key for array params
+// (?serviceIds=a&serviceIds=b). Hand-rolled rather than URLSearchParams,
+// whose React Native implementation has historically been incomplete.
+export function toQueryString(pairs: [string, string | number | null | undefined][]): string {
+  return pairs
+    .filter((pair): pair is [string, string | number] => pair[1] !== null && pair[1] !== undefined)
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+    .join('&');
 }
 
 type RequestOptions = {
@@ -120,6 +134,7 @@ export async function apiRequest<TResponse>(path: string, options: RequestOption
       response.status,
       data?.error ?? (Array.isArray(data?.detail) ? 'validation_error' : 'unknown_error'),
       data?.message ?? (typeof detail === 'string' ? detail : 'Request failed'),
+      data && typeof data === 'object' ? data : null,
     );
   }
 

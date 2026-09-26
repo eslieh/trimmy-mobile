@@ -31,7 +31,7 @@ function dateKeyForOffset(offset: number): string {
 // S1 — staff's own daily schedule. Same shape as the business-owner app's
 // TodayTimelineScreen (Today/Tomorrow pills, upcoming timeline with a rail,
 // completed collapsed) but scoped to bookings assigned to *this* staff
-// member (staffId === staffSession.invitationId) rather than the whole
+// member (staffId === staffSession.staffId) rather than the whole
 // business, and no "+" — staff don't create walk-ins/appointments, that's
 // an owner/front-desk permission.
 export function StaffTodayScreen() {
@@ -55,7 +55,7 @@ export function StaffTodayScreen() {
     return bookings
       .filter(
         (b) =>
-          b.businessId === staffSession.businessId && b.staffId === staffSession.invitationId && b.date === dateKey,
+          b.businessId === staffSession.businessId && b.staffId === staffSession.staffId && b.date === dateKey,
       )
       .sort((a, b) => a.time.localeCompare(b.time));
   }, [bookings, staffSession, dateKey]);

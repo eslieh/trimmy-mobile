@@ -15,7 +15,7 @@ export type BookingSource = 'online' | 'walk_in';
 // Tracks the final service charge collected via the "Charge customer" flow
 // — separate from depositAmount, which (if any) is paid up front at booking
 // time through the existing confirm-booking-payment flow.
-export type PaymentStatus = 'unpaid' | 'paid';
+export type PaymentStatus = 'unpaid' | 'deposit_paid' | 'paid';
 
 // 'mpesa' sends an STK push to the customer's phone through the business's
 // connected payment destination; 'cash' just records that cash changed
@@ -53,4 +53,19 @@ export type Booking = {
   paymentMethod: PaymentMethod | null; // null until charged
   paymentReference: string | null; // M-Pesa receipt number once paid via mpesa; cash has no reference, stays null
   createdAt: string;
+  // Server-created bookings (create-booking / get-booking) always carry the
+  // fields below; they're optional only because the owner-side fulfillment
+  // flows (walk-in, scheduled) are still mocked and build bookings locally.
+  reference?: string; // short human code, e.g. BK7F3AQ9
+  startsAt?: string; // date + time with the business's UTC offset
+  expiresAt?: string | null; // pending_payment only: when the slot hold lapses
+  cancelReason?: string | null; // e.g. payment_expired
+  notes?: string | null;
+  depositPayment?: DepositPayment | null; // null until a deposit payment is started (BK-31)
+};
+
+export type DepositPayment = {
+  paymentId: string;
+  status: 'pending' | 'succeeded' | 'failed' | 'timeout';
+  failureReason: string | null;
 };

@@ -25,7 +25,10 @@
           {
             "businessId": "biz_01hxyz",
             "name": "Glow Beauty Lounge",
-            "categories": ["hair_salon", "nail_salon"],
+            "categories": [
+              "hair_salon",
+              "nail_salon"
+            ],
             "thumbnailUrl": "https://cdn.trimyy.app/businesses/biz_01hxyz/cover.jpg",
             "photos": [
               "https://cdn.trimyy.app/businesses/biz_01hxyz/cover.jpg",
@@ -35,7 +38,10 @@
             "lat": -1.2921,
             "lng": 36.7833,
             "distanceKm": 2.3,
-            "startingPrice": { "amount": 500, "currency": "KES" },
+            "startingPrice": {
+              "amount": 500,
+              "currency": "KES"
+            },
             "rating": 4.7,
             "reviewCount": 128
           }
@@ -56,7 +62,10 @@
         "businessId": "biz_01hxyz",
         "name": "Glow Beauty Lounge",
         "description": "A cosy beauty lounge in the heart of Kilimani offering hair styling, coloring, and nail care in a relaxed, welcoming space.",
-        "categories": ["hair_salon", "nail_salon"],
+        "categories": [
+          "hair_salon",
+          "nail_salon"
+        ],
         "photos": [
           "https://cdn.trimyy.app/businesses/biz_01hxyz/photo_1.jpg",
           "https://cdn.trimyy.app/businesses/biz_01hxyz/photo_2.jpg"
@@ -69,32 +78,66 @@
         "depositSummary": "No deposit required",
         "cancellationSummary": "Free cancellation up to 24h before, 50% fee after",
         "workingHours": {
-          "monday": { "open": "09:00", "close": "19:00" },
-          "tuesday": { "open": "09:00", "close": "19:00" },
-          "wednesday": { "open": "09:00", "close": "19:00" },
-          "thursday": { "open": "09:00", "close": "19:00" },
-          "friday": { "open": "09:00", "close": "19:00" },
-          "saturday": { "open": "09:00", "close": "19:00" },
+          "monday": {
+            "open": "09:00",
+            "close": "19:00"
+          },
+          "tuesday": {
+            "open": "09:00",
+            "close": "19:00"
+          },
+          "wednesday": {
+            "open": "09:00",
+            "close": "19:00"
+          },
+          "thursday": {
+            "open": "09:00",
+            "close": "19:00"
+          },
+          "friday": {
+            "open": "09:00",
+            "close": "19:00"
+          },
+          "saturday": {
+            "open": "09:00",
+            "close": "19:00"
+          },
           "sunday": null
         },
         "policies": {
           "deposit": {
             "required": false,
             "type": "fixed",
-            "amount": { "amount": 0, "currency": "KES" },
+            "amount": {
+              "amount": 0,
+              "currency": "KES"
+            },
             "appliesTo": "all_services"
           },
-          "cancellation": { "freeCancellationHours": 24, "lateFeePercent": 50 },
-          "noShow": { "feePercent": 100 }
+          "cancellation": {
+            "freeCancellationHours": 24,
+            "lateFeePercent": 50
+          },
+          "noShow": {
+            "feePercent": 100
+          }
         },
-        "amenities": ["Free WiFi", "Air conditioning", "Wheelchair accessible", "Parking available"],
+        "amenities": [
+          "Free WiFi",
+          "Air conditioning",
+          "Wheelchair accessible",
+          "Parking available"
+        ],
         "services": [
           {
             "serviceId": "svc_01a1",
             "categoryName": "Haircuts",
             "name": "Classic Haircut",
             "durationMinutes": 45,
-            "price": { "amount": 800, "currency": "KES" }
+            "price": {
+              "amount": 800,
+              "currency": "KES"
+            }
           }
         ],
         "staff": [
@@ -102,10 +145,17 @@
             "staffId": "staff_01a1",
             "name": "Jane Wanjiru",
             "role": "Senior Stylist",
+            "workingDays": null,
+            "allServices": true,
+            "serviceIds": [],
             "rating": 4.8,
             "avatarUrl": "https://cdn.trimyy.app/staff/staff_01a1/avatar.jpg",
             "bio": "10+ years styling natural and relaxed hair, trained in Nairobi and Johannesburg.",
-            "specialties": ["Haircuts", "Blow Dry & Style", "Natural Hair"],
+            "specialties": [
+              "Haircuts",
+              "Blow Dry & Style",
+              "Natural Hair"
+            ],
             "portfolio": [
               "https://cdn.trimyy.app/staff/staff_01a1/portfolio_1.jpg",
               "https://cdn.trimyy.app/staff/staff_01a1/portfolio_2.jpg"
@@ -123,7 +173,14 @@
         ]
       },
       "errors": [
-        { "status": 404, "code": "not_found", "message": "No published business found for this id" }
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "No published business found for this id"
+        }
+      ],
+      "notes": [
+        "2026-09-26 (BK-02/03): staff[] items carry workingDays (null = whenever the business is open), plus allServices/serviceIds (who performs what). Select Staff hides staff who can't do every service in the cart. commissionPercent stays private to the team endpoints."
       ]
     }
   ]

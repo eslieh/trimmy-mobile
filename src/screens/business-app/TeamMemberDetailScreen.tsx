@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -12,6 +12,7 @@ import { BarChart } from '../../components/charts/BarChart';
 import { DonutChart } from '../../components/charts/DonutChart';
 import { useBookingsStore } from '../../store/useBookingsStore';
 import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
+import { getStaffServices, setStaffServices, type StaffServices } from '../../api/team';
 import {
   INVITATION_STATUS_COLOR,
   INVITATION_STATUS_LABEL,
@@ -71,7 +72,7 @@ function formatMoney(amount: number): string {
 // same charts, same aggregation functions from utils/earnings.ts) just
 // pre-filtered to this member's assigned bookings — see StartWalkInScreen/
 // ScheduleAppointmentScreen's "Assign to" picker for how a booking ends up
-// tied to a specific member (booking.staffId === invitation.invitationId).
+// tied to a specific member (booking.staffId === invitation.staffId — null until they accept).
 export function TeamMemberDetailScreen() {
   const router = useRouter();
   const { invitationId } = useLocalSearchParams<{ invitationId: string }>();
@@ -85,14 +86,30 @@ export function TeamMemberDetailScreen() {
 
   const [commissionPercent, setCommissionPercent] = useState(() => String(invitation?.commissionPercent ?? 40));
   const [workingDays, setWorkingDays] = useState<(keyof WeeklyHours)[] | null>(invitation?.workingDays ?? null);
+  // Services they perform — keyed by staffId, so only loadable once the
+  // invitation is accepted. savedServices is what the server has.
+  const [savedServices, setSavedServices] = useState<StaffServices | null>(null);
+  const [staffServices, setStaffServicesDraft] = useState<StaffServices | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
   const [range, setRange] = useState<EarningsRange>('today');
   const [customStart, setCustomStart] = useState(todayKey);
   const [customEnd, setCustomEnd] = useState(todayKey);
 
+  const staffId = invitation?.staffId ?? null;
+  const businessId = business?.businessId;
+  useEffect(() => {
+    if (!businessId || !staffId) return;
+    getStaffServices(businessId, staffId)
+      .then((loaded) => {
+        setSavedServices(loaded);
+        setStaffServicesDraft(loaded);
+      })
+      .catch((err) => showApiError("Couldn't load their services", err));
+  }, [businessId, staffId]);
+
   const memberBookings = useMemo(
-    () => (business && invitation ? bookings.filter((b) => b.businessId === business.businessId && b.staffId === invitation.invitationId) : []),
+    () => (business && invitation ? bookings.filter((b) => invitation.staffId !== null && b.businessId === business.businessId && b.staffId === invitation.staffId) : []),
     [bookings, business, invitation],
   );
 
@@ -122,17 +139,41 @@ export function TeamMemberDetailScreen() {
   }
 
   const commissionValue = parseInt(commissionPercent, 10);
-  const hasChanges =
+  const memberChanged =
     commissionValue !== invitation.commissionPercent ||
     JSON.stringify(workingDays) !== JSON.stringify(invitation.workingDays);
-  const canSave = hasChanges && !Number.isNaN(commissionValue) && commissionValue >= 0 && commissionValue <= 100;
+  const servicesChanged =
+    staffServices !== null &&
+    savedServices !== null &&
+    (staffServices.allServices !== savedServices.allServices ||
+      [...staffServices.serviceIds].sort().join() !== [...savedServices.serviceIds].sort().join());
+  const canSave =
+    (memberChanged || servicesChanged) && !Number.isNaN(commissionValue) && commissionValue >= 0 && commissionValue <= 100;
+
+  // Tapping a specific service switches off "All services"; tapping "All
+  // services" clears the specific picks.
+  const toggleService = (serviceId: string) => {
+    setStaffServicesDraft((current) => {
+      if (!current) return current;
+      const base = current.allServices ? [] : current.serviceIds;
+      const serviceIds = base.includes(serviceId) ? base.filter((id) => id !== serviceId) : [...base, serviceId];
+      return { allServices: false, serviceIds };
+    });
+  };
   const commissionAmount = Math.round(stats.totalRevenue * ((invitation.commissionPercent ?? 0) / 100));
 
   const handleSave = async () => {
     if (!canSave || isSaving) return;
     setIsSaving(true);
     try {
-      await updateTeamMemberNow(business.businessId, invitation, { commissionPercent: commissionValue, workingDays });
+      if (memberChanged) {
+        await updateTeamMemberNow(business.businessId, invitation, { commissionPercent: commissionValue, workingDays });
+      }
+      if (servicesChanged && staffId && staffServices) {
+        const saved = await setStaffServices(business.businessId, staffId, staffServices);
+        setSavedServices(saved);
+        setStaffServicesDraft(saved);
+      }
     } catch (err) {
       showApiError("Couldn't save changes", err);
     } finally {
@@ -308,6 +349,36 @@ export function TeamMemberDetailScreen() {
         />
 
         <WorkingDaysPicker label="Working days" value={workingDays} onChange={setWorkingDays} />
+
+        <View>
+          <Text style={styles.sectionLabel}>Services they perform</Text>
+          {!staffId ? (
+            <Text style={styles.emptyHint}>You can choose their services once they accept the invite.</Text>
+          ) : !staffServices ? null : (
+            <View style={styles.servicePills}>
+              <Pressable
+                style={[styles.rangePill, staffServices.allServices && styles.rangePillSelected]}
+                onPress={() => setStaffServicesDraft({ allServices: true, serviceIds: [] })}
+              >
+                <Text style={[styles.rangePillText, staffServices.allServices && styles.rangePillTextSelected]}>
+                  All services
+                </Text>
+              </Pressable>
+              {allServices.map((service) => {
+                const selected = !staffServices.allServices && staffServices.serviceIds.includes(service.serviceId);
+                return (
+                  <Pressable
+                    key={service.serviceId}
+                    style={[styles.rangePill, selected && styles.rangePillSelected]}
+                    onPress={() => toggleService(service.serviceId)}
+                  >
+                    <Text style={[styles.rangePillText, selected && styles.rangePillTextSelected]}>{service.name}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
+        </View>
 
         <Button label={isSaving ? 'Saving…' : 'Save changes'} disabled={!canSave || isSaving} onPress={handleSave} />
 
@@ -515,6 +586,11 @@ const styles = StyleSheet.create({
   serviceMeta: {
     ...typography.caption,
     color: colors.text.tertiary,
+  },
+  servicePills: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
   },
   removeButton: {
     marginTop: spacing.sm,

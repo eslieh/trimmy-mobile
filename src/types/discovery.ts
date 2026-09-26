@@ -32,6 +32,11 @@ export type BusinessProfileStaffMember = {
   staffId: string;
   name: string;
   role: string;
+  workingDays: (keyof WeeklyHours)[] | null; // null = whenever the business is open
+  // true = performs every service (including ones added later);
+  // false = exactly serviceIds.
+  allServices: boolean;
+  serviceIds: string[];
   rating: number;
   avatarUrl?: string;
   bio: string;

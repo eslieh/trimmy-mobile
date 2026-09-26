@@ -4,8 +4,8 @@ import type { TeamInvitation } from '../types/team';
 
 interface StaffPickerProps {
   label: string;
-  staffMembers: TeamInvitation[];
-  value: string | null; // invitationId, or null = "Any available"
+  staffMembers: (TeamInvitation & { staffId: string })[]; // see utils/team#bookableStaff
+  value: string | null; // staffId, or null = "Any available"
   onChange: (value: string | null) => void;
 }
 
@@ -23,12 +23,12 @@ export function StaffPicker({ label, staffMembers, value, onChange }: StaffPicke
           <Text style={[styles.pillText, value === null && styles.pillTextSelected]}>Any available</Text>
         </Pressable>
         {staffMembers.map((member) => {
-          const selected = value === member.invitationId;
+          const selected = value === member.staffId;
           return (
             <Pressable
-              key={member.invitationId}
+              key={member.staffId}
               style={[styles.pill, selected && styles.pillSelected]}
-              onPress={() => onChange(member.invitationId)}
+              onPress={() => onChange(member.staffId)}
             >
               <Text style={[styles.pillText, selected && styles.pillTextSelected]}>
                 {member.name || member.phone || member.email}

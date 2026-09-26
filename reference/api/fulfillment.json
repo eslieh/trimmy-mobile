@@ -24,12 +24,24 @@
             "staffId": null,
             "staffName": "Any available",
             "services": [
-              { "serviceId": "svc_01a1", "name": "Classic Haircut", "durationMinutes": 45, "price": { "amount": 800, "currency": "KES" }, "quantity": 1 }
+              {
+                "serviceId": "svc_01a1",
+                "name": "Classic Haircut",
+                "durationMinutes": 45,
+                "price": {
+                  "amount": 800,
+                  "currency": "KES"
+                },
+                "quantity": 1
+              }
             ],
             "date": "2026-09-25",
             "time": "14:00",
             "durationMinutes": 45,
-            "totalAmount": { "amount": 800, "currency": "KES" },
+            "totalAmount": {
+              "amount": 800,
+              "currency": "KES"
+            },
             "depositAmount": null,
             "status": "confirmed",
             "source": "walk_in",
@@ -41,7 +53,11 @@
         ]
       },
       "errors": [
-        { "status": 404, "code": "not_found", "message": "No business found for this id" }
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "No business found for this id"
+        }
       ]
     },
     {
@@ -59,10 +75,22 @@
         "customerPhone": null,
         "customerEmail": null,
         "services": [
-          { "serviceId": "svc_01a1", "name": "Classic Haircut", "durationMinutes": 45, "price": { "amount": 800, "currency": "KES" }, "quantity": 1 }
+          {
+            "serviceId": "svc_01a1",
+            "name": "Classic Haircut",
+            "durationMinutes": 45,
+            "price": {
+              "amount": 800,
+              "currency": "KES"
+            },
+            "quantity": 1
+          }
         ],
         "durationMinutes": 45,
-        "totalAmount": { "amount": 800, "currency": "KES" },
+        "totalAmount": {
+          "amount": 800,
+          "currency": "KES"
+        },
         "staffId": null,
         "staffName": "Walk-in"
       },
@@ -76,12 +104,24 @@
         "staffId": null,
         "staffName": "Walk-in",
         "services": [
-          { "serviceId": "svc_01a1", "name": "Classic Haircut", "durationMinutes": 45, "price": { "amount": 800, "currency": "KES" }, "quantity": 1 }
+          {
+            "serviceId": "svc_01a1",
+            "name": "Classic Haircut",
+            "durationMinutes": 45,
+            "price": {
+              "amount": 800,
+              "currency": "KES"
+            },
+            "quantity": 1
+          }
         ],
         "date": "2026-09-22",
         "time": "11:30",
         "durationMinutes": 45,
-        "totalAmount": { "amount": 800, "currency": "KES" },
+        "totalAmount": {
+          "amount": 800,
+          "currency": "KES"
+        },
         "depositAmount": null,
         "status": "in_progress",
         "source": "walk_in",
@@ -91,7 +131,11 @@
         "createdAt": "2026-09-22T11:30:00Z"
       },
       "errors": [
-        { "status": 400, "code": "validation_error", "message": "services must include at least one item" }
+        {
+          "status": 400,
+          "code": "validation_error",
+          "message": "services must include at least one item"
+        }
       ]
     },
     {
@@ -109,10 +153,22 @@
         "customerPhone": "+254798765432",
         "customerEmail": "jane@example.com",
         "services": [
-          { "serviceId": "svc_01a1", "name": "Classic Haircut", "durationMinutes": 45, "price": { "amount": 800, "currency": "KES" }, "quantity": 1 }
+          {
+            "serviceId": "svc_01a1",
+            "name": "Classic Haircut",
+            "durationMinutes": 45,
+            "price": {
+              "amount": 800,
+              "currency": "KES"
+            },
+            "quantity": 1
+          }
         ],
         "durationMinutes": 45,
-        "totalAmount": { "amount": 800, "currency": "KES" },
+        "totalAmount": {
+          "amount": 800,
+          "currency": "KES"
+        },
         "date": "2026-09-25",
         "time": "14:00",
         "staffId": "inv_01xy",
@@ -128,12 +184,24 @@
         "staffId": null,
         "staffName": "Any available",
         "services": [
-          { "serviceId": "svc_01a1", "name": "Classic Haircut", "durationMinutes": 45, "price": { "amount": 800, "currency": "KES" }, "quantity": 1 }
+          {
+            "serviceId": "svc_01a1",
+            "name": "Classic Haircut",
+            "durationMinutes": 45,
+            "price": {
+              "amount": 800,
+              "currency": "KES"
+            },
+            "quantity": 1
+          }
         ],
         "date": "2026-09-25",
         "time": "14:00",
         "durationMinutes": 45,
-        "totalAmount": { "amount": 800, "currency": "KES" },
+        "totalAmount": {
+          "amount": 800,
+          "currency": "KES"
+        },
         "depositAmount": null,
         "status": "confirmed",
         "source": "walk_in",
@@ -143,8 +211,16 @@
         "createdAt": "2026-09-22T11:35:00Z"
       },
       "errors": [
-        { "status": 400, "code": "validation_error", "message": "time is not within the business's working hours for that date" },
-        { "status": 409, "code": "slot_unavailable", "message": "This time is no longer available" }
+        {
+          "status": 400,
+          "code": "validation_error",
+          "message": "time is not within the business's working hours for that date"
+        },
+        {
+          "status": 409,
+          "code": "slot_unavailable",
+          "message": "This time is no longer available"
+        }
       ]
     },
     {
@@ -163,8 +239,16 @@
         "status": "in_progress"
       },
       "errors": [
-        { "status": 400, "code": "invalid_status_transition", "message": "Cannot move from completed to in_progress" },
-        { "status": 404, "code": "not_found", "message": "bookingId does not exist" }
+        {
+          "status": 400,
+          "code": "invalid_status_transition",
+          "message": "Cannot move from completed to in_progress"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "bookingId does not exist"
+        }
       ]
     },
     {
@@ -188,8 +272,16 @@
         "customerPhone": "+254798765432"
       },
       "errors": [
-        { "status": 400, "code": "validation_error", "message": "customerPhone is required when method is mpesa" },
-        { "status": 422, "code": "payment_failed", "message": "Could not confirm payment" }
+        {
+          "status": 400,
+          "code": "validation_error",
+          "message": "customerPhone is required when method is mpesa"
+        },
+        {
+          "status": 422,
+          "code": "payment_failed",
+          "message": "Could not confirm payment"
+        }
       ]
     },
     {
@@ -208,16 +300,40 @@
         "cancelled": 2,
         "avgTicket": 886,
         "buckets": [
-          { "label": "Mon", "amount": 1600 },
-          { "label": "Tue", "amount": 2400 }
+          {
+            "label": "Mon",
+            "amount": 1600
+          },
+          {
+            "label": "Tue",
+            "amount": 2400
+          }
         ],
         "paymentMethods": [
-          { "method": "mpesa", "amount": 9600, "count": 11 },
-          { "method": "cash", "amount": 2800, "count": 3 }
+          {
+            "method": "mpesa",
+            "amount": 9600,
+            "count": 11
+          },
+          {
+            "method": "cash",
+            "amount": 2800,
+            "count": 3
+          }
         ],
         "services": [
-          { "serviceId": "svc_01a1", "name": "Classic Haircut", "amount": 8000, "bookingsCount": 10 },
-          { "serviceId": "svc_01a2", "name": "Beard Trim", "amount": 0, "bookingsCount": 0 }
+          {
+            "serviceId": "svc_01a1",
+            "name": "Classic Haircut",
+            "amount": 8000,
+            "bookingsCount": 10
+          },
+          {
+            "serviceId": "svc_01a2",
+            "name": "Beard Trim",
+            "amount": 0,
+            "bookingsCount": 0
+          }
         ],
         "transactions": [
           {
@@ -233,7 +349,11 @@
         ]
       },
       "errors": [
-        { "status": 404, "code": "not_found", "message": "No business found for this id" }
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "No business found for this id"
+        }
       ]
     },
     {
@@ -259,7 +379,11 @@
         "createdAt": "2026-09-22T11:35:00Z"
       },
       "errors": [
-        { "status": 400, "code": "validation_error", "message": "name is required" }
+        {
+          "status": 400,
+          "code": "validation_error",
+          "message": "name is required"
+        }
       ]
     },
     {
@@ -284,7 +408,11 @@
         ]
       },
       "errors": [
-        { "status": 404, "code": "not_found", "message": "No business found for this id" }
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "No business found for this id"
+        }
       ]
     },
     {
@@ -312,8 +440,16 @@
         "rejectionReason": null
       },
       "errors": [
-        { "status": 400, "code": "validation_error", "message": "amount must be greater than 0" },
-        { "status": 409, "code": "insufficient_balance", "message": "Amount exceeds available wallet balance" }
+        {
+          "status": 400,
+          "code": "validation_error",
+          "message": "amount must be greater than 0"
+        },
+        {
+          "status": 409,
+          "code": "insufficient_balance",
+          "message": "Amount exceeds available wallet balance"
+        }
       ]
     },
     {
@@ -341,7 +477,11 @@
         ]
       },
       "errors": [
-        { "status": 404, "code": "not_found", "message": "No business found for this id" }
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "No business found for this id"
+        }
       ]
     },
     {
@@ -363,8 +503,52 @@
         "rejectionReason": null
       },
       "errors": [
-        { "status": 404, "code": "not_found", "message": "payoutId does not exist for this business" },
-        { "status": 409, "code": "already_responded", "message": "This payout has already been approved or rejected" }
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "payoutId does not exist for this business"
+        },
+        {
+          "status": 409,
+          "code": "already_responded",
+          "message": "This payout has already been approved or rejected"
+        }
+      ]
+    },
+    {
+      "id": "assign-booking-staff",
+      "status": "live",
+      "screen": "Appointment detail (owner / front desk): Assign staff",
+      "story": "S1",
+      "method": "PATCH",
+      "path": "/bookings/{bookingId}/staff",
+      "auth": "the business owner, or its front desk",
+      "description": "Assigns an unassigned booking, or reassigns an assigned one. The staff member must offer every service on the booking, work that weekday, and be free (including room for the business's other unassigned bookings at that time). Only pending_payment, confirmed and in_progress bookings can be (re)assigned. App: AppointmentDetailScreen's Assign staff / Reassign sheet, which stays open on staff_unavailable. Finding unassigned bookings needs the business booking list (GET /businesses/{id}/bookings, BK-63), not built yet.",
+      "request": {
+        "staffId": "uuid"
+      },
+      "response": "Booking (staffId and staffName now set)",
+      "errors": [
+        {
+          "status": 409,
+          "code": "staff_unavailable",
+          "message": "That staff member can't take this booking: busy, off that day, or doesn't offer the service"
+        },
+        {
+          "status": 409,
+          "code": "booking_not_active",
+          "message": "A cancelled booking can't be reassigned"
+        },
+        {
+          "status": 403,
+          "code": "forbidden",
+          "message": "Only the owner or front desk can assign staff"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "No booking found for this id / staffId does not exist for this business"
+        }
       ]
     }
   ]
