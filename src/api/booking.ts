@@ -1,4 +1,4 @@
-import { apiRequest, toQueryString } from './client';
+import { apiRequest, getApiErrorCode, toQueryString } from './client';
 import { mockDelay } from './mock/delay';
 import { USE_MOCK_BOOKING, USE_MOCK_CHARGE, USE_MOCK_FULFILLMENT } from '../config/env';
 import type { Booking, BookingServiceLine } from '../types/booking';
@@ -217,13 +217,47 @@ export function createScheduledBooking(
   return apiRequest<Booking>('/bookings/scheduled', { method: 'POST', body: input });
 }
 
-// See reference/api/fulfillment.json#charge-booking for the contract this
-// and chargeBookingCash below implement (one endpoint, method-dependent
-// body). Mocks an M-Pesa STK push to the customer's phone for the final
-// service charge, separate from confirm-booking-payment's up-front deposit
-// push. Mock-only quirk: takes the full booking rather than just an id,
-// same reason as confirmBookingPayment below.
-export function chargeBookingPayment(booking: Booking, customerPhone: string): Promise<Booking> {
+// See reference/api/fulfillment.json#charge-booking (requested — not built
+// yet, so USE_MOCK_CHARGE is on). The final charge at checkout for an
+// in_progress booking: the balance after any deposit. Works like the
+// deposit: M-Pesa answers 202 at once, then we poll the booking until it's
+// paid (status completed) or chargePayment failed / timed out.
+const CHARGE_POLL_INTERVAL_MS = 3000;
+const CHARGE_POLL_LIMIT_MS = 2 * 60 * 1000;
+
+export class ChargeFailedError extends Error {
+  failureReason: string;
+
+  constructor(failureReason: string) {
+    super(failureReason);
+    this.failureReason = failureReason;
+  }
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForCharge(bookingId: string): Promise<Booking> {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < CHARGE_POLL_LIMIT_MS) {
+    await sleep(CHARGE_POLL_INTERVAL_MS);
+    const booking = await getBooking(bookingId).catch(() => null); // a dropped poll isn't an outcome
+    if (!booking) continue;
+    if (booking.paymentStatus === 'paid') return booking;
+    const attempt = booking.chargePayment;
+    if (attempt && (attempt.status === 'failed' || attempt.status === 'timeout')) {
+      throw new ChargeFailedError(attempt.failureReason ?? attempt.status);
+    }
+  }
+  throw new ChargeFailedError('timeout');
+}
+
+// Throws ChargeFailedError (failureReason: cancelled, insufficient_funds,
+// wrong_pin, timeout, …) when the customer doesn't complete the prompt, or
+// an ApiError when the prompt couldn't be sent. On payment_in_progress it
+// keeps waiting on the prompt already out instead of sending another.
+export async function chargeBookingPayment(booking: Booking, customerPhone: string): Promise<Booking> {
   if (USE_MOCK_CHARGE) {
     return mockDelay<Booking>(
       {
@@ -238,17 +272,20 @@ export function chargeBookingPayment(booking: Booking, customerPhone: string): P
     );
   }
 
-  return apiRequest<Booking>(`/bookings/${booking.bookingId}/charge`, {
-    method: 'POST',
-    body: { customerPhone, method: 'mpesa' },
-  });
+  try {
+    const res = await apiRequest<Booking | { paymentId: string }>(`/bookings/${booking.bookingId}/charge`, {
+      method: 'POST',
+      body: { method: 'mpesa', phone: customerPhone },
+    });
+    // Nothing left to pay (deposit covered it) completes immediately.
+    if ('bookingId' in res && 'status' in res && res.status === 'completed') return res as Booking;
+  } catch (err) {
+    if (getApiErrorCode(err) !== 'payment_in_progress') throw err;
+  }
+  return waitForCharge(booking.bookingId);
 }
 
-// See reference/api/fulfillment.json#charge-booking — same endpoint as
-// chargeBookingPayment above, but for cash paid in person: no phone, no
-// push, just records the service as paid immediately. Still goes through
-// mockDelay so the UI's brief loading state is exercised the same way as
-// every other mock write.
+// Same endpoint, cash paid in person: recorded immediately.
 export function chargeBookingCash(booking: Booking): Promise<Booking> {
   if (USE_MOCK_CHARGE) {
     return mockDelay<Booking>({

@@ -8,7 +8,15 @@ import { Button } from '../../components/Button';
 import { PhoneInput } from '../../components/PhoneInput';
 import { CheckIcon } from '../../components/icons/CheckIcon';
 import { PhoneIcon } from '../../components/icons/PhoneIcon';
-import { assignBookingStaff, chargeBookingCash, chargeBookingPayment, getBooking, updateBookingStatus } from '../../api/booking';
+import {
+  assignBookingStaff,
+  ChargeFailedError,
+  chargeBookingCash,
+  chargeBookingPayment,
+  getBooking,
+  updateBookingStatus,
+} from '../../api/booking';
+import { depositFailureMessage } from '../../utils/depositPayment';
 import { MarkRefundedSheet } from '../../components/MarkRefundedSheet';
 import { showApiError } from '../../utils/showApiError';
 import { getApiErrorCode, getApiErrorMessage } from '../../api/client';
@@ -49,6 +57,7 @@ export function AppointmentDetailScreen() {
   const updateBooking = useBookingsStore((s) => s.updateBooking);
   const upsertBooking = useBookingsStore((s) => s.upsertBooking);
   const [refundSheetVisible, setRefundSheetVisible] = useState(false);
+  const [chargeError, setChargeError] = useState('');
 
   // Always refresh from the server — this may be opened from a list that
   // hasn't cached the booking (e.g. Unassigned or Refunds owed).
@@ -131,6 +140,7 @@ export function AppointmentDetailScreen() {
     setChargeSheetVisible(false);
     setChargeStep('form');
     setChargeMethod('mpesa');
+    setChargeError('');
     setRawPhone('');
   };
 
@@ -140,18 +150,36 @@ export function AppointmentDetailScreen() {
     dismissTimer.current = setTimeout(closeChargeSheet, SUCCESS_DISMISS_DELAY);
   };
 
+  // Back to the form with the reason — the owner can re-prompt or take cash.
+  const failCharge = (err: unknown) => {
+    setChargeError(
+      err instanceof ChargeFailedError
+        ? `${depositFailureMessage(err.failureReason)} Try again or take cash.`
+        : getApiErrorMessage(err, "Couldn't charge the customer. Please try again."),
+    );
+    setChargeStep('form');
+  };
+
   const handleSendChargeRequest = async () => {
     if (rawPhone.length < 4) return;
+    setChargeError('');
     setChargeStep('pending');
-    const phone = normalizePhoneNumber(rawPhone, country);
-    const charged = await chargeBookingPayment(booking, phone);
-    finishWithSuccess(charged);
+    try {
+      const charged = await chargeBookingPayment(booking, normalizePhoneNumber(rawPhone, country));
+      finishWithSuccess(charged);
+    } catch (err) {
+      failCharge(err);
+    }
   };
 
   const handleChargeCash = async () => {
+    setChargeError('');
     setChargeStep('pending');
-    const charged = await chargeBookingCash(booking);
-    finishWithSuccess(charged);
+    try {
+      finishWithSuccess(await chargeBookingCash(booking));
+    } catch (err) {
+      failCharge(err);
+    }
   };
 
   return (
@@ -358,8 +386,10 @@ export function AppointmentDetailScreen() {
               <>
                 <Text style={styles.sheetTitle}>Charge customer</Text>
                 <Text style={styles.sheetSubtitle}>
-                  KSh {booking.totalAmount.amount} for {booking.customerName}
+                  {/* balanceDue = total minus any deposit paid (from charge-booking, once live). */}
+                  KSh {(booking.balanceDue ?? booking.totalAmount).amount} for {booking.customerName}
                 </Text>
+                {chargeError ? <Text style={styles.assignError}>{chargeError}</Text> : null}
 
                 <View style={styles.methodRow}>
                   {(['mpesa', 'cash'] as const).map((method) => {

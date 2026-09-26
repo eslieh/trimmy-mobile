@@ -62,6 +62,10 @@ export type Booking = {
   cancelReason?: string | null; // e.g. payment_expired
   notes?: string | null;
   depositPayment?: DepositPayment | null; // null until a deposit payment is started (BK-31)
+  // Checkout (charge-booking, not built yet): what's left to pay after any
+  // deposit, and the M-Pesa charge attempt once one is started.
+  balanceDue?: Money | null;
+  chargePayment?: DepositPayment | null;
   // Both null unless a cancellation involved money (BK-60).
   cancellationFee?: Money | null; // kept by the business for a late cancellation
   refund?: BookingRefund | null; // owed back to the customer, paid by the business by hand

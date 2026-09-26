@@ -135,37 +135,89 @@
     },
     {
       "id": "charge-booking",
-      "screen": "Appointment Detail — Charge customer (business-owner app)",
+      "status": "requested (not built — the app mocks it behind USE_MOCK_CHARGE; the live path below is already implemented, so shipping this only needs the flag flipped)",
+      "screen": "Appointment Detail → Charge customer (owner / front desk)",
       "story": "S1",
       "method": "POST",
       "path": "/bookings/{bookingId}/charge",
-      "description": "Records the final service charge once a booking is in_progress, and marks it completed. `method` is `mpesa` (sends an STK push to `customerPhone` through the business's connected payment destination — request must include customerPhone) or `cash` (no phone needed, records instantly). Separate from confirm-booking-payment, which is the customer-facing up-front deposit push at booking time, not this after-the-fact full charge. `paymentReference` is the M-Pesa receipt number once paid via mpesa (null for cash — there's no receipt for cash); shown in Appointment Detail's Payment card and is what 'txn details from mpesa' on the Transactions list drills into.",
-      "auth": "owner",
+      "auth": "owner or front desk",
+      "description": "The final charge at checkout (PaymentKind.CHARGE on the server), for an in_progress booking. The amount is the balance: totalAmount minus any deposit already paid. Same shape as start-booking-payment so both use one polling pattern. method 'cash': records it immediately and returns 200 with the Booking (status completed, paymentStatus paid, paymentMethod cash). method 'mpesa': sends an STK push to phone (any Kenyan format; defaults to the booking's customerPhone) routed to the business's own till/paybill/bank, and returns 202 at once. The app then polls GET /bookings/{bookingId} every 3s for up to ~2 min: success = status completed + paymentStatus paid, with paymentReference (M-Pesa receipt) and paymentMethod mpesa set; failure = chargePayment.status failed | timeout with a failureReason (same values as depositPayment). The customer can be re-prompted after a failure. No balance due (deposit covered everything): mpesa behaves like cash and completes immediately.",
       "request": {
-        "method": "mpesa",
-        "customerPhone": "+254798765432"
+        "method": "mpesa | cash",
+        "phone": "0712345678"
       },
       "response": {
-        "bookingId": "booking_01a1",
-        "status": "completed",
-        "paymentStatus": "paid",
-        "paymentMethod": "mpesa",
-        "paymentReference": "QGR7XJ9K2M",
-        "customerPhone": "+254798765432"
+        "202 (mpesa)": {
+          "paymentId": "uuid",
+          "bookingId": "uuid",
+          "status": "pending",
+          "amount": 500,
+          "currency": "KES",
+          "phone": "254712345678",
+          "customerMessage": "Success. Request accepted for processing"
+        },
+        "200 (cash, or nothing left to pay)": "Booking (status completed, paymentStatus paid)"
+      },
+      "bookingChanges": {
+        "description": "Booking gains balanceDue (what charge-booking would take now) and chargePayment (null until an M-Pesa charge is started).",
+        "balanceDue": {
+          "amount": 500,
+          "currency": "KES"
+        },
+        "chargePayment": {
+          "paymentId": "uuid",
+          "status": "pending | succeeded | failed | timeout",
+          "failureReason": "cancelled | insufficient_funds | wrong_pin | timeout | busy | provider_error | failed | null"
+        }
       },
       "errors": [
         {
           "status": 400,
-          "code": "validation_error",
-          "message": "customerPhone is required when method is mpesa"
+          "code": "invalid_phone",
+          "message": "Enter a Kenyan mobile number, e.g. 0712 345 678"
         },
         {
-          "status": 422,
-          "code": "payment_failed",
-          "message": "Could not confirm payment"
+          "status": 409,
+          "code": "not_in_progress",
+          "message": "Only an in-progress appointment can be charged"
+        },
+        {
+          "status": 409,
+          "code": "already_paid",
+          "message": "This appointment is already paid"
+        },
+        {
+          "status": 409,
+          "code": "payment_in_progress",
+          "message": "An M-Pesa prompt was just sent; wait for the customer to respond",
+          "paymentId": "uuid"
+        },
+        {
+          "status": 409,
+          "code": "business_cannot_take_payments",
+          "message": "This business can't take M-Pesa payments right now"
+        },
+        {
+          "status": 429,
+          "code": "too_many_attempts",
+          "message": "Too many payment attempts for this booking"
+        },
+        {
+          "status": 502,
+          "code": "payment_provider_error",
+          "message": "M-Pesa couldn't send the prompt; please try again"
+        },
+        {
+          "status": 503,
+          "code": "payments_unavailable",
+          "message": "Payments are temporarily unavailable"
+        },
+        {
+          "status": 403,
+          "code": "forbidden",
+          "message": "Only the owner or front desk can do this"
         }
-      ],
-      "status": "requested (not built; app mocks it: USE_MOCK_CHARGE / USE_MOCK_CUSTOMERS)"
+      ]
     },
     {
       "id": "get-earnings-summary",

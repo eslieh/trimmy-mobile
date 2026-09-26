@@ -31,8 +31,11 @@ export const USE_MOCK_BOOKING_PAYMENT = false;
 // walk-in, scheduled, status, assign staff) — live (BK-26, BK-63).
 export const USE_MOCK_FULFILLMENT = false;
 
-// Charging for the service at the end (fulfillment.json#charge-booking) —
-// not built on the server yet.
+// Charging for the service at checkout (fulfillment.json#charge-booking).
+// The server has no charge endpoint yet (its payments module only takes
+// deposits), so this stays mocked. The app's live path — POST /charge,
+// then poll the booking like the deposit — is already built: flip this to
+// false once the backend ships charge-booking.
 export const USE_MOCK_CHARGE = true;
 
 // Business customer list (fulfillment.json#save-customer / list-customers)
