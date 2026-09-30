@@ -594,7 +594,10 @@
           "message": "teamMode must be one of: solo, team"
         }
       ],
-      "status": "live"
+      "status": "live",
+      "issues": [
+        "REQUESTED (P2): the app now switches a published solo business to team when the owner adds their first team member (Manage Business → Invite team member). Two things to check: (1) set_team_mode always sets onboarding_step = team_mode, which rewinds a published business's step — please leave onboarding_step alone once published. (2) What happens to the owner as a bookable person after the switch? /me/businesses returns staffId null for a team-mode owner, so the app stops giving them a personal schedule. Their Staff row from publish still exists: are they still offered to customers and in availability, and what happens to bookings already assigned to them? Ideally the owner stays bookable (many owners still cut hair) and /me/businesses keeps their staffId."
+      ]
     },
     {
       "id": "invite-team-member",

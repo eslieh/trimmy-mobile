@@ -14,6 +14,7 @@ What the app needs next from the backend, most urgent first. Each one has a full
 |---|---|---|---|
 | P1 | Charging vs. staff completing: let `charge-booking` take a completed-but-unpaid booking, or stop unpaid bookings being completed via the status endpoint | fulfillment.json → `charge-booking` (issues) | Staff finishing their own appointments without losing the payment |
 | P1 | Staff can see their own services | team.json → `get-my-staff-services` | Staff app "My services" |
+| P2 | Solo → team switch: don't rewind `onboardingStep`; keep the owner bookable (and their `staffId`) after switching | business-setup.json → `set-team-mode` (issues) | Solo owners adding their first staff or front desk |
 | P2 | Push tokens (BK-41) | auth.json → `register-push-token` | Notifications for every role; push reminders |
 | P2 | Day summary + submit to owner (F4) | fulfillment.json → `get-day-summary`, `submit-day-summary` | Front desk end-of-day reconciliation |
 | P2 | Confirm front desk can use the public profile + every "owner or front desk" endpoint | fulfillment.json → `frontDeskNote` | Front desk app (F1–F3) |

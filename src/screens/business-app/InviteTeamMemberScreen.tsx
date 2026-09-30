@@ -25,6 +25,10 @@ const DEFAULT_COMMISSION_PERCENT = '40';
 export function InviteTeamMemberScreen() {
   const router = useRouter();
   const ownedBusiness = useBusinessOnboardingStore((s) => s.business);
+  const switchToTeam = useBusinessOnboardingStore((s) => s.switchToTeam);
+  // A solo business can invite too (Manage Business → Invite team member);
+  // the first invite turns it into a team business.
+  const isSolo = ownedBusiness?.teamMode !== 'team';
   const addTeamMemberNow = useBusinessOnboardingStore((s) => s.addTeamMemberNow);
   const isSubmitting = useBusinessOnboardingStore((s) => s.isSubmitting);
 
@@ -69,6 +73,19 @@ export function InviteTeamMemberScreen() {
         commissionPercent: commissionValue,
         workingDays,
       });
+      if (isSolo) {
+        // Now a team: the Team tab appears (with this invite pending there).
+        try {
+          await switchToTeam(ownedBusiness.businessId);
+        } catch (err) {
+          showApiError('Invite sent, but team mode is still off', err);
+          router.back();
+          return;
+        }
+        router.dismissAll();
+        router.replace('/team');
+        return;
+      }
       router.back();
     } catch (err) {
       showApiError("Couldn't send invite", err);
@@ -85,6 +102,12 @@ export function InviteTeamMemberScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
+        {isSolo ? (
+          <Text style={styles.soloHint}>
+            Adding someone makes this a team business: you'll get a Team tab to manage invites, staff and front
+            desk.
+          </Text>
+        ) : null}
         <Input label="Name" value={name} onChangeText={setName} placeholder="Jane Doe" />
         <PhoneInput
           label="Phone"
@@ -143,6 +166,10 @@ export function InviteTeamMemberScreen() {
 }
 
 const styles = StyleSheet.create({
+  soloHint: {
+    ...typography.body,
+    color: colors.text.secondary,
+  },
   flex: {
     flex: 1,
     backgroundColor: colors.background.primary,

@@ -45,6 +45,7 @@ import type {
   BookingSettings,
 } from '../types/business';
 import type { TeamInvitation } from '../types/team';
+import { useOwnedBusinessStore } from './useOwnedBusinessStore';
 
 type BusinessBasicsDraft = {
   name: string;
@@ -162,6 +163,10 @@ type BusinessOnboardingState = {
   // Server → store, for a business created in an earlier session (fresh
   // install, re-login, second device). See utils/restoreOwnedBusiness.ts.
   hydrateFromServer: (detail: BusinessDetail) => void;
+  // Post-publish: a solo business becomes a team one when the owner adds
+  // their first team member (unlike submitTeamMode, the wizard step, this
+  // leaves onboardingStep alone).
+  switchToTeam: (businessId: string) => Promise<void>;
   saveBookingSettings: (businessId: string, patch: Partial<BookingSettings>) => Promise<BookingSettings>;
   loadTeamMembers: (businessId: string) => Promise<void>;
 };
@@ -493,6 +498,14 @@ export const useBusinessOnboardingStore = create<BusinessOnboardingState>((set, 
       serviceCategories: serviceCategories.map(({ services: _services, ...category }) => category),
       services: serviceCategories.flatMap((category) => category.services ?? []),
     });
+  },
+  switchToTeam: async (businessId) => {
+    await setTeamMode(businessId, 'team');
+    set((state) => ({ business: state.business ? { ...state.business, teamMode: 'team' } : state.business }));
+    const owned = useOwnedBusinessStore.getState().business;
+    if (owned?.businessId === businessId) {
+      useOwnedBusinessStore.getState().setOwnedBusiness({ ...owned, teamMode: 'team' });
+    }
   },
   saveBookingSettings: async (businessId, patch) => {
     const saved = await updateBookingSettingsApi(businessId, patch);

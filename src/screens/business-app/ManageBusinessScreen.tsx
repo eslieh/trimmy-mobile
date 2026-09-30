@@ -39,6 +39,18 @@ export function ManageBusinessScreen() {
   }
 
   const rows: Row[] = [
+    // Solo businesses have no Team tab; this is how they add their first
+    // staff or front desk member (which turns on team mode).
+    ...(business.teamMode !== 'team'
+      ? [
+          {
+            key: 'invite',
+            label: 'Invite team member',
+            icon: <UsersIcon size={20} color={colors.text.secondary} />,
+            onPress: () => router.push('/team-invite'),
+          },
+        ]
+      : []),
     {
       key: 'unassigned',
       label: 'Unassigned bookings',
