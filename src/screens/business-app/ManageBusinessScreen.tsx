@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -11,8 +11,12 @@ import { ShieldIcon } from '../../components/icons/ShieldIcon';
 import { UsersIcon } from '../../components/icons/UsersIcon';
 import { WalletIcon } from '../../components/icons/WalletIcon';
 import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
+import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { BUSINESS_CATEGORIES } from '../../data/businessCategories';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
+import { Button } from '../../components/Button';
+import { restoreOwnedBusiness } from '../../utils/restoreOwnedBusiness';
+import { showApiError } from '../../utils/showApiError';
 
 function categoryLabel(value: string): string {
   return BUSINESS_CATEGORIES.find((c) => c.value === value)?.label ?? value;
@@ -33,15 +37,36 @@ type Row = {
 export function ManageBusinessScreen() {
   const router = useRouter();
   const business = useBusinessOnboardingStore((s) => s.business);
+  // Same source as the tab bar, so "Invite team member" shows exactly when
+  // there's no Team tab.
+  const isTeam = useOwnedBusinessStore((s) => s.business?.teamMode) === 'team';
+  const [reloading, setReloading] = useState(false);
 
   if (!business) {
-    return <SafeAreaView style={styles.flex} edges={['top']} />;
+    // The business detail didn't load after login (restoreOwnedBusiness).
+    const reload = () => {
+      setReloading(true);
+      restoreOwnedBusiness()
+        .catch((err) => showApiError("Couldn't load your business", err))
+        .finally(() => setReloading(false));
+    };
+    return (
+      <SafeAreaView style={styles.flex} edges={['top']}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Manage business</Text>
+        </View>
+        <View style={styles.content}>
+          <Text style={styles.businessMeta}>Your business details didn't load.</Text>
+          <Button label={reloading ? 'Loading…' : 'Try again'} disabled={reloading} onPress={reload} />
+        </View>
+      </SafeAreaView>
+    );
   }
 
   const rows: Row[] = [
     // Solo businesses have no Team tab; this is how they add their first
     // staff or front desk member (which turns on team mode).
-    ...(business.teamMode !== 'team'
+    ...(!isTeam
       ? [
           {
             key: 'invite',

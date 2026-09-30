@@ -56,7 +56,14 @@ export function BusinessMenuScreen() {
               <Text style={styles.rowLabel}>Switch to staff view</Text>
             </Pressable>
           </View>
-        ) : null}
+        ) : (
+          // Solo: no Team tab yet — the first invite turns on team mode.
+          <View style={styles.group}>
+            <Pressable style={[styles.row, styles.rowLast]} onPress={() => router.push('/team-invite')}>
+              <Text style={styles.rowLabel}>Invite team member (staff or front desk)</Text>
+            </Pressable>
+          </View>
+        )}
 
         <View style={styles.group}>
           <Pressable style={[styles.row, styles.rowLast]} onPress={handleLogout}>

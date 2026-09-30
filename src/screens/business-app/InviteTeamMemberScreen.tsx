@@ -15,6 +15,7 @@ import { colors, radii, spacing, typography } from '../../theme';
 import type { TeamRole } from '../../types/team';
 import type { WeeklyHours } from '../../types/business';
 import { showApiError } from '../../utils/showApiError';
+import { useBusinessContext } from '../../hooks/useBusinessContext';
 
 const DEFAULT_COUNTRY = countries.find((c) => c.iso2 === 'KE') ?? countries[0];
 const DEFAULT_COMMISSION_PERCENT = '40';
@@ -24,10 +25,10 @@ const DEFAULT_COMMISSION_PERCENT = '40';
 // commission split, working days) that step never asked for.
 export function InviteTeamMemberScreen() {
   const router = useRouter();
-  const ownedBusiness = useBusinessOnboardingStore((s) => s.business);
+  const ownedBusiness = useBusinessContext();
   const switchToTeam = useBusinessOnboardingStore((s) => s.switchToTeam);
-  // A solo business can invite too (Manage Business → Invite team member);
-  // the first invite turns it into a team business.
+  // A solo business can invite too (Manage Business / Menu → Invite team
+  // member); the first invite turns it into a team business.
   const isSolo = ownedBusiness?.teamMode !== 'team';
   const addTeamMemberNow = useBusinessOnboardingStore((s) => s.addTeamMemberNow);
   const isSubmitting = useBusinessOnboardingStore((s) => s.isSubmitting);
