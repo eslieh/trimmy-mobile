@@ -61,5 +61,9 @@ export interface MyBusiness {
   businessId: string;
   name: string;
   status: string;
-  role: string;
+  role: 'owner' | 'staff' | 'front_desk';
+  // The person's Staff.id there. Always set for staff / front_desk; for an
+  // owner only when they take appointments themselves (a published solo
+  // business), else null.
+  staffId: string | null;
 }

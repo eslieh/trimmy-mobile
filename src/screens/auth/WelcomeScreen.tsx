@@ -88,12 +88,15 @@ export function WelcomeScreen() {
       <Divider label="OR" />
 
       <View style={styles.buttonGroup}>
-        <Button
-          label="Continue with mobile"
-          onPress={() => enterAsBusiness('team')}
-          variant="secondary"
-          icon={<PhoneIcon size={20} />}
-        />
+        {/* Phone sign-in doesn't exist yet — development-only shortcut. */}
+        {__DEV__ ? (
+          <Button
+            label="Continue with mobile"
+            onPress={() => enterAsBusiness('team')}
+            variant="secondary"
+            icon={<PhoneIcon size={20} />}
+          />
+        ) : null}
         <Button
           label={google.loading ? 'Connecting to Google...' : 'Continue with Google'}
           onPress={google.start}
@@ -101,12 +104,15 @@ export function WelcomeScreen() {
           variant="secondary"
           icon={<GoogleIcon size={20} />}
         />
-        <Button
-          label="Continue with Apple"
-          onPress={() => enterAsBusiness('solo')}
-          variant="secondary"
-          icon={<AppleIcon size={20} />}
-        />
+        {/* Apple sign-in doesn't exist yet — development-only shortcut. */}
+        {__DEV__ ? (
+          <Button
+            label="Continue with Apple"
+            onPress={() => enterAsBusiness('solo')}
+            variant="secondary"
+            icon={<AppleIcon size={20} />}
+          />
+        ) : null}
       </View>
 
       {google.error ? <Text style={styles.googleError}>{google.error}</Text> : null}

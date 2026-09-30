@@ -29,6 +29,7 @@ import { countries } from '../../data/countries';
 import { normalizePhoneNumber } from '../../utils/phone';
 import { colors, radii, shadows, springs, spacing, typography } from '../../theme';
 import type { BookingStatus, PaymentMethod } from '../../types/booking';
+import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 
 const DEFAULT_COUNTRY = countries.find((c) => c.iso2 === 'KE') ?? countries[0];
 const SUCCESS_DISMISS_DELAY = 1600;
@@ -72,6 +73,10 @@ export function AppointmentDetailScreen() {
   const [chargeStep, setChargeStep] = useState<ChargeStep>('form');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const invitations = useBusinessOnboardingStore((s) => s.invitations);
+  // Staff open this same screen from their own schedule, but can only start
+  // their own appointments — no charging, assigning, refunds, no-shows or
+  // cancelling (the server 403s those for staff).
+  const isStaffView = useOwnedBusinessStore((s) => s.activeMode === 'staff');
   const [assignSheetVisible, setAssignSheetVisible] = useState(false);
   const [assigningStaffId, setAssigningStaffId] = useState<string | null>(null);
   const [assignError, setAssignError] = useState('');
@@ -108,7 +113,7 @@ export function AppointmentDetailScreen() {
 
   // Only active bookings can be (re)assigned; the server checks the rest
   // (offers the services, works that day, is free).
-  const canAssign = ['pending_payment', 'confirmed', 'in_progress'].includes(booking.status);
+  const canAssign = !isStaffView && ['pending_payment', 'confirmed', 'in_progress'].includes(booking.status);
   const assignableStaff = bookableStaff(invitations);
 
   const handleAssign = async (staffId: string, staffName: string) => {
@@ -266,7 +271,9 @@ export function AppointmentDetailScreen() {
                 <Text style={styles.cardValue}>
                   KES {booking.refund.amount.amount} owed back to {booking.customerName}
                 </Text>
-                <Button label="Mark refunded" variant="secondary" onPress={() => setRefundSheetVisible(true)} />
+                {isStaffView ? null : (
+                  <Button label="Mark refunded" variant="secondary" onPress={() => setRefundSheetVisible(true)} />
+                )}
               </>
             ) : (
               <Text style={styles.cardValue}>
@@ -294,7 +301,18 @@ export function AppointmentDetailScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        {booking.status === 'confirmed' ? (
+        {isStaffView ? (
+          <>
+            {booking.status === 'confirmed' ? (
+              <Button label="Start" disabled={isUpdatingStatus} onPress={() => setStatus('in_progress')} />
+            ) : null}
+            {/* Checkout (charging) completes it, and charging needs it still in
+                progress — so staff don't complete it themselves. */}
+            {booking.status === 'in_progress' ? (
+              <Text style={styles.cardValueMuted}>The owner or front desk will check the customer out.</Text>
+            ) : null}
+          </>
+        ) : booking.status === 'confirmed' ? (
           <>
             <Button label="Check in" disabled={isUpdatingStatus} onPress={() => setStatus('in_progress')} />
             <View style={styles.footerRow}>
@@ -315,7 +333,7 @@ export function AppointmentDetailScreen() {
             </View>
           </>
         ) : null}
-        {booking.status === 'in_progress' ? (
+        {!isStaffView && booking.status === 'in_progress' ? (
           <Button label="Charge customer" onPress={() => setChargeSheetVisible(true)} />
         ) : null}
       </View>

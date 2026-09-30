@@ -6,21 +6,10 @@ import { BarChart } from '../../components/charts/BarChart';
 import { DonutChart } from '../../components/charts/DonutChart';
 import { DatePickerField } from '../../components/DatePickerField';
 import { TransactionList } from '../../components/TransactionList';
-import { useBookingsStore } from '../../store/useBookingsStore';
-import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
 import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
-import {
-  buildCustomDateRange,
-  getAppointmentStats,
-  getEarningsBuckets,
-  getPaymentMethodBreakdown,
-  getPresetDateRange,
-  getServicesBreakdown,
-  getTransactionLines,
-  type EarningsRange,
-} from '../../utils/earnings';
+import { buildCustomDateRange, getPresetDateRange, type EarningsRange } from '../../utils/earnings';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
-import { dateRangeKeys, useSyncBusinessBookings } from '../../hooks/useSyncBusinessBookings';
+import { earningsViews, useEarningsSummary } from '../../hooks/useEarningsSummary';
 
 const RANGE_OPTIONS: { value: EarningsRange; label: string }[] = [
   { value: 'today', label: 'Today' },
@@ -61,38 +50,19 @@ function formatMoney(amount: number): string {
 export function EarningsScreen() {
   const router = useRouter();
   const ownedBusiness = useOwnedBusinessStore((s) => s.business);
-  const allServices = useBusinessOnboardingStore((s) => s.services);
-  const bookings = useBookingsStore((s) => s.bookings);
   const [range, setRange] = useState<EarningsRange>('today');
   const [customStart, setCustomStart] = useState(todayKey);
   const [customEnd, setCustomEnd] = useState(todayKey);
-
-  const businessBookings = useMemo(
-    () => (ownedBusiness ? bookings.filter((b) => b.businessId === ownedBusiness.businessId) : []),
-    [bookings, ownedBusiness],
-  );
 
   const dateRange = useMemo(
     () => (range === 'custom' ? buildCustomDateRange(customStart, customEnd) : getPresetDateRange(range)),
     [range, customStart, customEnd],
   );
-  const [syncFrom, syncTo] = dateRangeKeys(dateRange);
-  useSyncBusinessBookings(ownedBusiness?.businessId, syncFrom, syncTo);
-
-  const buckets = useMemo(() => getEarningsBuckets(businessBookings, dateRange), [businessBookings, dateRange]);
-  const paymentBreakdown = useMemo(
-    () => getPaymentMethodBreakdown(businessBookings, dateRange),
-    [businessBookings, dateRange],
-  );
-  const servicesBreakdown = useMemo(
-    () => getServicesBreakdown(allServices, businessBookings, dateRange),
-    [allServices, businessBookings, dateRange],
-  );
-  const stats = useMemo(() => getAppointmentStats(businessBookings, dateRange), [businessBookings, dateRange]);
-  const transactions = useMemo(
-    () => getTransactionLines(businessBookings, dateRange),
-    [businessBookings, dateRange],
-  );
+  // Computed on the server from paid bookings (get-earnings-summary).
+  const { summary } = useEarningsSummary(ownedBusiness?.businessId, dateRange, {
+    allTransactions: range === 'custom',
+  });
+  const { buckets, paymentBreakdown, servicesBreakdown, stats, transactions } = earningsViews(summary);
 
   if (!ownedBusiness) {
     return <SafeAreaView style={styles.flex} edges={['top']} />;

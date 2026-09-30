@@ -15,15 +15,14 @@ export type OwnedBusiness = {
 
 // The staff-app equivalent of OwnedBusiness — same "which business is this
 // session about" slot, but for someone who works *at* a business rather
-// than owns it. staffId scopes bookings/earnings to "mine"
-// (booking.staffId === staffId); invitationId links back to the matching
-// TeamInvitation in useBusinessOnboardingStore.invitations (commission,
-// payouts).
+// than owns it. Set from GET /me/businesses after login (see
+// utils/restoreOwnedBusiness.ts). staffId is the person's Staff.id, which
+// scopes bookings, earnings, wallet and status changes to "mine".
 export type StaffSession = {
   businessId: string;
   businessName: string;
-  invitationId: string; // payouts are still keyed by this
-  staffId: string; // bookings/availability/earnings are keyed by this
+  staffId: string;
+  role: 'staff' | 'front_desk';
 };
 
 // 'customer' / 'business' / 'staff' — Airbnb's traveling/hosting switch,

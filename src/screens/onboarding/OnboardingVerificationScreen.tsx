@@ -37,7 +37,7 @@ export function OnboardingVerificationScreen() {
                 title: 'Welcome back',
                 subtitle: 'Your email is verified and you are logged in.',
                 ctaLabel: 'Done',
-                nextRoute: '/',
+                nextRoute: '/get-started',
               }
             : {
                 title: "You're all set!",

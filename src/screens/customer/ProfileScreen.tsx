@@ -23,6 +23,13 @@ export function ProfileScreen() {
   const setStaffSession = useOwnedBusinessStore((s) => s.setStaffSession);
   const setActiveMode = useOwnedBusinessStore((s) => s.setActiveMode);
   const ownedBusiness = useOwnedBusinessStore((s) => s.business);
+  const staffSession = useOwnedBusinessStore((s) => s.staffSession);
+
+  const handleOpenMySchedule = () => {
+    setActiveMode('staff');
+    router.dismissAll();
+    router.replace('/staff/today');
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -103,28 +110,34 @@ export function ProfileScreen() {
       </View>
 
       <View style={styles.content}>
-        <View style={styles.testingSection}>
-          <Text style={styles.testingLabel}>Testing: switch mode</Text>
-          <View style={styles.testingButtonRow}>
-            <Pressable style={styles.switchButton} onPress={() => handleSwitchToHosting('solo')}>
-              <Text style={styles.switchButtonText}>Business (solo)</Text>
-            </Pressable>
-            <Pressable style={styles.switchButton} onPress={() => handleSwitchToHosting('team')}>
-              <Text style={styles.switchButtonText}>Business (team)</Text>
-            </Pressable>
-            <Pressable style={styles.switchButton} onPress={handleSwitchToStaff}>
-              <Text style={styles.switchButtonText}>Staff</Text>
-            </Pressable>
+        {__DEV__ ? (
+          <View style={styles.testingSection}>
+            <Text style={styles.testingLabel}>Testing: switch mode</Text>
+            <View style={styles.testingButtonRow}>
+              <Pressable style={styles.switchButton} onPress={() => handleSwitchToHosting('solo')}>
+                <Text style={styles.switchButtonText}>Business (solo)</Text>
+              </Pressable>
+              <Pressable style={styles.switchButton} onPress={() => handleSwitchToHosting('team')}>
+                <Text style={styles.switchButtonText}>Business (team)</Text>
+              </Pressable>
+              <Pressable style={styles.switchButton} onPress={handleSwitchToStaff}>
+                <Text style={styles.switchButtonText}>Staff</Text>
+              </Pressable>
+            </View>
+            <Text style={styles.testingHint}>Development builds only — uses seeded mock data.</Text>
           </View>
-          <Text style={styles.testingHint}>
-            Front Desk isn't built as its own experience yet — there's nothing distinct to switch into
-            for that role.
-          </Text>
-        </View>
+        ) : null}
 
         {ownedBusiness ? (
           <Pressable style={styles.switchButton} onPress={handleSwitchToOwnedBusiness}>
             <Text style={styles.switchButtonText}>Switch to {ownedBusiness.name}</Text>
+          </Pressable>
+        ) : null}
+
+        {/* Where they work, restored from /me/businesses after login. */}
+        {staffSession?.role === 'staff' ? (
+          <Pressable style={styles.switchButton} onPress={handleOpenMySchedule}>
+            <Text style={styles.switchButtonText}>Open my schedule at {staffSession.businessName}</Text>
           </Pressable>
         ) : null}
 

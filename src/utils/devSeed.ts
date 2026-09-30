@@ -102,7 +102,7 @@ export function seedSelfAsStaffForTesting(seedIndex: number, displayName: string
   return {
     businessId: seed.businessId,
     businessName: seed.name,
-    invitationId: SELF_STAFF_INVITATION_ID,
     staffId: SELF_STAFF_ID,
+    role: 'staff',
   };
 }

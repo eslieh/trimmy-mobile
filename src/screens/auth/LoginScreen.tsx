@@ -33,7 +33,7 @@ export function LoginScreen() {
           title: 'Welcome back',
           subtitle: 'You have successfully logged in.',
           ctaLabel: 'Done',
-          nextRoute: '/',
+          nextRoute: '/get-started',
         },
       });
     } catch (err) {

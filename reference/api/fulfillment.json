@@ -224,9 +224,9 @@
       "screen": "Earnings (business-owner app)",
       "story": "S2",
       "method": "GET",
-      "path": "/businesses/{businessId}/earnings",
-      "description": "Revenue trend buckets, payment-method breakdown, per-service breakdown, per-transaction ledger, and appointment counts for a date range (`from`/`to` query params, both 'YYYY-MM-DD'). Also takes an optional `staffId` query param — when present, scopes every number to bookings assigned to that team member (see create-walk-in-booking's staffId), which is what TeamMemberDetailScreen's earnings section needs; omitted, it's the whole-business view EarningsScreen shows. Mirrors what src/utils/earnings.ts currently computes client-side by filtering every booking in memory — fine for mock data, not something a real backend should do at scale. `services` should include every service the business currently offers, not just ones with revenue (bookingsCount: 0 rows included) — both screens use that to show what isn't selling, not just what is. `transactions` is one row per service actually performed (not per booking), newest first — the client caps this at 10 for preset ranges and shows everything for a custom range, so a real backend could paginate rather than always returning every row, but the mock returns the full set and lets the client slice it. Only bookings with paymentStatus 'paid' count toward any amount here.",
-      "auth": "owner",
+      "path": "/businesses/{businessId}/earnings?from=2026-10-05&to=2026-10-11[&staffId=uuid][&transactionsLimit=10]",
+      "description": "Computed on the server from paid bookings, following the rules src/utils/earnings.ts used to apply (buckets: 3-hour for one day, daily up to 16 days, weekly up to 70, monthly beyond). from/to are business-local days, inclusive, ≤366 days apart. services lists every current service (0 rows included) plus deleted ones that earned money in the range (serviceId null). transactions: one row per service performed, newest first; transactionsLimit returns the newest N and transactionsTotal the count. Extras: currency, granularity, paidBookings, commission (the scoped person's, or everyone's), staff[] (per-person breakdown on the whole-business view), money (deposits, cancellation fees, refunds), previous (the same-length period before, with revenueChangePercent). App: hooks/useEarningsSummary on Earnings, Member Detail (staffId, only once they have one) and the staff app's Earnings; presets send transactionsLimit=10.",
+      "auth": "owner (whole business, or one person with staffId); staff always get their own (any other staffId is 403); front desk 403",
       "request": null,
       "response": {
         "totalRevenue": 12400,
@@ -290,7 +290,7 @@
           "message": "No business found for this id"
         }
       ],
-      "status": "requested (not built; the app computes earnings from list-business-bookings, which is fine now that charge-booking marks bookings paid)"
+      "status": "live"
     },
     {
       "id": "save-customer",

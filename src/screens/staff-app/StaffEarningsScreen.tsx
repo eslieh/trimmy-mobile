@@ -8,23 +8,12 @@ import { DatePickerField } from '../../components/DatePickerField';
 import { TransactionList } from '../../components/TransactionList';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
-import { useBookingsStore } from '../../store/useBookingsStore';
-import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
 import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { usePayoutsStore } from '../../store/usePayoutsStore';
 import { PAYOUT_STATUS_COLOR, PAYOUT_STATUS_LABEL } from '../../utils/payout';
-import {
-  buildCustomDateRange,
-  getAppointmentStats,
-  getEarningsBuckets,
-  getPaymentMethodBreakdown,
-  getPresetDateRange,
-  getServicesBreakdown,
-  getTransactionLines,
-  type EarningsRange,
-} from '../../utils/earnings';
+import { buildCustomDateRange, getPresetDateRange, type EarningsRange } from '../../utils/earnings';
+import { earningsViews, useEarningsSummary } from '../../hooks/useEarningsSummary';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
-import { dateRangeKeys, useSyncBusinessBookings } from '../../hooks/useSyncBusinessBookings';
 import { getMyPayoutBalance } from '../../api/payouts';
 import { showApiError } from '../../utils/showApiError';
 import type { PayoutBalance } from '../../types/payout';
@@ -82,11 +71,6 @@ function formatRequestDate(iso: string): string {
 export function StaffEarningsScreen() {
   const router = useRouter();
   const staffSession = useOwnedBusinessStore((s) => s.staffSession);
-  const allServices = useBusinessOnboardingStore((s) => s.services);
-  const invitation = useBusinessOnboardingStore((s) =>
-    s.invitations.find((i) => i.invitationId === staffSession?.invitationId),
-  );
-  const bookings = useBookingsStore((s) => s.bookings);
   const payouts = usePayoutsStore((s) => s.payouts);
   const loadPayouts = usePayoutsStore((s) => s.loadPayouts);
   const requestPayoutNow = usePayoutsStore((s) => s.requestPayoutNow);
@@ -100,14 +84,6 @@ export function StaffEarningsScreen() {
   const [isRequesting, setIsRequesting] = useState(false);
   const [requestSheetVisible, setRequestSheetVisible] = useState(false);
   const [requestAmount, setRequestAmount] = useState('');
-
-  const myBookings = useMemo(
-    () =>
-      staffSession
-        ? bookings.filter((b) => b.businessId === staffSession.businessId && b.staffId === staffSession.staffId)
-        : [],
-    [bookings, staffSession],
-  );
 
   const myPayouts = useMemo(
     () =>
@@ -123,17 +99,9 @@ export function StaffEarningsScreen() {
     () => (range === 'custom' ? buildCustomDateRange(customStart, customEnd) : getPresetDateRange(range)),
     [range, customStart, customEnd],
   );
-  const [syncFrom, syncTo] = dateRangeKeys(dateRange);
-  useSyncBusinessBookings(staffSession?.businessId, syncFrom, syncTo);
-
-  const buckets = useMemo(() => getEarningsBuckets(myBookings, dateRange), [myBookings, dateRange]);
-  const paymentBreakdown = useMemo(() => getPaymentMethodBreakdown(myBookings, dateRange), [myBookings, dateRange]);
-  const servicesBreakdown = useMemo(
-    () => getServicesBreakdown(allServices, myBookings, dateRange),
-    [allServices, myBookings, dateRange],
-  );
-  const stats = useMemo(() => getAppointmentStats(myBookings, dateRange), [myBookings, dateRange]);
-  const transactions = useMemo(() => getTransactionLines(myBookings, dateRange), [myBookings, dateRange]);
+  // The server scopes this to the signed-in staff member (get-earnings-summary).
+  const { summary } = useEarningsSummary(staffSession?.businessId, dateRange, { allTransactions: range === 'custom' });
+  const { buckets, paymentBreakdown, servicesBreakdown, stats, transactions } = earningsViews(summary);
 
   const businessId = staffSession?.businessId;
   const staffId = staffSession?.staffId;
@@ -146,7 +114,7 @@ export function StaffEarningsScreen() {
   }, [businessId, staffId, loadPayouts]);
   useFocusEffect(refreshWallet);
 
-  const commissionPercent = balance?.commissionPercent ?? invitation?.commissionPercent ?? 0;
+  const commissionPercent = balance?.commissionPercent ?? 0;
   const lifetimeCommission = balance?.earned ?? 0;
   const availableBalance = balance?.available ?? 0;
 

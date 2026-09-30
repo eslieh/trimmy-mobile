@@ -10,7 +10,6 @@ import { WorkingDaysPicker } from '../../components/WorkingDaysPicker';
 import { TransactionList } from '../../components/TransactionList';
 import { BarChart } from '../../components/charts/BarChart';
 import { DonutChart } from '../../components/charts/DonutChart';
-import { useBookingsStore } from '../../store/useBookingsStore';
 import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
 import { getStaffServices, setStaffServices, type StaffServices } from '../../api/team';
 import { getStaffPayoutBalance } from '../../api/payouts';
@@ -21,20 +20,11 @@ import {
   TEAM_ROLE_LABEL,
   teamMemberDisplayName,
 } from '../../utils/team';
-import {
-  buildCustomDateRange,
-  getAppointmentStats,
-  getEarningsBuckets,
-  getPaymentMethodBreakdown,
-  getPresetDateRange,
-  getServicesBreakdown,
-  getTransactionLines,
-  type EarningsRange,
-} from '../../utils/earnings';
+import { buildCustomDateRange, getPresetDateRange, type EarningsRange } from '../../utils/earnings';
+import { earningsViews, useEarningsSummary } from '../../hooks/useEarningsSummary';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import type { WeeklyHours } from '../../types/business';
 import { showApiError } from '../../utils/showApiError';
-import { dateRangeKeys, useSyncBusinessBookings } from '../../hooks/useSyncBusinessBookings';
 
 const RANGE_OPTIONS: { value: EarningsRange; label: string }[] = [
   { value: 'today', label: 'Today' },
@@ -85,7 +75,6 @@ export function TeamMemberDetailScreen() {
   const updateTeamMemberNow = useBusinessOnboardingStore((s) => s.updateTeamMemberNow);
   const removeTeamMemberNow = useBusinessOnboardingStore((s) => s.removeTeamMemberNow);
   const markTeamMemberActiveForTesting = useBusinessOnboardingStore((s) => s.markTeamMemberActiveForTesting);
-  const bookings = useBookingsStore((s) => s.bookings);
 
   const [commissionPercent, setCommissionPercent] = useState(() => String(invitation?.commissionPercent ?? 40));
   const [workingDays, setWorkingDays] = useState<(keyof WeeklyHours)[] | null>(invitation?.workingDays ?? null);
@@ -118,29 +107,18 @@ export function TeamMemberDetailScreen() {
       .catch((err) => showApiError("Couldn't load their services", err));
   }, [businessId, staffId]);
 
-  const memberBookings = useMemo(
-    () => (business && invitation ? bookings.filter((b) => invitation.staffId !== null && b.businessId === business.businessId && b.staffId === invitation.staffId) : []),
-    [bookings, business, invitation],
-  );
-
   const dateRange = useMemo(
     () => (range === 'custom' ? buildCustomDateRange(customStart, customEnd) : getPresetDateRange(range)),
     [range, customStart, customEnd],
   );
-  const [syncFrom, syncTo] = dateRangeKeys(dateRange);
-  useSyncBusinessBookings(business?.businessId, syncFrom, syncTo);
-
-  const buckets = useMemo(() => getEarningsBuckets(memberBookings, dateRange), [memberBookings, dateRange]);
-  const paymentBreakdown = useMemo(
-    () => getPaymentMethodBreakdown(memberBookings, dateRange),
-    [memberBookings, dateRange],
-  );
-  const servicesBreakdown = useMemo(
-    () => getServicesBreakdown(allServices, memberBookings, dateRange),
-    [allServices, memberBookings, dateRange],
-  );
-  const stats = useMemo(() => getAppointmentStats(memberBookings, dateRange), [memberBookings, dateRange]);
-  const transactions = useMemo(() => getTransactionLines(memberBookings, dateRange), [memberBookings, dateRange]);
+  // Scoped to this person on the server. Without a staffId (invite still
+  // pending) there's nothing of theirs to show — and omitting staffId would
+  // return the whole business's numbers — so don't ask.
+  const { summary } = useEarningsSummary(staffId ? business?.businessId : undefined, dateRange, {
+    staffId: staffId ?? undefined,
+    allTransactions: range === 'custom',
+  });
+  const { buckets, paymentBreakdown, servicesBreakdown, stats, transactions } = earningsViews(summary);
 
   if (!business || !invitation) {
     return (
@@ -172,7 +150,8 @@ export function TeamMemberDetailScreen() {
       return { allServices: false, serviceIds };
     });
   };
-  const commissionAmount = Math.round(stats.totalRevenue * ((invitation.commissionPercent ?? 0) / 100));
+  // Fixed on each booking when it was paid, at that moment's rate (server-side).
+  const commissionAmount = summary?.commission ?? 0;
 
   const handleSave = async () => {
     if (!canSave || isSaving) return;
@@ -405,7 +384,7 @@ export function TeamMemberDetailScreen() {
 
         <Button label={isSaving ? 'Saving…' : 'Save changes'} disabled={!canSave || isSaving} onPress={handleSave} />
 
-        {invitation.status === 'pending' ? (
+        {__DEV__ && invitation.status === 'pending' ? (
           <Button
             label="Mark as joined (testing)"
             variant="secondary"

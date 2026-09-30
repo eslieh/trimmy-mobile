@@ -1,19 +1,25 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Button } from '../components/Button';
 import { listMyInvitations, respondToInvitation } from '../api/team';
+import { authApi } from '../api/auth';
+import { useOwnedBusinessStore } from '../store/useOwnedBusinessStore';
+import { restoreOwnedBusiness } from '../utils/restoreOwnedBusiness';
+import { showApiError } from '../utils/showApiError';
+import type { MyBusiness } from '../api/types';
 import { useBusinessOnboardingStore } from '../store/useBusinessOnboardingStore';
 import { nextSetupRoute } from '../utils/restoreOwnedBusiness';
 import { TEAM_ROLE_LABEL } from '../utils/team';
 import { colors, radii, shadows, spacing, typography } from '../theme';
 import type { MyInvitation } from '../types/team';
 
-// Lands here right after signup. Resolves the "what kind of user is this"
-// question from reference/TASKS.md: check for a pending team invite first
-// (they're joining someone else's business), otherwise offer to enroll a
-// business or continue as a customer.
+// Lands here after signup and login. Resolves the "what kind of user is
+// this" question from reference/TASKS.md: the businesses they already own
+// or work at (GET /me/businesses) open straight into the right app; a
+// pending team invite comes next (accepting it adds a workplace here);
+// otherwise offer to enroll a business or continue as a customer.
 export function GetStartedScreen() {
   const router = useRouter();
   const [invitations, setInvitations] = useState<MyInvitation[] | null>(null);
@@ -22,19 +28,66 @@ export function GetStartedScreen() {
   const business = useBusinessOnboardingStore((s) => s.business);
   const draft = business?.status === 'draft' ? business : null;
 
+  const [workplaces, setWorkplaces] = useState<MyBusiness[]>([]);
+  const setActiveMode = useOwnedBusinessStore((s) => s.setActiveMode);
+  const setStaffSession = useOwnedBusinessStore((s) => s.setStaffSession);
+
+  const loadWorkplaces = useCallback(() => {
+    authApi
+      .listMyBusinesses()
+      .then((list) => setWorkplaces(list.filter((b) => b.status === 'published')))
+      .catch(() => setWorkplaces([]));
+  }, []);
+
   useEffect(() => {
+    loadWorkplaces();
     // An invite check failing shouldn't strand the user on a spinner — fall
     // through to the enroll-a-business / browse options.
     listMyInvitations()
       .then(setInvitations)
       .catch(() => setInvitations([]));
-  }, []);
+  }, [loadWorkplaces]);
+
+  const openWorkplace = async (workplace: MyBusiness) => {
+    if (workplace.role === 'owner') {
+      try {
+        // Usually already restored after login; make sure before switching.
+        if (!useOwnedBusinessStore.getState().business) await restoreOwnedBusiness();
+      } catch (err) {
+        showApiError("Couldn't open your business", err);
+        return;
+      }
+      const owned = useOwnedBusinessStore.getState().business;
+      if (!owned) return;
+      setActiveMode('business');
+      router.dismissAll();
+      router.replace(owned.teamMode === 'solo' ? '/today' : '/earnings');
+      return;
+    }
+    if (!workplace.staffId) return;
+    setStaffSession({
+      businessId: workplace.businessId,
+      businessName: workplace.name,
+      staffId: workplace.staffId,
+      role: workplace.role,
+    });
+    setActiveMode('staff');
+    router.dismissAll();
+    router.replace('/staff/today');
+  };
 
   const handleRespond = async (invitationId: string, action: 'accept' | 'decline') => {
     setRespondingId(invitationId);
     try {
       await respondToInvitation(invitationId, action);
       setInvitations((current) => current?.filter((invite) => invite.invitationId !== invitationId) ?? null);
+      // Accepting makes them staff there — it shows up under Your workplaces.
+      if (action === 'accept') {
+        loadWorkplaces();
+        restoreOwnedBusiness().catch(() => {});
+      }
+    } catch (err) {
+      showApiError("Couldn't respond to this invitation", err);
     } finally {
       setRespondingId(null);
     }
@@ -45,6 +98,26 @@ export function GetStartedScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Welcome to Trimyy</Text>
         <Text style={styles.subtitle}>Let's get you to the right place.</Text>
+
+        {workplaces.map((workplace) => (
+          <View key={`${workplace.businessId}:${workplace.role}`} style={styles.card}>
+            <Text style={styles.cardTitle}>{workplace.name}</Text>
+            <Text style={styles.cardBody}>
+              {workplace.role === 'owner'
+                ? 'Your business'
+                : `You work here as ${workplace.role === 'staff' ? 'staff' : 'front desk'}`}
+            </Text>
+            {workplace.role === 'front_desk' ? (
+              <Text style={styles.cardBody}>The front desk app is coming soon.</Text>
+            ) : (
+              <Button
+                label={workplace.role === 'owner' ? 'Open business' : 'Open my schedule'}
+                onPress={() => openWorkplace(workplace)}
+                style={styles.enrollButton}
+              />
+            )}
+          </View>
+        ))}
 
         {invitations === null ? (
           <ActivityIndicator style={styles.invitationsLoading} color={colors.text.secondary} />

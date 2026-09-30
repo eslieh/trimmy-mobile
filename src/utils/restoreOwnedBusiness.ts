@@ -5,8 +5,10 @@ import { useBusinessOnboardingStore } from '../store/useBusinessOnboardingStore'
 import { useOwnedBusinessStore } from '../store/useOwnedBusinessStore';
 import type { OnboardingStep, TeamMode } from '../types/business';
 
-// Rebuilds the owner's business from the server after login, so a fresh
-// install (or restart, or second device) gets back to where they were:
+// Rebuilds the user's workplaces from the server after login (GET
+// /me/businesses), so a fresh install (or restart, or second device) gets
+// back to where they were. For staff / front desk it sets the staff
+// session; for an owner:
 //   - published → the business-app screens (Manage, Team…) have their data,
 //     and the owned-business slot is set so they can switch into it;
 //   - draft → the wizard store holds it, so setup can resume at the next
@@ -14,6 +16,21 @@ import type { OnboardingStep, TeamMode } from '../types/business';
 // Doesn't change activeMode: switching modes stays a manual action.
 export async function restoreOwnedBusiness(): Promise<void> {
   const businesses = await authApi.listMyBusinesses();
+
+  // Staff / front desk: the session their app runs on (their bookings,
+  // earnings, wallet and status changes are all keyed by staffId).
+  const membership = businesses.find(
+    (b) => (b.role === 'staff' || b.role === 'front_desk') && b.staffId && b.status === 'published',
+  );
+  if (membership?.staffId) {
+    useOwnedBusinessStore.getState().setStaffSession({
+      businessId: membership.businessId,
+      businessName: membership.name,
+      staffId: membership.staffId,
+      role: membership.role as 'staff' | 'front_desk',
+    });
+  }
+
   const owned =
     businesses.find((b) => b.role === 'owner' && b.status === 'published') ??
     businesses.find((b) => b.role === 'owner');
