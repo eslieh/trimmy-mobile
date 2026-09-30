@@ -5,6 +5,21 @@ import { listMyInvitations } from '../api/team';
 
 type Router = ReturnType<typeof useRouter>;
 
+// A notification tapped before the post-login redirect finished (cold start
+// from a push): opened once the redirect has replaced the stack, so it
+// isn't wiped out by it. See components/NotificationTapRouter.
+let redirectDone = false;
+let pendingRoute: { route: Href; apply: () => void } | null = null;
+
+export function openAfterLoginRedirect(route: Href, apply: () => void, router: Router): void {
+  if (redirectDone) {
+    apply();
+    router.push(route);
+  } else {
+    pendingRoute = { route, apply };
+  }
+}
+
 // Where a signed-in user belongs, by role (GET /me/businesses via
 // restoreOwnedBusiness): an owner with a published business → the business
 // app; staff → their schedule in the staff app; front desk → the front desk
@@ -39,4 +54,12 @@ export async function routeAfterLogin(router: Router, fallback: Href = '/explore
 
   if (router.canDismiss()) router.dismissAll();
   router.replace(target);
+
+  redirectDone = true;
+  if (pendingRoute) {
+    const { route, apply } = pendingRoute;
+    pendingRoute = null;
+    apply();
+    router.push(route);
+  }
 }

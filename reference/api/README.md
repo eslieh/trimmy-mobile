@@ -12,8 +12,6 @@ What the app needs next from the backend, most urgent first. Each one has a full
 
 | Priority | Request | File → entry | Unblocks |
 |---|---|---|---|
-| P2 | Push tokens (BK-41) | auth.json → `register-push-token` | Notifications for every role; push reminders |
-| P3 | Reminder preferences (C5 "configurable") | — (not specified yet) | Customers turning reminders off / choosing times |
 | P3 | Bookings by customer | fulfillment.json → `list-business-bookings` (issues) | Full history on Customer Detail |
 | P3 | `PATCH /businesses/{id}` ignores `amenities` | business-setup.json → `update-business-info` (issues) | Editing amenities after setup |
 

@@ -9,6 +9,7 @@ import { useOwnedBusinessStore } from '../store/useOwnedBusinessStore';
 import { useBusinessOnboardingStore } from '../store/useBusinessOnboardingStore';
 import { useFrontDeskStore } from '../store/useFrontDeskStore';
 import { useFavoritesStore } from '../store/useFavoritesStore';
+import { registerForPushNotifications, unregisterPushNotifications } from '../utils/pushNotifications';
 
 interface AuthContextType {
   user: User | null;
@@ -58,6 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!restoreForUserId) return;
     restoreOwnedBusiness().catch(() => {});
     useFavoritesStore.getState().load().catch(() => {});
+    registerForPushNotifications();
   }, [restoreForUserId]);
 
   async function loadUser() {
@@ -125,6 +127,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function logout() {
+    // Stop pushes to this device for this account (needs the session).
+    await unregisterPushNotifications();
     // Best-effort server revoke — the user is logged out locally either way
     // (e.g. offline, or the session had already expired).
     const refreshToken = await tokenStorage.getRefreshToken();
@@ -148,6 +152,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function deleteAccount(password: string) {
+    await unregisterPushNotifications();
     await authApi.deleteMe(password);
     await tokenStorage.clearTokens();
     clearBusinessState();

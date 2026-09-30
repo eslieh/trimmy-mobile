@@ -14,6 +14,7 @@ import {
   Manrope_800ExtraBold,
 } from '@expo-google-fonts/manrope';
 import { AuthProvider } from '../src/contexts/AuthContext';
+import { NotificationTapRouter } from '../src/components/NotificationTapRouter';
 import { colors } from '../src/theme';
 
 SplashScreen.preventAutoHideAsync();
@@ -41,6 +42,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
         <AuthProvider>
+          <NotificationTapRouter />
           <Stack
             screenOptions={{
               headerShown: false,

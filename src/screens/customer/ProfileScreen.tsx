@@ -95,7 +95,7 @@ export function ProfileScreen() {
     { key: 'messages', label: 'Messages' },
     { key: 'appointments', label: 'My appointments', icon: <CalendarIcon size={20} />, onPress: () => router.push('/activity') },
     { key: 'forms', label: 'Forms' },
-    { key: 'settings', label: 'Settings' },
+    ...(user ? [{ key: 'notifications', label: 'Notifications', onPress: () => router.push('/account/notifications') }] : []),
   ];
 
   const supportRows: Row[] = [
