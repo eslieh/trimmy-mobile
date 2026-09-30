@@ -25,7 +25,10 @@
         ]
       },
       "errors": [],
-      "status": "live"
+      "status": "live",
+      "issues": [
+        "REQUESTED (P1): invitations are only matched by exact phone string (TeamInvitation.phone == user.phone), and users without a phone get none. So an invite sent by email never reaches anyone, anyone who signed up with Google (no phone) never sees one, and a number saved in a different format doesn't match. Please match pending invitations to the user by email OR phone, comparing phones normalised to E.164 (as customers already are). That way an invite shows up right after the person registers, verifies or signs in with Google using that email or phone. The app shows invites on Get Started and the Profile tab, routes an invited user to Get Started after login, and until this is fixed tells users without a phone to add one."
+      ]
     },
     {
       "id": "respond-to-invitation",

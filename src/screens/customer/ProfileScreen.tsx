@@ -8,6 +8,7 @@ import { CalendarIcon } from '../../components/icons/CalendarIcon';
 import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { seedOwnedBusinessForTesting, seedSelfAsStaffForTesting } from '../../utils/devSeed';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
+import { PendingInvitations } from '../../components/PendingInvitations';
 
 type Row = {
   key: string;
@@ -128,6 +129,10 @@ export function ProfileScreen() {
             <Text style={styles.testingHint}>Development builds only — uses seeded mock data.</Text>
           </View>
         ) : null}
+
+        {/* Team invitations for this user — accepting one adds the
+            "Open my schedule / front desk" button below. */}
+        <PendingInvitations />
 
         {ownedBusiness ? (
           <Pressable style={styles.switchButton} onPress={handleSwitchToOwnedBusiness}>

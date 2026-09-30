@@ -1,6 +1,7 @@
 import type { Href, useRouter } from 'expo-router';
 import { restoreOwnedBusiness } from './restoreOwnedBusiness';
 import { useOwnedBusinessStore } from '../store/useOwnedBusinessStore';
+import { listMyInvitations } from '../api/team';
 
 type Router = ReturnType<typeof useRouter>;
 
@@ -30,6 +31,10 @@ export async function routeAfterLogin(router: Router, fallback: Href = '/explore
     target = '/front-desk/today';
   } else {
     setActiveMode('customer');
+    // Invited to a team but not in one yet: Get Started, where the invite
+    // can be accepted, instead of the customer app.
+    const invitations = await listMyInvitations().catch(() => []);
+    if (invitations.length > 0) target = '/get-started';
   }
 
   if (router.canDismiss()) router.dismissAll();

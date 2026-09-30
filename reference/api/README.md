@@ -12,6 +12,7 @@ What the app needs next from the backend, most urgent first. Each one has a full
 
 | Priority | Request | File → entry | Unblocks |
 |---|---|---|---|
+| P1 | Match team invitations by email **or** phone (normalised) — today it's exact phone only, so email invites and Google users never see them | team.json → `list-my-invitations` (issues) | Invited staff / front desk actually seeing their invite |
 | P1 | Charging vs. staff completing: let `charge-booking` take a completed-but-unpaid booking, or stop unpaid bookings being completed via the status endpoint | fulfillment.json → `charge-booking` (issues) | Staff finishing their own appointments without losing the payment |
 | P1 | Staff can see their own services | team.json → `get-my-staff-services` | Staff app "My services" |
 | P2 | Solo → team switch: don't rewind `onboardingStep`; keep the owner bookable (and their `staffId`) after switching | business-setup.json → `set-team-mode` (issues) | Solo owners adding their first staff or front desk |

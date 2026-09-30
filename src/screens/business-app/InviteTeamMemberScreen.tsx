@@ -112,6 +112,9 @@ export function InviteTeamMemberScreen() {
         <Input label="Name" value={name} onChangeText={setName} placeholder="Jane Doe" />
         <PhoneInput
           label="Phone"
+          // The server matches invites to people by phone for now (see
+          // team.json#list-my-invitations), so this is what reaches them.
+          helperText="They'll see the invite when they sign in with this number."
           country={country}
           onCountryChange={setCountry}
           value={rawPhone}
