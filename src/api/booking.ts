@@ -1,7 +1,7 @@
 import { apiRequest, getApiErrorCode, toQueryString } from './client';
 import { mockDelay } from './mock/delay';
 import { USE_MOCK_BOOKING, USE_MOCK_CHARGE, USE_MOCK_FULFILLMENT } from '../config/env';
-import type { Booking, BookingServiceLine } from '../types/booking';
+import type { Booking, BookingReview, BookingServiceLine } from '../types/booking';
 import type { Money } from '../types/business';
 
 // See reference/api/booking.json#create-booking for the contract this implements.
@@ -362,6 +362,17 @@ export function updateBookingStatus(booking: Booking, status: Booking['status'],
   return apiRequest<Booking>(`/bookings/${booking.bookingId}/status`, {
     method: 'PATCH',
     body: { status, reason: reason ?? null },
+  });
+}
+
+// See reference/api/booking.json#create-review. The customer who booked,
+// once the booking is completed, once per booking. It shows in the
+// business profile's reviews and counts toward the business's and staff
+// member's rating. 409 not_completed / already_reviewed.
+export function createReview(bookingId: string, input: { rating: number; text?: string }): Promise<BookingReview> {
+  return apiRequest<BookingReview>(`/bookings/${bookingId}/review`, {
+    method: 'POST',
+    body: { rating: input.rating, text: input.text?.trim() || null },
   });
 }
 

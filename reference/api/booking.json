@@ -487,14 +487,13 @@
     },
     {
       "id": "create-review",
-      "status": "requested",
-      "priority": "P2",
+      "status": "live",
       "screen": "Appointment Detail (completed) → Leave a review",
       "story": "C1",
       "method": "POST",
       "path": "/bookings/{bookingId}/review",
       "auth": "the customer who booked",
-      "description": "Why: profiles show reviews and ratings, but customers have no way to write one. One review per completed booking; it should feed the business's (and the assigned staff member's) rating and appear in the profile's reviews. The Booking could expose review: { rating, text } | null so the app knows whether to offer it.",
+      "description": "The customer who booked, once the booking is completed, once per booking; text optional (≤1000 chars). authorName is first name + last initial. Shows straight away in the business profile's reviews and counts toward the business rating / reviewCount and the staff member's rating. Booking gains review: { reviewId, authorName, rating, text, createdAt } | null. App: customer Appointment Detail → Leave a review (stars + text), then shows their review.",
       "request": {
         "rating": 5,
         "text": "Great fade, on time."
@@ -516,6 +515,16 @@
           "status": 409,
           "code": "not_completed",
           "message": "You can review once the appointment is done"
+        },
+        {
+          "status": 422,
+          "code": "validation_error",
+          "message": "rating must be 1-5"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "No booking found for this id"
         }
       ]
     }

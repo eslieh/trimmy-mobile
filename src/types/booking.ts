@@ -70,6 +70,15 @@ export type Booking = {
   cancellationFee?: Money | null; // kept by the business for a late cancellation
   refund?: BookingRefund | null; // owed back to the customer, paid by the business by hand
   noShowFee?: NoShowFee | null; // set once the business marks it no_show (BK-64)
+  review?: BookingReview | null; // the customer's review, once left (completed bookings only)
+};
+
+export type BookingReview = {
+  reviewId: string;
+  authorName: string; // first name + last initial
+  rating: number; // 1–5
+  text: string | null;
+  createdAt: string;
 };
 
 // The business's noShow.feePercent of the total. With no card on file only

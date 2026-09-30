@@ -7,7 +7,8 @@ import { BackButton } from '../../components/BackButton';
 import { Button } from '../../components/Button';
 import { EmbeddedLocationMap } from '../../components/EmbeddedLocationMap';
 import { getBusinessProfile } from '../../api/discovery';
-import { cancelBooking, getBooking, getCancelPreview, type CancelPreview } from '../../api/booking';
+import { cancelBooking, createReview, getBooking, getCancelPreview, type CancelPreview } from '../../api/booking';
+import { Input } from '../../components/Input';
 import { getApiErrorMessage } from '../../api/client';
 import { useBookingDraftStore } from '../../store/useBookingDraftStore';
 import { useBookingsStore } from '../../store/useBookingsStore';
@@ -44,6 +45,12 @@ export function BookingDetailScreen() {
   const [previewError, setPreviewError] = useState('');
   const [cancelReason, setCancelReason] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  // Review a completed visit (create-review).
+  const [reviewVisible, setReviewVisible] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [reviewText, setReviewText] = useState('');
+  const [postingReview, setPostingReview] = useState(false);
+  const [reviewError, setReviewError] = useState('');
 
   // Refetch on focus too, so a reschedule shows its new time on return.
   useFocusEffect(
@@ -105,6 +112,20 @@ export function BookingDetailScreen() {
     startBookingDraft(booking.businessId, booking.businessName, booking.services.map((service) => ({ ...service })));
     setStaff(booking.staffId, booking.staffName);
     router.push(`/business/${booking.businessId}/book/datetime?reschedule=${booking.bookingId}`);
+  };
+
+  const handlePostReview = async () => {
+    setPostingReview(true);
+    setReviewError('');
+    try {
+      const review = await createReview(booking.bookingId, { rating, text: reviewText });
+      setFetched({ ...booking, review });
+      setReviewVisible(false);
+    } catch (err) {
+      setReviewError(getApiErrorMessage(err, "Couldn't post your review."));
+    } finally {
+      setPostingReview(false);
+    }
   };
 
   const handleRebook = () => {
@@ -257,10 +278,59 @@ export function BookingDetailScreen() {
           />
         ) : null}
 
+        {booking.status === 'completed' ? (
+          booking.review ? (
+            <View style={styles.card}>
+              <Text style={styles.cardLabel}>Your review</Text>
+              <Text style={styles.stars}>{'★'.repeat(booking.review.rating)}{'☆'.repeat(5 - booking.review.rating)}</Text>
+              {booking.review.text ? <Text style={styles.notes}>{booking.review.text}</Text> : null}
+            </View>
+          ) : (
+            <Button label="Leave a review" onPress={() => setReviewVisible(true)} style={styles.actionButton} />
+          )
+        ) : null}
+
         {booking.status === 'cancelled' ? (
           <Button label="Book again" onPress={handleRebook} style={styles.actionButton} />
         ) : null}
       </ScrollView>
+
+      <Modal visible={reviewVisible} animationType="slide" onRequestClose={() => setReviewVisible(false)} presentationStyle="pageSheet">
+        <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
+          <View style={styles.content}>
+            <Text style={styles.sheetTitle}>How was your visit?</Text>
+            <View style={styles.starRow}>
+              {[1, 2, 3, 4, 5].map((value) => (
+                <Pressable key={value} onPress={() => setRating(value)} hitSlop={6}>
+                  <Text style={[styles.starPick, value <= rating && styles.starPickOn]}>★</Text>
+                </Pressable>
+              ))}
+            </View>
+            <Input
+              label="Tell others about it (optional)"
+              value={reviewText}
+              onChangeText={setReviewText}
+              placeholder="e.g. Great fade, on time"
+              multiline
+              maxLength={1000}
+            />
+            {reviewError ? <Text style={styles.feeTextWarning}>{reviewError}</Text> : null}
+          </View>
+          <View style={styles.sheetFooter}>
+            <Button
+              label={postingReview ? 'Posting…' : 'Post review'}
+              disabled={rating === 0 || postingReview}
+              onPress={handlePostReview}
+            />
+            <Button
+              label="Not now"
+              variant="secondary"
+              onPress={() => setReviewVisible(false)}
+              style={styles.keepButton}
+            />
+          </View>
+        </SafeAreaView>
+      </Modal>
 
       <Modal
         visible={cancelSheetVisible}
@@ -381,6 +451,21 @@ const styles = StyleSheet.create({
   status: {
     ...typography.caption,
     marginTop: 2,
+  },
+  stars: {
+    ...typography.h3,
+    color: colors.brand.purple,
+  },
+  starRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  starPick: {
+    fontSize: 36,
+    color: colors.border.default,
+  },
+  starPickOn: {
+    color: colors.brand.purple,
   },
   reasonLabel: {
     ...typography.label,
