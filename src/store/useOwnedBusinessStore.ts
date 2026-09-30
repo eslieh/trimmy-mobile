@@ -11,6 +11,10 @@ export type OwnedBusiness = {
   name: string;
   teamMode: TeamMode;
   workingHours: WeeklyHours;
+  // The owner's own staff record when they take appointments themselves
+  // (from /me/businesses): kept after switching to team, null if they
+  // published as a team and never worked solo.
+  staffId: string | null;
 };
 
 // The staff-app equivalent of OwnedBusiness — same "which business is this

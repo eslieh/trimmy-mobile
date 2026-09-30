@@ -63,6 +63,7 @@ export function seedOwnedBusinessForTesting(seedIndex: number, teamMode: TeamMod
     name: seed.name,
     teamMode,
     workingHours: seed.workingHours,
+    staffId: null,
   };
 }
 

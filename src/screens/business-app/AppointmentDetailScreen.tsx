@@ -85,8 +85,8 @@ export function AppointmentDetailScreen() {
   // Owner or front desk: who this booking can be assigned to.
   const business = useBusinessContext();
   // Staff open this same screen from their own schedule, but can only start
-  // their own appointments — no charging, assigning, refunds, no-shows or
-  // cancelling (the server 403s those for staff).
+  // and finish their own appointments — no charging, assigning, refunds,
+  // no-shows or cancelling (the server 403s those for staff).
   const isStaffView = useOwnedBusinessStore((s) => s.activeMode === 'staff');
   const [assignSheetVisible, setAssignSheetVisible] = useState(false);
   const [assigningStaffId, setAssigningStaffId] = useState<string | null>(null);
@@ -350,10 +350,13 @@ export function AppointmentDetailScreen() {
             {booking.status === 'confirmed' ? (
               <Button label="Start" disabled={isUpdatingStatus} onPress={() => setStatus('in_progress')} />
             ) : null}
-            {/* Checkout (charging) completes it, and charging needs it still in
-                progress — so staff don't complete it themselves. */}
+            {/* Staff finish their own; the owner / front desk charges it after
+                (charge-booking accepts a completed-but-unpaid booking). */}
             {booking.status === 'in_progress' ? (
-              <Text style={styles.cardValueMuted}>The owner or front desk will check the customer out.</Text>
+              <Button label="Mark done" disabled={isUpdatingStatus} onPress={() => setStatus('completed')} />
+            ) : null}
+            {booking.status === 'completed' && booking.paymentStatus !== 'paid' ? (
+              <Text style={styles.cardValueMuted}>The owner or front desk will take payment.</Text>
             ) : null}
           </>
         ) : booking.status === 'confirmed' ? (
@@ -378,7 +381,9 @@ export function AppointmentDetailScreen() {
             </View>
           </>
         ) : null}
-        {!isStaffView && booking.status === 'in_progress' ? (
+        {/* In progress, or finished (e.g. by staff) but not yet paid. */}
+        {!isStaffView &&
+        (booking.status === 'in_progress' || (booking.status === 'completed' && booking.paymentStatus !== 'paid')) ? (
           <Button label="Charge customer" onPress={() => setChargeSheetVisible(true)} />
         ) : null}
       </View>

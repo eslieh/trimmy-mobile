@@ -32,7 +32,11 @@ import { colors, spacing } from '../../src/theme';
 // booking/[bookingId].tsx`) so pushing to them hides this tab bar.
 export default function BusinessAppLayout() {
   const teamMode = useOwnedBusinessStore((s) => s.business?.teamMode);
+  const ownerTakesClients = useOwnedBusinessStore((s) => !!s.business?.staffId);
   const isTeam = teamMode === 'team';
+  // Today / Calendar are the owner's own working views — hidden for a team
+  // owner who doesn't take clients, kept for one who does (staffId set).
+  const hideSchedule = isTeam && !ownerTakesClients;
 
   return (
     <Tabs
@@ -50,7 +54,7 @@ export default function BusinessAppLayout() {
         name="today"
         options={{
           title: 'Today',
-          href: isTeam ? null : undefined,
+          href: hideSchedule ? null : undefined,
           tabBarIcon: ({ color }) => <ListIcon size={22} color={String(color)} />,
         }}
       />
@@ -58,7 +62,7 @@ export default function BusinessAppLayout() {
         name="calendar"
         options={{
           title: 'Calendar',
-          href: isTeam ? null : undefined,
+          href: hideSchedule ? null : undefined,
           tabBarIcon: ({ color }) => <CalendarIcon size={22} color={String(color)} />,
         }}
       />

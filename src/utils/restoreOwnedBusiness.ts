@@ -49,6 +49,7 @@ export async function restoreOwnedBusiness(): Promise<void> {
       name: detail.name,
       teamMode: detail.teamMode,
       workingHours: detail.workingHours.weeklyHours,
+      staffId: owned.staffId,
     });
   }
 }

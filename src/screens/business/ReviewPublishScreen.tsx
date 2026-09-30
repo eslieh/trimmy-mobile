@@ -8,6 +8,7 @@ import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { BUSINESS_CATEGORIES } from '../../data/businessCategories';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import type { WeeklyHours } from '../../types/business';
+import { restoreOwnedBusiness } from '../../utils/restoreOwnedBusiness';
 
 const TOTAL_STEPS = 11;
 
@@ -77,7 +78,11 @@ export function ReviewPublishScreen() {
         name: business.name,
         teamMode: business.teamMode ?? 'solo',
         workingHours: business.workingHours!,
+        // Filled in from /me/businesses on the next restore (a solo
+        // publish creates the owner's staff record server-side).
+        staffId: null,
       });
+      restoreOwnedBusiness().catch(() => {});
       setActiveMode('business');
     }
 

@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { Button } from './Button';
 import { listMyInvitations, respondToInvitation } from '../api/team';
 import { useAuth } from '../contexts/AuthContext';
@@ -16,10 +16,8 @@ import type { MyInvitation } from '../types/team';
 // them staff / front desk there: restoreOwnedBusiness picks up the new
 // workplace, so "Open my schedule" / "Open front desk" appear right away.
 //
-// The server currently matches invites to the user's phone number only, so
-// someone without a phone on their account is told to add one.
+// Invites match the user by email or phone (either format).
 export function PendingInvitations({ onAccepted }: { onAccepted?: (invite: MyInvitation) => void }) {
-  const router = useRouter();
   const { user } = useAuth();
   const [invitations, setInvitations] = useState<MyInvitation[]>([]);
   const [respondingId, setRespondingId] = useState<string | null>(null);
@@ -51,16 +49,6 @@ export function PendingInvitations({ onAccepted }: { onAccepted?: (invite: MyInv
 
   if (!user) return null;
 
-  if (!user.phone) {
-    return (
-      <Pressable style={styles.card} onPress={() => router.push('/account/edit-profile')}>
-        <Text style={styles.cardTitle}>Been invited to a team?</Text>
-        <Text style={styles.cardBody}>
-          Team invitations are sent to your phone number. <Text style={styles.link}>Add your phone</Text> to see them.
-        </Text>
-      </Pressable>
-    );
-  }
 
   return (
     <>
@@ -109,9 +97,6 @@ const styles = StyleSheet.create({
   },
   cardBodyStrong: {
     color: colors.text.primary,
-  },
-  link: {
-    color: colors.brand.purple,
   },
   cardActions: {
     flexDirection: 'row',

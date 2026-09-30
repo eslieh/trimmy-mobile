@@ -59,8 +59,10 @@ export function useBusinessContext(): BusinessContext | null {
           durationMinutes: service.durationMinutes,
           price: service.price,
         })),
+        // Bookable = performs at least one service (front desk start with
+        // none, so they drop out unless the owner gives them some).
         staff: profile.staff
-          .filter((member) => member.role !== 'front_desk')
+          .filter((member) => member.allServices || member.serviceIds.length > 0)
           .map((member) => ({ staffId: member.staffId, name: member.name })),
       };
     }
@@ -74,10 +76,15 @@ export function useBusinessContext(): BusinessContext | null {
       workingHours: owned.workingHours,
       serviceCategories: categories.map((category) => ({ categoryId: category.categoryId, name: category.name })),
       services,
-      staff: bookableStaff(invitations).map((member) => ({
-        staffId: member.staffId,
-        name: teamMemberDisplayName(member),
-      })),
+      staff: [
+        // The owner themselves, when they take appointments (solo, or a team
+        // owner who kept their staff record).
+        ...(owned.staffId ? [{ staffId: owned.staffId, name: 'You' }] : []),
+        ...bookableStaff(invitations).map((member) => ({
+          staffId: member.staffId,
+          name: teamMemberDisplayName(member),
+        })),
+      ],
     };
   }, [activeMode, owned, staffSession, profile, categories, services, invitations]);
 }

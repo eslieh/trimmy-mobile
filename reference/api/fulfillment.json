@@ -144,7 +144,7 @@
       "method": "POST",
       "path": "/bookings/{bookingId}/charge",
       "auth": "owner or front desk",
-      "description": "The final charge at checkout (PaymentKind.CHARGE on the server), for an in_progress booking. The amount is the balance: totalAmount minus any deposit already paid. Same shape as start-booking-payment so both use one polling pattern. method 'cash': records it immediately and returns 200 with the Booking (status completed, paymentStatus paid, paymentMethod cash). method 'mpesa': sends an STK push to phone (any Kenyan format; defaults to the booking's customerPhone) routed to the business's own till/paybill/bank, and returns 202 at once. The app then polls GET /bookings/{bookingId} every 3s for up to ~2 min: success = status completed + paymentStatus paid, with paymentReference (M-Pesa receipt) and paymentMethod mpesa set; failure = chargePayment.status failed | timeout with a failureReason (same values as depositPayment). The customer can be re-prompted after a failure. No balance due (deposit covered everything): mpesa behaves like cash and completes immediately. If an M-Pesa charge lands after the booking was already paid another way (e.g. cash while the prompt was open), it's recorded as a refund owed (refund.status due). App: AppointmentDetailScreen's Charge customer sheet (src/api/booking.ts#chargeBookingPayment polls until paid or failed).",
+      "description": "The final charge at checkout (PaymentKind.CHARGE on the server), for an in_progress booking. The amount is the balance: totalAmount minus any deposit already paid. Same shape as start-booking-payment so both use one polling pattern. method 'cash': records it immediately and returns 200 with the Booking (status completed, paymentStatus paid, paymentMethod cash). method 'mpesa': sends an STK push to phone (any Kenyan format; defaults to the booking's customerPhone) routed to the business's own till/paybill/bank, and returns 202 at once. The app then polls GET /bookings/{bookingId} every 3s for up to ~2 min: success = status completed + paymentStatus paid, with paymentReference (M-Pesa receipt) and paymentMethod mpesa set; failure = chargePayment.status failed | timeout with a failureReason (same values as depositPayment). The customer can be re-prompted after a failure. No balance due (deposit covered everything): mpesa behaves like cash and completes immediately. If an M-Pesa charge lands after the booking was already paid another way (e.g. cash while the prompt was open), it's recorded as a refund owed (refund.status due). App: AppointmentDetailScreen's Charge customer sheet (src/api/booking.ts#chargeBookingPayment polls until paid or failed). Also accepts a completed booking that isn't paid yet (e.g. staff marked it done): the app offers Charge customer on in_progress, or completed with paymentStatus !== 'paid'. Cancelled, no-show and pending bookings get 409 not_in_progress.",
       "request": {
         "method": "mpesa | cash",
         "phone": "0712345678"
@@ -220,9 +220,6 @@
           "code": "forbidden",
           "message": "Only the owner or front desk can do this"
         }
-      ],
-      "issues": [
-        "REQUESTED (P1): charging requires status in_progress, but update-booking-status lets staff set completed on their own bookings. A booking completed that way can never be charged, so it stays unpaid and never counts toward earnings or commission. Please either (a) let charge-booking accept a completed booking whose paymentStatus isn't paid, or (b) stop staff (and ideally everyone) moving an unpaid booking to completed through the status endpoint. Until then the app doesn't offer staff a 'complete' action."
       ]
     },
     {
@@ -624,5 +621,5 @@
       "errors": []
     }
   ],
-  "frontDeskNote": "The front desk app (F1–F3) is built: /front-desk/* tabs (Today, Calendar, Customers, Menu with Unassigned bookings and Refunds owed), reusing the owner's screens through hooks/useBusinessContext. It reads services, bookable staff (profile staff[] whose role isn't front_desk) and working hours from the public business profile (discovery.json#get-business-profile), because GET /businesses/{id}, list-team-members and service-categories are owner-only. It calls list-business-bookings, walk-in, scheduled, get-booking, update-booking-status, assign-booking-staff, reschedule-booking, charge-booking, mark-refunded and customers. REQUESTED (P2): please confirm (1) the profile lists every accepted staff member with their role, and (2) front desk is allowed on every one of those calls. F4 (day summary) is still waiting on get-day-summary / submit-day-summary."
+  "frontDeskNote": "Confirmed by the backend (2026-09-30): the public profile lists every staff record (role, allServices, serviceIds, workingDays), and front desk may call every 'owner or front desk' endpoint (covered by a test). Front desk start with no services, so they're not bookable; the app's assign/walk-in pickers list only staff who perform at least one service. The front desk app (F1–F3) is built at /front-desk/*."
 }
