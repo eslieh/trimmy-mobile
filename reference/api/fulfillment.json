@@ -29,7 +29,10 @@
           "message": "No business found for this id"
         }
       ],
-      "status": "live"
+      "status": "live",
+      "issues": [
+        "REQUESTED (P3): a customerId (or phone) filter, e.g. ?customerId=uuid with no date required, newest first. Customer Detail's appointment history can only show bookings already cached on the device."
+      ]
     },
     {
       "id": "create-walk-in-booking",
@@ -131,7 +134,10 @@
           "message": "bookingId does not exist"
         }
       ],
-      "status": "live"
+      "status": "live",
+      "issues": [
+        "REQUESTED (P2, BK-64): when status becomes no_show, record the fee (no_show_fee_percent of the total, capped at any deposit paid, like cancellation) and return it on the Booking as noShowFee: { amount, currency } (null otherwise), so the owner and the customer can see it."
+      ]
     },
     {
       "id": "charge-booking",
@@ -217,6 +223,9 @@
           "code": "forbidden",
           "message": "Only the owner or front desk can do this"
         }
+      ],
+      "issues": [
+        "REQUESTED (P1): charging requires status in_progress, but update-booking-status lets staff set completed on their own bookings. A booking completed that way can never be charged, so it stays unpaid and never counts toward earnings or commission. Please either (a) let charge-booking accept a completed booking whose paymentStatus isn't paid, or (b) stop staff (and ideally everyone) moving an unpaid booking to completed through the status endpoint. Until then the app doesn't offer staff a 'complete' action."
       ]
     },
     {
@@ -535,6 +544,88 @@
         "commissionPercent": 40
       },
       "errors": []
+    },
+    {
+      "id": "get-day-summary",
+      "status": "requested",
+      "priority": "P2",
+      "screen": "Front desk → Day summary (F4); owner can view",
+      "story": "F4",
+      "method": "GET",
+      "path": "/businesses/{businessId}/day-summary?date=2026-10-05",
+      "auth": "owner or front desk",
+      "description": "Why: F4 end-of-day reconciliation. get-earnings-summary is 403 for front desk and is about sales, not the cash drawer. Business-local date.",
+      "request": null,
+      "response": {
+        "date": "2026-10-05",
+        "appointments": 18,
+        "walkIns": 5,
+        "completed": 20,
+        "noShows": 1,
+        "cancelled": 2,
+        "collected": {
+          "cash": {
+            "amount": 4200,
+            "count": 6
+          },
+          "mpesa": {
+            "amount": 9800,
+            "count": 12
+          },
+          "depositsCollected": {
+            "amount": 1500,
+            "count": 5
+          },
+          "balancePayments": {
+            "amount": 12500,
+            "count": 13
+          }
+        },
+        "refundsPaid": {
+          "amount": 300,
+          "count": 1
+        },
+        "unpaid": [
+          {
+            "bookingId": "uuid",
+            "customerName": "Baraka",
+            "time": "16:00",
+            "balanceDue": {
+              "amount": 800,
+              "currency": "KES"
+            }
+          }
+        ],
+        "submission": {
+          "submittedAt": null,
+          "submittedBy": null,
+          "notes": null
+        }
+      },
+      "errors": [
+        {
+          "status": 403,
+          "code": "forbidden",
+          "message": "Only the owner or front desk can do this"
+        }
+      ]
+    },
+    {
+      "id": "submit-day-summary",
+      "status": "requested",
+      "priority": "P2",
+      "screen": "Front desk → Day summary → Submit to owner (F4)",
+      "story": "F4",
+      "method": "POST",
+      "path": "/businesses/{businessId}/day-summary/{date}/submit",
+      "auth": "front desk (or owner)",
+      "description": "Records the day as reconciled with an optional note (e.g. 'KSh 200 short due to change') and notifies the owner (SMS now, push once BK-41 exists). Resubmitting replaces the note.",
+      "request": {
+        "notes": "KSh 200 short due to change"
+      },
+      "response": "DaySummary (submission filled in)",
+      "errors": []
     }
-  ]
+  ],
+  "frontDeskNote": "Front desk app (F1–F3) will read services, bookable staff (staffId, serviceIds, workingDays) and working hours from the public business profile (discovery.json#get-business-profile), because GET /businesses/{id}, list-team-members and service-categories are owner-only. Please confirm the profile lists every accepted staff member (not only those with ratings or photos), and that front desk can call every endpoint marked 'owner or front desk' in this file."
 }

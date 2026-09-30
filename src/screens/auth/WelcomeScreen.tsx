@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Button } from '../../components/Button';
@@ -10,6 +10,8 @@ import { PhoneIcon } from '../../components/icons/PhoneIcon';
 import { authApi } from '../../api/auth';
 import { getApiErrorMessage } from '../../api/client';
 import { useGoogleSignIn } from '../../hooks/useGoogleSignIn';
+import { useAuth } from '../../contexts/AuthContext';
+import { routeAfterLogin } from '../../utils/routeAfterLogin';
 import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { seedOwnedBusinessForTesting } from '../../utils/devSeed';
 import { colors, spacing, typography } from '../../theme';
@@ -54,6 +56,21 @@ export function WelcomeScreen() {
     router.dismissAll();
     router.replace('/today');
   };
+
+  // This is the app's entry route ('/'). Someone already signed in (a saved
+  // session on launch) goes straight into their app instead of seeing the
+  // sign-in form; blank while the saved session is still being checked.
+  const { user, loading: authLoading } = useAuth();
+  const redirectedRef = useRef(false);
+  useEffect(() => {
+    if (authLoading || !user || redirectedRef.current) return;
+    redirectedRef.current = true;
+    routeAfterLogin(router);
+  }, [authLoading, user, router]);
+
+  if (authLoading || user) {
+    return <View style={styles.flex} />;
+  }
 
   return (
     <ScrollView style={styles.flex} contentContainerStyle={styles.content}>

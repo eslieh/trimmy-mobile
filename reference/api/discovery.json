@@ -182,6 +182,32 @@
       "notes": [
         "2026-09-26 (BK-02/03): staff[] items carry workingDays (null = whenever the business is open), plus allServices/serviceIds (who performs what). Select Staff hides staff who can't do every service in the cart. commissionPercent stays private to the team endpoints."
       ]
+    },
+    {
+      "id": "favorites",
+      "status": "requested",
+      "priority": "P3",
+      "screen": "Wishlist tab; heart on Business / Staff Profile; Discover 'Favorites' section",
+      "story": "C1",
+      "method": "GET / PUT / DELETE",
+      "path": "GET /me/favorites · PUT /me/favorites/businesses/{businessId} · DELETE /me/favorites/businesses/{businessId} · PUT|DELETE /me/favorites/staff/{staffId}",
+      "description": "Why: C1 'save favorite businesses and favorite staff'. The wishlist is phone-only today and resets on reinstall. GET returns business summaries (same shape as search results) and staff with their business name.",
+      "request": null,
+      "response": {
+        "businesses": [
+          "BusinessSummary (as in search-businesses)"
+        ],
+        "staff": [
+          {
+            "staffId": "uuid",
+            "name": "Wanjiku",
+            "businessId": "uuid",
+            "businessName": "Glow Beauty Lounge",
+            "avatarUrl": null
+          }
+        ]
+      },
+      "errors": []
     }
   ]
 }

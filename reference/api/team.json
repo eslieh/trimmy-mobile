@@ -260,6 +260,40 @@
           "message": "staffId does not exist for this business"
         }
       ]
+    },
+    {
+      "id": "get-my-staff-services",
+      "status": "requested",
+      "priority": "P1",
+      "screen": "Staff app → Menu → My services",
+      "story": "S1",
+      "method": "GET",
+      "path": "/me/staff-services?businessId=uuid",
+      "auth": "the staff member (or front desk) themselves",
+      "description": "Why: staff can't see which services they've been assigned — get-staff-services is owner-only (403 for staff). Returns the caller's own mapping at businessId, with names so the app doesn't need the owner's service list.",
+      "request": null,
+      "response": {
+        "staffId": "uuid",
+        "allServices": false,
+        "services": [
+          {
+            "serviceId": "uuid",
+            "name": "Classic Haircut",
+            "durationMinutes": 45,
+            "price": {
+              "amount": 800,
+              "currency": "KES"
+            }
+          }
+        ]
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "You don't work at this business"
+        }
+      ]
     }
   ],
   "notes": [

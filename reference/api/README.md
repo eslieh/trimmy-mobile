@@ -7,6 +7,25 @@ setup, discovery, team) on staging/prod. Domains still **drafted** only — book
 stay on the app's mock layer (`USE_MOCK_BOOKING` / `USE_MOCK_FULFILLMENT` in `src/config/env.ts`)
 until those phases ship.
 
+## Open backend requests
+
+What the app needs next from the backend, most urgent first. Each one has a full entry
+(`"status": "requested"`) in the file named, with request/response examples and errors.
+
+| Priority | Request | File → entry | Unblocks |
+|---|---|---|---|
+| P1 | Charging vs. staff completing: let `charge-booking` take a completed-but-unpaid booking, or stop unpaid bookings being completed via the status endpoint | fulfillment.json → `charge-booking` (issues) | Staff finishing their own appointments without losing the payment |
+| P1 | Staff can see their own services | team.json → `get-my-staff-services` | Staff app "My services" |
+| P2 | Push tokens (BK-41) | auth.json → `register-push-token` | Notifications for every role; push reminders |
+| P2 | Day summary + submit to owner (F4) | fulfillment.json → `get-day-summary`, `submit-day-summary` | Front desk end-of-day reconciliation |
+| P2 | Confirm front desk can use the public profile + every "owner or front desk" endpoint | fulfillment.json → `frontDeskNote` | Front desk app (F1–F3) |
+| P2 | Reviews | booking.json → `create-review` | Customers leaving reviews |
+| P2 | No-show fee on the booking (BK-64) | fulfillment.json → `update-booking-status` (issues) | Showing the fee to owner and customer |
+| P3 | Reminder preferences (C5 "configurable") | — (not specified yet) | Customers turning reminders off / choosing times |
+| P3 | Favorites | discovery.json → `favorites` | Wishlist that survives reinstalls |
+| P3 | Bookings by customer | fulfillment.json → `list-business-bookings` (issues) | Full history on Customer Detail |
+| P3 | `PATCH /businesses/{id}` ignores `amenities` | business-setup.json → `update-business-info` (issues) | Editing amenities after setup |
+
 ## Why JSON, not prose
 
 Each file is a flat contract the backend team can read without cross-referencing the user-story

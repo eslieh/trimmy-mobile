@@ -484,6 +484,40 @@
           "message": "No booking found for this id"
         }
       ]
+    },
+    {
+      "id": "create-review",
+      "status": "requested",
+      "priority": "P2",
+      "screen": "Appointment Detail (completed) → Leave a review",
+      "story": "C1",
+      "method": "POST",
+      "path": "/bookings/{bookingId}/review",
+      "auth": "the customer who booked",
+      "description": "Why: profiles show reviews and ratings, but customers have no way to write one. One review per completed booking; it should feed the business's (and the assigned staff member's) rating and appear in the profile's reviews. The Booking could expose review: { rating, text } | null so the app knows whether to offer it.",
+      "request": {
+        "rating": 5,
+        "text": "Great fade, on time."
+      },
+      "response": {
+        "reviewId": "uuid",
+        "authorName": "Amina W",
+        "rating": 5,
+        "text": "Great fade, on time.",
+        "createdAt": "2026-10-05T16:00:00Z"
+      },
+      "errors": [
+        {
+          "status": 409,
+          "code": "already_reviewed",
+          "message": "You've already reviewed this appointment"
+        },
+        {
+          "status": 409,
+          "code": "not_completed",
+          "message": "You can review once the appointment is done"
+        }
+      ]
     }
   ],
   "bookingRefundFields": {
@@ -501,5 +535,15 @@
       "refundedAt": null,
       "reference": null
     }
+  },
+  "reminders": {
+    "status": "live",
+    "story": "C5",
+    "task": "BK-62",
+    "description": "SMS reminders, no API change. Day before: once the booking is 24h away, if it was booked at least a day ahead. 2 hours before: with a map link when the business has coordinates. Only confirmed bookings with a customerPhone; each once per booking. Rescheduling resets them for the new time; cancelled and unpaid bookings get none. Not built yet: the customer's reminder preferences (C5 'configurable'); push reminders wait on push tokens (BK-41).",
+    "examples": [
+      "Trimmy reminder: Glow Beauty, Classic Haircut with Wanjiku, tomorrow 14:30. Ref BK7F3AQ9. To change it, open the Trimmy app.",
+      "Trimmy: see you at 14:30 at Glow Beauty (Classic Haircut). Ref BK7F3AQ9. Directions: https://maps.google.com/?q=-1.29,36.78"
+    ]
   }
 }

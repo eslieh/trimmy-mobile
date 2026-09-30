@@ -10,6 +10,7 @@ import { useGoogleSignIn } from '../../hooks/useGoogleSignIn';
 import { colors, typography } from '../../theme';
 import { useAuth } from '../../contexts/AuthContext';
 import { getApiErrorCode, getApiErrorMessage } from '../../api/client';
+import { routeAfterLogin } from '../../utils/routeAfterLogin';
 
 export function LoginScreen() {
   const router = useRouter();
@@ -27,15 +28,8 @@ export function LoginScreen() {
     setError('');
     try {
       await login({ email: email.trim(), password });
-      router.push({
-        pathname: '/success',
-        params: {
-          title: 'Welcome back',
-          subtitle: 'You have successfully logged in.',
-          ctaLabel: 'Done',
-          nextRoute: '/get-started',
-        },
-      });
+      // Straight into the right app for their role — no extra screens.
+      await routeAfterLogin(router);
     } catch (err) {
       // 403 not_verified: the server has already emailed a fresh code.
       if (getApiErrorCode(err) === 'not_verified') {

@@ -8,6 +8,7 @@ import { colors, spacing, typography } from '../../theme';
 import { authApi } from '../../api/auth';
 import { getApiErrorMessage } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
+import { routeAfterLogin } from '../../utils/routeAfterLogin';
 
 const CODE_LENGTH = 6;
 const TOTAL_STEPS = 5;
@@ -29,22 +30,20 @@ export function OnboardingVerificationScreen() {
     setError('');
     try {
       await verifyEmail(email!, code);
+      if (from === 'login') {
+        // Logging in with an unverified account: same as a normal login.
+        await routeAfterLogin(router);
+        return;
+      }
+      // Just signed up: Get Started (invites, enroll a business, or browse).
       router.push({
         pathname: '/success',
-        params:
-          from === 'login'
-            ? {
-                title: 'Welcome back',
-                subtitle: 'Your email is verified and you are logged in.',
-                ctaLabel: 'Done',
-                nextRoute: '/get-started',
-              }
-            : {
-                title: "You're all set!",
-                subtitle: 'Your account is ready to go.',
-                ctaLabel: 'Get started',
-                nextRoute: '/get-started',
-              },
+        params: {
+          title: "You're all set!",
+          subtitle: 'Your account is ready to go.',
+          ctaLabel: 'Get started',
+          nextRoute: '/get-started',
+        },
       });
     } catch (err) {
       setError(getApiErrorMessage(err, 'Invalid or expired code. Please try again.'));
