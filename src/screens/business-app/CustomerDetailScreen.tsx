@@ -11,6 +11,7 @@ import { useCustomersStore } from '../../store/useCustomersStore';
 import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { getBookingDateTime } from '../../utils/date';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
+import { toQueryString } from '../../api/client';
 
 // Reached from CustomersScreen. Bookings don't carry a customerId (they
 // predate this store, and online bookings never go through it at all), so
@@ -47,10 +48,12 @@ export function CustomerDetailScreen() {
   };
 
   const handleNewAppointment = () => {
-    const params = new URLSearchParams({ customerName: customer.name });
-    if (customer.phone) params.set('customerPhone', customer.phone);
-    if (customer.email) params.set('customerEmail', customer.email);
-    router.push(`/schedule?${params.toString()}`);
+    const qs = toQueryString([
+      ['customerName', customer.name],
+      ['customerPhone', customer.phone],
+      ['customerEmail', customer.email],
+    ]);
+    router.push(`/schedule?${qs}`);
   };
 
   return (
@@ -78,6 +81,12 @@ export function CustomerDetailScreen() {
           </View>
           {customer.phone ? <Text style={styles.contactLine}>{customer.phone}</Text> : null}
           {customer.email ? <Text style={styles.contactLine}>{customer.email}</Text> : null}
+          {/* From the server, across every booking with this phone (the history
+              below only has bookings already loaded on this device). */}
+          <Text style={styles.contactLine}>
+            {customer.bookingsCount} visit{customer.bookingsCount === 1 ? '' : 's'}
+            {customer.lastBookingAt ? ` · last ${new Date(customer.lastBookingAt).toLocaleDateString()}` : ''}
+          </Text>
         </View>
 
         <Button label="New appointment" onPress={handleNewAppointment} />

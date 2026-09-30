@@ -6,11 +6,10 @@ import { Avatar } from '../../components/Avatar';
 import { BackButton } from '../../components/BackButton';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
-import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
 import { usePayoutsStore } from '../../store/usePayoutsStore';
 import { PAYOUT_STATUS_COLOR, PAYOUT_STATUS_LABEL } from '../../utils/payout';
-import { teamMemberDisplayName } from '../../utils/team';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
+import { showApiError } from '../../utils/showApiError';
 
 function formatMoney(amount: number): string {
   return `KSh ${amount.toLocaleString('en-US')}`;
@@ -37,7 +36,6 @@ type SheetMode = 'none' | 'accept' | 'reject';
 export function PayoutDetailScreen() {
   const router = useRouter();
   const { payoutId } = useLocalSearchParams<{ payoutId: string }>();
-  const invitations = useBusinessOnboardingStore((s) => s.invitations);
   const payout = usePayoutsStore((s) => s.payouts.find((p) => p.payoutId === payoutId));
   const respondToPayoutNow = usePayoutsStore((s) => s.respondToPayoutNow);
 
@@ -53,8 +51,7 @@ export function PayoutDetailScreen() {
     );
   }
 
-  const invitation = invitations.find((i) => i.invitationId === payout.invitationId);
-  const displayName = invitation ? teamMemberDisplayName(invitation) : 'Team member';
+  const displayName = payout.staffName || 'Team member';
 
   const closeSheet = () => {
     if (isSubmitting) return;
@@ -65,18 +62,28 @@ export function PayoutDetailScreen() {
   const handleAccept = async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
-    await respondToPayoutNow(payout, 'approve');
-    setIsSubmitting(false);
-    setSheetMode('none');
+    try {
+      await respondToPayoutNow(payout.payoutId, 'approve');
+      setSheetMode('none');
+    } catch (err) {
+      showApiError("Couldn't approve this payout", err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleReject = async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
-    await respondToPayoutNow(payout, 'reject', rejectionReason.trim() || undefined);
-    setIsSubmitting(false);
-    setSheetMode('none');
-    setRejectionReason('');
+    try {
+      await respondToPayoutNow(payout.payoutId, 'reject', rejectionReason.trim() || undefined);
+      setSheetMode('none');
+      setRejectionReason('');
+    } catch (err) {
+      showApiError("Couldn't reject this payout", err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

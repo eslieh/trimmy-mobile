@@ -37,13 +37,17 @@ export function TeamScreen() {
   const invitations = useBusinessOnboardingStore((s) => s.invitations);
   const payouts = usePayoutsStore((s) => s.payouts);
   const loadTeamMembers = useBusinessOnboardingStore((s) => s.loadTeamMembers);
+  const loadPayouts = usePayoutsStore((s) => s.loadPayouts);
 
   // The server's roster is the source of truth — pending and accepted,
   // including members added from another device.
   const businessId = business?.businessId;
   useEffect(() => {
-    if (businessId) loadTeamMembers(businessId).catch((err) => showApiError("Couldn't load your team", err));
-  }, [businessId, loadTeamMembers]);
+    if (!businessId) return;
+    loadTeamMembers(businessId).catch((err) => showApiError("Couldn't load your team", err));
+    // The payout queue: pending requests from the server.
+    loadPayouts(businessId, { status: 'pending' }).catch((err) => showApiError("Couldn't load payout requests", err));
+  }, [businessId, loadTeamMembers, loadPayouts]);
 
   const pendingPayouts = useMemo(
     () =>
@@ -64,10 +68,6 @@ export function TeamScreen() {
     return a.status === 'pending' ? -1 : b.status === 'pending' ? 1 : 0;
   });
 
-  const nameForInvitation = (invitationId: string) => {
-    const invitation = invitations.find((i) => i.invitationId === invitationId);
-    return invitation ? teamMemberDisplayName(invitation) : 'Team member';
-  };
 
   return (
     <SafeAreaView style={styles.flex} edges={['top']}>
@@ -98,7 +98,7 @@ export function TeamScreen() {
                   onPress={() => router.push(`/payouts/${payout.payoutId}`)}
                 >
                   <Text style={styles.payoutRowName} numberOfLines={1}>
-                    {nameForInvitation(payout.invitationId)}
+                    {payout.staffName || 'Team member'}
                   </Text>
                   <Text style={styles.payoutRowAmount}>{formatMoney(payout.amount)}</Text>
                   <ChevronRightIcon size={16} color={colors.text.tertiary} />

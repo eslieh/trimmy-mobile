@@ -1,32 +1,38 @@
 import { create } from 'zustand';
-import { requestPayout, respondToPayout, type RequestPayoutInput } from '../api/payouts';
-import type { PayoutRequest } from '../types/payout';
+import {
+  listBusinessPayouts,
+  requestPayout,
+  respondToPayout,
+  type RequestPayoutInput,
+} from '../api/payouts';
+import type { PayoutRequest, PayoutStatus } from '../types/payout';
 
 type PayoutsState = {
   payouts: PayoutRequest[];
+  // Server → cache (list-business-payouts). Replaces the cached payouts for
+  // the business (narrowed by status / staffId when given).
+  loadPayouts: (businessId: string, filters?: { status?: PayoutStatus; staffId?: string }) => Promise<void>;
   requestPayoutNow: (input: RequestPayoutInput) => Promise<PayoutRequest>;
-  respondToPayoutNow: (
-    payout: PayoutRequest,
-    action: 'approve' | 'reject',
-    rejectionReason?: string,
-  ) => Promise<PayoutRequest>;
+  respondToPayoutNow: (payoutId: string, action: 'approve' | 'reject', rejectionReason?: string) => Promise<PayoutRequest>;
 };
 
-// Client-only, in-memory — same caveat as every other mock store here.
-// Every request ever made counts against a member's wallet balance while
-// it's 'pending' or 'paid' — see StaffEarningsScreen, which computes
-// lifetime commission earned minus the sum of everything in this array for
-// their invitationId, excluding 'rejected' ones (a rejection releases that
-// amount back to their available balance, since it was never actually paid).
 export const usePayoutsStore = create<PayoutsState>((set) => ({
   payouts: [],
+  loadPayouts: async (businessId, filters = {}) => {
+    const fetched = await listBusinessPayouts(businessId, filters);
+    const covered = (p: PayoutRequest) =>
+      p.businessId === businessId &&
+      (!filters.status || p.status === filters.status) &&
+      (!filters.staffId || p.staffId === filters.staffId);
+    set((state) => ({ payouts: [...fetched, ...state.payouts.filter((p) => !covered(p))] }));
+  },
   requestPayoutNow: async (input) => {
     const payout = await requestPayout(input);
-    set((state) => ({ payouts: [...state.payouts, payout] }));
+    set((state) => ({ payouts: [payout, ...state.payouts] }));
     return payout;
   },
-  respondToPayoutNow: async (payout, action, rejectionReason) => {
-    const updated = await respondToPayout(payout, action, rejectionReason);
+  respondToPayoutNow: async (payoutId, action, rejectionReason) => {
+    const updated = await respondToPayout(payoutId, action, rejectionReason);
     set((state) => ({
       payouts: state.payouts.map((p) => (p.payoutId === updated.payoutId ? updated : p)),
     }));

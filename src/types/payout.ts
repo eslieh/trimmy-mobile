@@ -1,21 +1,31 @@
-// A staff member's payout request from their earnings wallet (staff.md's
-// S3, wallet model — the balance accumulates continuously as bookings get
-// charged, and they can request any amount up to what's available, whenever
-// they want). O4 (owner payout approval, business-owner.md) is the other
-// half: the owner sees pending requests on the Team tab, approves ("Accept
-// & Send" — a manual attestation that they've actually sent the money via
-// M-Pesa/cash themselves; Trimyy never moves money) or rejects (with a
-// reason). See TASKS.md.
 export type PayoutStatus = 'pending' | 'paid' | 'rejected';
 
+// A staff member's withdrawal request from their earnings wallet (S3/O4).
+// Trimmy never moves this money: "approve" records that the owner paid the
+// staff member themselves. Keyed by staffId (BK-02), not invitationId.
 export type PayoutRequest = {
   payoutId: string;
   businessId: string;
-  invitationId: string;
+  staffId: string | null;
+  staffName: string;
   amount: number;
   currency: 'KES';
   status: PayoutStatus;
   requestedAt: string;
   respondedAt: string | null; // when the owner approved/rejected
   rejectionReason: string | null;
+};
+
+// GET /me/payouts/balance or /businesses/{id}/staff/{staffId}/payout-balance.
+// earned = commission on paid bookings (fixed on each booking when it's
+// paid, at that moment's commissionPercent); available = earned − pending − paid.
+export type PayoutBalance = {
+  businessId: string;
+  staffId: string;
+  currency: 'KES';
+  earned: number;
+  pending: number;
+  paid: number;
+  available: number;
+  commissionPercent: number | null;
 };

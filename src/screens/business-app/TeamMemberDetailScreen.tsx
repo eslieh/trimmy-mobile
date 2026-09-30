@@ -13,6 +13,8 @@ import { DonutChart } from '../../components/charts/DonutChart';
 import { useBookingsStore } from '../../store/useBookingsStore';
 import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
 import { getStaffServices, setStaffServices, type StaffServices } from '../../api/team';
+import { getStaffPayoutBalance } from '../../api/payouts';
+import type { PayoutBalance } from '../../types/payout';
 import {
   INVITATION_STATUS_COLOR,
   INVITATION_STATUS_LABEL,
@@ -99,6 +101,13 @@ export function TeamMemberDetailScreen() {
 
   const staffId = invitation?.staffId ?? null;
   const businessId = business?.businessId;
+  // Their wallet (commission on paid bookings minus payouts), from the server.
+  const [wallet, setWallet] = useState<PayoutBalance | null>(null);
+  useEffect(() => {
+    if (!businessId || !staffId) return;
+    getStaffPayoutBalance(businessId, staffId).then(setWallet).catch(() => {});
+  }, [businessId, staffId]);
+
   useEffect(() => {
     if (!businessId || !staffId) return;
     getStaffServices(businessId, staffId)
@@ -342,6 +351,17 @@ export function TeamMemberDetailScreen() {
             onPressTransaction={(bookingId) => router.push(`/appointment/${bookingId}`)}
           />
         </View>
+
+        {wallet ? (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Wallet</Text>
+            <Text style={styles.serviceName}>KSh {wallet.available.toLocaleString('en-US')} available</Text>
+            <Text style={styles.emptyHint}>
+              KSh {wallet.earned.toLocaleString('en-US')} earned · KSh {wallet.paid.toLocaleString('en-US')} paid out
+              {wallet.pending > 0 ? ` · KSh ${wallet.pending.toLocaleString('en-US')} requested` : ''}
+            </Text>
+          </View>
+        ) : null}
 
         <Input
           label="Commission split (%)"

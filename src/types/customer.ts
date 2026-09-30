@@ -7,6 +7,8 @@ export type Customer = {
   businessId: string;
   name: string;
   phone: string | null;
-  email: string | null;
+  email: string | null; // phone is E.164 from the server
   createdAt: string;
+  bookingsCount: number; // bookings with this phone, cancelled ones excluded
+  lastBookingAt: string | null;
 };

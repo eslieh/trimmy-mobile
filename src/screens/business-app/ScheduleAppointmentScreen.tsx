@@ -131,7 +131,11 @@ export function ScheduleAppointmentScreen() {
     const customerPhone = rawPhone.length >= 4 ? normalizePhoneNumber(rawPhone, country) : null;
     const customerEmail = email.trim() || null;
 
-    await saveCustomer(ownedBusiness.businessId, { name: trimmedName, phone: customerPhone, email: customerEmail });
+    // Bookings with a phone add the customer server-side; only someone
+    // entered without a phone needs saving explicitly.
+    if (!customerPhone) {
+      await saveCustomer(ownedBusiness.businessId, { name: trimmedName, phone: null, email: customerEmail });
+    }
 
     const assignedStaff = staffMembers.find((m) => m.staffId === assignedStaffId);
 

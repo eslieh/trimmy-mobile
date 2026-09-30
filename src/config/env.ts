@@ -15,9 +15,9 @@ export const config = {
 } as const;
 
 // Live against the real backend: auth, business setup (incl. post-publish
-// management), discovery, team, booking, deposit payment and business-side
-// bookings. Charge-at-checkout and the customer list stay on mock until
-// they ship (see USE_MOCK_CHARGE / USE_MOCK_CUSTOMERS below).
+// management), discovery, team, booking, deposit payment, business-side
+// bookings, checkout charge, customers and payouts. The flags below can
+// switch individual domains back to mocks for offline work.
 export const USE_MOCK_API = false;
 
 // Phase 3 Booking API (booking.json): create, get and list bookings are live.
@@ -31,13 +31,10 @@ export const USE_MOCK_BOOKING_PAYMENT = false;
 // walk-in, scheduled, status, assign staff) — live (BK-26, BK-63).
 export const USE_MOCK_FULFILLMENT = false;
 
-// Charging for the service at checkout (fulfillment.json#charge-booking).
-// The server has no charge endpoint yet (its payments module only takes
-// deposits), so this stays mocked. The app's live path — POST /charge,
-// then poll the booking like the deposit — is already built: flip this to
-// false once the backend ships charge-booking.
-export const USE_MOCK_CHARGE = true;
+// Charging for the service at checkout (fulfillment.json#charge-booking) —
+// live: POST /charge, then poll the booking like the deposit.
+export const USE_MOCK_CHARGE = false;
 
 // Business customer list (fulfillment.json#save-customer / list-customers)
-// — not built on the server yet.
-export const USE_MOCK_CUSTOMERS = true;
+// — live; the server fills it from bookings with a phone.
+export const USE_MOCK_CUSTOMERS = false;

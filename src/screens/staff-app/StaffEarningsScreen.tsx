@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { BarChart } from '../../components/charts/BarChart';
 import { DonutChart } from '../../components/charts/DonutChart';
 import { DatePickerField } from '../../components/DatePickerField';
@@ -25,6 +25,9 @@ import {
 } from '../../utils/earnings';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import { dateRangeKeys, useSyncBusinessBookings } from '../../hooks/useSyncBusinessBookings';
+import { getMyPayoutBalance } from '../../api/payouts';
+import { showApiError } from '../../utils/showApiError';
+import type { PayoutBalance } from '../../types/payout';
 
 const RANGE_OPTIONS: { value: EarningsRange; label: string }[] = [
   { value: 'today', label: 'Today' },
@@ -63,7 +66,6 @@ function formatRequestDate(iso: string): string {
 // Wide enough to cover "lifetime" without a dedicated all-time DateRange
 // concept in utils/earnings.ts — reuses the same getAppointmentStats this
 // screen already calls for the range-toggle section.
-const LIFETIME_RANGE = { start: new Date(2000, 0, 1), end: new Date(2100, 0, 1) };
 
 // S2 (earnings tracking) + S3 (payout request, wallet model) folded into
 // one tab, per explicit request, rather than a separate Payouts tab — S3
@@ -86,7 +88,11 @@ export function StaffEarningsScreen() {
   );
   const bookings = useBookingsStore((s) => s.bookings);
   const payouts = usePayoutsStore((s) => s.payouts);
+  const loadPayouts = usePayoutsStore((s) => s.loadPayouts);
   const requestPayoutNow = usePayoutsStore((s) => s.requestPayoutNow);
+  // The wallet comes from the server (get-payout-balance), which also
+  // re-checks every request against it.
+  const [balance, setBalance] = useState<PayoutBalance | null>(null);
 
   const [range, setRange] = useState<EarningsRange>('today');
   const [customStart, setCustomStart] = useState(todayKey);
@@ -107,7 +113,7 @@ export function StaffEarningsScreen() {
     () =>
       staffSession
         ? payouts
-            .filter((p) => p.invitationId === staffSession.invitationId)
+            .filter((p) => p.businessId === staffSession.businessId && p.staffId === staffSession.staffId)
             .sort((a, b) => b.requestedAt.localeCompare(a.requestedAt))
         : [],
     [payouts, staffSession],
@@ -129,15 +135,20 @@ export function StaffEarningsScreen() {
   const stats = useMemo(() => getAppointmentStats(myBookings, dateRange), [myBookings, dateRange]);
   const transactions = useMemo(() => getTransactionLines(myBookings, dateRange), [myBookings, dateRange]);
 
-  const lifetimeStats = useMemo(() => getAppointmentStats(myBookings, LIFETIME_RANGE), [myBookings]);
-  const commissionPercent = invitation?.commissionPercent ?? 0;
-  const lifetimeCommission = Math.round(lifetimeStats.totalRevenue * (commissionPercent / 100));
-  // Rejected requests release their reserved amount back to the balance —
-  // only pending/paid ones actually hold funds against it.
-  const totalRequested = myPayouts
-    .filter((p) => p.status !== 'rejected')
-    .reduce((sum, p) => sum + p.amount, 0);
-  const availableBalance = Math.max(0, lifetimeCommission - totalRequested);
+  const businessId = staffSession?.businessId;
+  const staffId = staffSession?.staffId;
+  const refreshWallet = useCallback(() => {
+    if (!businessId) return;
+    getMyPayoutBalance(businessId)
+      .then(setBalance)
+      .catch((err) => showApiError("Couldn't load your balance", err));
+    loadPayouts(businessId, { staffId }).catch(() => {});
+  }, [businessId, staffId, loadPayouts]);
+  useFocusEffect(refreshWallet);
+
+  const commissionPercent = balance?.commissionPercent ?? invitation?.commissionPercent ?? 0;
+  const lifetimeCommission = balance?.earned ?? 0;
+  const availableBalance = balance?.available ?? 0;
 
   if (!staffSession) {
     return <SafeAreaView style={styles.flex} edges={['top']} />;
@@ -154,14 +165,17 @@ export function StaffEarningsScreen() {
   const handleRequestPayout = async () => {
     if (!canRequest || isRequesting) return;
     setIsRequesting(true);
-    await requestPayoutNow({
-      businessId: staffSession.businessId,
-      invitationId: staffSession.invitationId,
-      amount: requestValue,
-    });
-    setIsRequesting(false);
-    setRequestSheetVisible(false);
-    setRequestAmount('');
+    try {
+      await requestPayoutNow({ businessId: staffSession.businessId, amount: requestValue });
+      setRequestSheetVisible(false);
+      setRequestAmount('');
+    } catch (err) {
+      // e.g. 409 insufficient_balance — the server's number wins.
+      showApiError("Couldn't request this payout", err);
+    } finally {
+      setIsRequesting(false);
+      refreshWallet();
+    }
   };
 
   const donutSegments = paymentBreakdown.map((slice) => ({
@@ -183,7 +197,7 @@ export function StaffEarningsScreen() {
           <Text style={styles.payoutLabel}>Wallet balance</Text>
           <Text style={styles.payoutValue}>{formatMoney(availableBalance)}</Text>
           <Text style={styles.payoutHint}>
-            {formatMoney(lifetimeCommission)} earned · {formatMoney(totalRequested)} requested
+            {formatMoney(lifetimeCommission)} earned · {formatMoney((balance?.pending ?? 0) + (balance?.paid ?? 0))} requested
           </Text>
           <Button
             label="Request payout"

@@ -1,63 +1,56 @@
-import { apiRequest } from './client';
-import { mockDelay } from './mock/delay';
-import { USE_MOCK_API } from '../config/env';
-import type { PayoutRequest } from '../types/payout';
+import { apiRequest, toQueryString } from './client';
+import type { PayoutBalance, PayoutRequest, PayoutStatus } from '../types/payout';
 
-// See reference/api/fulfillment.json#request-payout for the contract this
-// implements (staff.md's S3, wallet model — see types/payout.ts). Always
-// comes back 'pending' — see respondToPayout below for how it moves to
-// 'paid'/'rejected'. Validating amount against the available balance
-// happens client-side (StaffEarningsScreen); a real backend should re-check
-// it server-side too, not trust the client.
+// See reference/api/fulfillment.json#request-payout / #list-business-payouts /
+// #respond-to-payout / #get-payout-balance. The server computes and
+// enforces every balance — the app only displays it.
+
 export type RequestPayoutInput = {
   businessId: string;
-  invitationId: string;
   amount: number;
+  // Optional: defaults to the caller's own staff record; anyone else's is 403.
+  staffId?: string;
 };
 
-let mockPayoutSequence = 0;
-
+// Staff, for themselves. 409 insufficient_balance if over the available
+// balance. Always comes back pending.
 export function requestPayout(input: RequestPayoutInput): Promise<PayoutRequest> {
-  if (USE_MOCK_API) {
-    mockPayoutSequence += 1;
-    return mockDelay<PayoutRequest>({
-      payoutId: `payout_mock_${mockPayoutSequence}`,
-      businessId: input.businessId,
-      invitationId: input.invitationId,
-      amount: input.amount,
-      currency: 'KES',
-      status: 'pending',
-      requestedAt: new Date().toISOString(),
-      respondedAt: null,
-      rejectionReason: null,
-    });
-  }
-
   return apiRequest<PayoutRequest>('/payouts', { method: 'POST', body: input });
 }
 
-// See reference/api/fulfillment.json#respond-to-payout for the contract
-// this implements (business-owner.md's O4). 'approve' is the owner's
-// attestation that they've already sent the money themselves (M-Pesa/cash,
-// outside this app — there's no real payment rail here), not a trigger
-// that moves money. Mock-only quirk: takes the full payout rather than
-// just an id, same reason as chargeBookingPayment/updateBookingStatus.
+// Owner: everyone's; staff: their own.
+export function listBusinessPayouts(
+  businessId: string,
+  filters: { status?: PayoutStatus; staffId?: string } = {},
+): Promise<PayoutRequest[]> {
+  const qs = toQueryString([
+    ['status', filters.status],
+    ['staffId', filters.staffId],
+  ]);
+  return apiRequest<{ payouts: PayoutRequest[] }>(`/businesses/${businessId}/payouts${qs ? `?${qs}` : ''}`).then(
+    (res) => res.payouts,
+  );
+}
+
+// Owner. approve = they've paid the staff member themselves (M-Pesa/cash);
+// reject releases the amount back to the staff member's balance.
 export function respondToPayout(
-  payout: PayoutRequest,
+  payoutId: string,
   action: 'approve' | 'reject',
   rejectionReason?: string,
 ): Promise<PayoutRequest> {
-  if (USE_MOCK_API) {
-    return mockDelay<PayoutRequest>({
-      ...payout,
-      status: action === 'approve' ? 'paid' : 'rejected',
-      respondedAt: new Date().toISOString(),
-      rejectionReason: action === 'reject' ? (rejectionReason ?? null) : null,
-    });
-  }
-
-  return apiRequest<PayoutRequest>(`/payouts/${payout.payoutId}/respond`, {
+  return apiRequest<PayoutRequest>(`/payouts/${payoutId}/respond`, {
     method: 'POST',
-    body: { action, rejectionReason },
+    body: { action, rejectionReason: action === 'reject' ? (rejectionReason ?? null) : null },
   });
+}
+
+// The signed-in staff member's wallet at this business.
+export function getMyPayoutBalance(businessId: string): Promise<PayoutBalance> {
+  return apiRequest<PayoutBalance>(`/me/payouts/balance?${toQueryString([['businessId', businessId]])}`);
+}
+
+// Owner (or that staff member) looking at one person's wallet.
+export function getStaffPayoutBalance(businessId: string, staffId: string): Promise<PayoutBalance> {
+  return apiRequest<PayoutBalance>(`/businesses/${businessId}/staff/${staffId}/payout-balance`);
 }

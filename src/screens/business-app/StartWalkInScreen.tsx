@@ -88,7 +88,9 @@ export function StartWalkInScreen() {
     const customerPhone = rawPhone.length >= 4 ? normalizePhoneNumber(rawPhone, country) : null;
     const customerEmail = email.trim() || null;
 
-    if (trimmedName || customerPhone || customerEmail) {
+    // Bookings with a phone add the customer server-side; only someone
+    // entered without a phone needs saving explicitly.
+    if (!customerPhone && (trimmedName || customerEmail)) {
       await saveCustomer(ownedBusiness.businessId, {
         name: trimmedName || 'Walk-in customer',
         phone: customerPhone,

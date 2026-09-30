@@ -1,16 +1,15 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Avatar } from '../../components/Avatar';
 import { BackButton } from '../../components/BackButton';
 import { WalletIcon } from '../../components/icons/WalletIcon';
-import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
 import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { usePayoutsStore } from '../../store/usePayoutsStore';
 import { PAYOUT_STATUS_COLOR, PAYOUT_STATUS_LABEL } from '../../utils/payout';
-import { teamMemberDisplayName } from '../../utils/team';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
+import { showApiError } from '../../utils/showApiError';
 
 function formatMoney(amount: number): string {
   return `KSh ${amount.toLocaleString('en-US')}`;
@@ -27,8 +26,16 @@ function formatDate(iso: string): string {
 export function PayoutHistoryScreen() {
   const router = useRouter();
   const ownedBusiness = useOwnedBusinessStore((s) => s.business);
-  const invitations = useBusinessOnboardingStore((s) => s.invitations);
   const payouts = usePayoutsStore((s) => s.payouts);
+  const loadPayouts = usePayoutsStore((s) => s.loadPayouts);
+
+  // Every payout for the business, from the server.
+  const businessId = ownedBusiness?.businessId;
+  useFocusEffect(
+    useCallback(() => {
+      if (businessId) loadPayouts(businessId).catch((err) => showApiError("Couldn't load payouts", err));
+    }, [businessId, loadPayouts]),
+  );
 
   const businessPayouts = useMemo(
     () =>
@@ -39,11 +46,6 @@ export function PayoutHistoryScreen() {
         : [],
     [payouts, ownedBusiness],
   );
-
-  const nameForInvitation = (invitationId: string) => {
-    const invitation = invitations.find((i) => i.invitationId === invitationId);
-    return invitation ? teamMemberDisplayName(invitation) : 'Team member';
-  };
 
   return (
     <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
@@ -61,7 +63,7 @@ export function PayoutHistoryScreen() {
       ) : (
         <ScrollView contentContainerStyle={styles.list}>
           {businessPayouts.map((payout) => {
-            const displayName = nameForInvitation(payout.invitationId);
+            const displayName = payout.staffName || 'Team member';
             return (
               <Pressable
                 key={payout.payoutId}

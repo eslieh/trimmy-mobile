@@ -1,12 +1,13 @@
-import { apiRequest } from './client';
+import { apiRequest, toQueryString } from './client';
 import { mockDelay } from './mock/delay';
 import { USE_MOCK_CUSTOMERS } from '../config/env';
 import type { Customer } from '../types/customer';
 
-// See reference/api/fulfillment.json#save-customer for the contract this
-// implements. `customerId` present = updating an existing customer
-// (useCustomersStore already resolved the dedupe-by-phone match before
-// calling this); absent = creating a new one.
+// See reference/api/fulfillment.json#save-customer. With customerId:
+// updates that customer. Without: the server updates whoever already has
+// that phone (any format), otherwise creates one. Customers without a phone
+// are allowed and aren't deduplicated. 409 phone_taken if updating to a
+// phone another customer has.
 export type SaveCustomerInput = {
   customerId?: string;
   name: string;
@@ -26,14 +27,30 @@ export function saveCustomer(businessId: string, input: SaveCustomerInput): Prom
       phone: input.phone,
       email: input.email,
       createdAt: new Date().toISOString(),
+      bookingsCount: 0,
+      lastBookingAt: null,
     });
   }
 
   return apiRequest<Customer>(`/businesses/${businessId}/customers`, { method: 'POST', body: input });
 }
 
-// `list-customers` is documented in reference/api/fulfillment.json for the
-// real backend but has no mock implementation here — same as
-// list-service-categories in businessSetup.ts, which has the same gap.
-// CustomersScreen reads useCustomersStore directly (no fetch-on-mount, same
-// pattern every other post-publish store in this app already uses).
+// See reference/api/fulfillment.json#list-customers. The list fills itself
+// from bookings (every booking with a phone adds or refreshes that person),
+// so the app never needs to save a customer after booking. A–Z; query
+// searches name, email and phone digits.
+export function listCustomers(
+  businessId: string,
+  options: { query?: string; limit?: number; offset?: number } = {},
+): Promise<{ customers: Customer[]; total: number }> {
+  if (USE_MOCK_CUSTOMERS) {
+    return mockDelay({ customers: [], total: 0 });
+  }
+
+  const qs = toQueryString([
+    ['query', options.query || undefined],
+    ['limit', options.limit ?? 100],
+    ['offset', options.offset],
+  ]);
+  return apiRequest(`/businesses/${businessId}/customers?${qs}`);
+}
