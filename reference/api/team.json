@@ -263,14 +263,13 @@
     },
     {
       "id": "get-my-staff-services",
-      "status": "requested",
-      "priority": "P1",
+      "status": "live",
       "screen": "Staff app → Menu → My services",
       "story": "S1",
       "method": "GET",
       "path": "/me/staff-services?businessId=uuid",
       "auth": "the staff member (or front desk) themselves",
-      "description": "Why: staff can't see which services they've been assigned — get-staff-services is owner-only (403 for staff). Returns the caller's own mapping at businessId, with names so the app doesn't need the owner's service list.",
+      "description": "The caller's own services at businessId (staff or front desk). With allServices true, services lists everything the business offers. App: staff Menu → My services.",
       "request": null,
       "response": {
         "staffId": "uuid",

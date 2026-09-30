@@ -12,9 +12,7 @@ What the app needs next from the backend, most urgent first. Each one has a full
 
 | Priority | Request | File → entry | Unblocks |
 |---|---|---|---|
-| P1 | Staff can see their own services | team.json → `get-my-staff-services` | Staff app "My services" |
 | P2 | Push tokens (BK-41) | auth.json → `register-push-token` | Notifications for every role; push reminders |
-| P2 | Day summary + submit to owner (F4) | fulfillment.json → `get-day-summary`, `submit-day-summary` | Front desk end-of-day reconciliation |
 | P2 | Reviews | booking.json → `create-review` | Customers leaving reviews |
 | P3 | Reminder preferences (C5 "configurable") | — (not specified yet) | Customers turning reminders off / choosing times |
 | P3 | Favorites | discovery.json → `favorites` | Wishlist that survives reinstalls |

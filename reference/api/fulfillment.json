@@ -541,14 +541,13 @@
     },
     {
       "id": "get-day-summary",
-      "status": "requested",
-      "priority": "P2",
+      "status": "live",
       "screen": "Front desk → Day summary (F4); owner can view",
       "story": "F4",
       "method": "GET",
       "path": "/businesses/{businessId}/day-summary?date=2026-10-05",
       "auth": "owner or front desk",
-      "description": "Why: F4 end-of-day reconciliation. get-earnings-summary is 403 for front desk and is about sales, not the cash drawer. Business-local date.",
+      "description": "F4 end-of-day for owner or front desk (staff 403). appointments = booked ahead and not cancelled; walkIns; completed / noShows / cancelled by status. collected = the drawer: payments that succeeded that day (any visit day), by method (cash / mpesa) and separately by kind (depositsCollected / balancePayments) — the same money split two ways, don't add them. refundsPaid = refunds marked paid that day. unpaid = that day's in_progress / completed visits not yet paid (with status). App: DaySummaryScreen at /day-summary (front desk Menu, owner Manage Business).",
       "request": null,
       "response": {
         "date": "2026-10-05",
@@ -594,7 +593,8 @@
           "submittedAt": null,
           "submittedBy": null,
           "notes": null
-        }
+        },
+        "timezone": "Africa/Nairobi"
       },
       "errors": [
         {
@@ -606,14 +606,13 @@
     },
     {
       "id": "submit-day-summary",
-      "status": "requested",
-      "priority": "P2",
+      "status": "live",
       "screen": "Front desk → Day summary → Submit to owner (F4)",
       "story": "F4",
       "method": "POST",
       "path": "/businesses/{businessId}/day-summary/{date}/submit",
       "auth": "front desk (or owner)",
-      "description": "Records the day as reconciled with an optional note (e.g. 'KSh 200 short due to change') and notifies the owner (SMS now, push once BK-41 exists). Resubmitting replaces the note.",
+      "description": "Submits the day with an optional note; resubmitting replaces it; a future day is 400. When front desk submits, the owner gets an SMS and a push { type: 'day_summary_submitted', businessId, date }.",
       "request": {
         "notes": "KSh 200 short due to change"
       },

@@ -2,7 +2,7 @@ import { apiRequest } from './client';
 import { mockDelay } from './mock/delay';
 import { USE_MOCK_API } from '../config/env';
 import type { MyInvitation, TeamInvitation, TeamRole } from '../types/team';
-import type { WeeklyHours } from '../types/business';
+import type { Money, WeeklyHours } from '../types/business';
 
 // See reference/api/team.json for the contracts these two implement —
 // invitee-side (the person who was invited), as opposed to everything below
@@ -143,4 +143,17 @@ export function setStaffServices(businessId: string, staffId: string, input: Sta
     method: 'PUT',
     body: { allServices: input.allServices, serviceIds: input.allServices ? [] : input.serviceIds },
   });
+}
+
+// See reference/api/team.json#get-my-staff-services. The signed-in staff
+// member's (or front desk's) own services at businessId. With allServices
+// true, `services` lists everything the business offers.
+export type MyStaffServices = {
+  staffId: string;
+  allServices: boolean;
+  services: { serviceId: string; name: string; durationMinutes: number; price: Money }[];
+};
+
+export function getMyStaffServices(businessId: string): Promise<MyStaffServices> {
+  return apiRequest<MyStaffServices>(`/me/staff-services?businessId=${encodeURIComponent(businessId)}`);
 }

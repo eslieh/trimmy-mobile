@@ -38,6 +38,9 @@ export function FrontDeskMenuScreen() {
 
       <View style={styles.content}>
         <View style={styles.group}>
+          <Pressable style={styles.row} onPress={() => router.push('/day-summary')}>
+            <Text style={styles.rowLabel}>Day summary</Text>
+          </Pressable>
           <Pressable style={styles.row} onPress={() => router.push('/manage-business/unassigned')}>
             <Text style={styles.rowLabel}>Unassigned bookings</Text>
           </Pressable>

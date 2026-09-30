@@ -1,6 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { getMyStaffServices, type MyStaffServices } from '../../api/team';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
@@ -14,6 +16,17 @@ export function StaffMenuScreen() {
   const { user, logout } = useAuth();
   const staffSession = useOwnedBusinessStore((s) => s.staffSession);
   const setActiveMode = useOwnedBusinessStore((s) => s.setActiveMode);
+  // What the owner has set them up to perform (GET /me/staff-services).
+  const [myServices, setMyServices] = useState<MyStaffServices | null>(null);
+  const businessId = staffSession?.businessId;
+  useFocusEffect(
+    useCallback(() => {
+      if (!businessId) return;
+      getMyStaffServices(businessId)
+        .then(setMyServices)
+        .catch(() => setMyServices(null));
+    }, [businessId]),
+  );
 
   const displayName = user ? [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Guest' : 'Guest';
 
@@ -37,7 +50,36 @@ export function StaffMenuScreen() {
         {staffSession ? <Text style={styles.business}>{staffSession.businessName}</Text> : null}
       </View>
 
-      <View style={styles.content}>
+      <ScrollView contentContainerStyle={styles.content}>
+        {myServices ? (
+          <View style={styles.group}>
+            <View style={styles.row}>
+              <Text style={styles.rowLabel}>
+                My services{myServices.allServices ? ' · every service' : ''}
+              </Text>
+            </View>
+            {myServices.services.length === 0 ? (
+              <View style={[styles.row, styles.rowLast]}>
+                <Text style={styles.serviceMeta}>None yet — ask the owner to add the services you perform.</Text>
+              </View>
+            ) : (
+              myServices.services.map((service, index) => (
+                <View
+                  key={service.serviceId}
+                  style={[styles.row, index === myServices.services.length - 1 && styles.rowLast]}
+                >
+                  <View style={styles.serviceInfo}>
+                    <Text style={styles.rowLabel}>{service.name}</Text>
+                    <Text style={styles.serviceMeta}>
+                      {service.durationMinutes} min · KSh {service.price.amount.toLocaleString('en-US')}
+                    </Text>
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+        ) : null}
+
         <Pressable style={styles.switchButton} onPress={handleSwitchToBrowsing}>
           <Text style={styles.switchButtonText}>Switch to browsing</Text>
         </Pressable>
@@ -47,12 +89,20 @@ export function StaffMenuScreen() {
             <Text style={[styles.rowLabel, styles.logoutLabel]}>Log out</Text>
           </Pressable>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  serviceInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  serviceMeta: {
+    ...typography.caption,
+    color: colors.text.secondary,
+  },
   flex: {
     flex: 1,
     backgroundColor: colors.background.primary,

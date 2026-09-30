@@ -83,6 +83,12 @@ export function ManageBusinessScreen() {
       onPress: () => router.push('/manage-business/unassigned'),
     },
     {
+      key: 'day-summary',
+      label: 'Day summary',
+      icon: <ListIcon size={20} color={colors.text.secondary} />,
+      onPress: () => router.push('/day-summary'),
+    },
+    {
       key: 'refunds',
       label: 'Refunds owed',
       icon: <WalletIcon size={20} color={colors.text.secondary} />,
