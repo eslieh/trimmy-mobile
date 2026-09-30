@@ -1,0 +1,268 @@
+{
+  "domain": "team",
+  "baseUrl": "/api/v1",
+  "auth": "Requires a Bearer token for the current authenticated user, unless noted.",
+  "endpoints": [
+    {
+      "id": "list-my-invitations",
+      "screen": "Get Started (post-signup)",
+      "story": "O2",
+      "method": "GET",
+      "path": "/me/invitations",
+      "description": "Lists pending team invitations addressed to the current user (matched by phone number), shown right after signup so an invited staff/front-desk member can join their business.",
+      "auth": "any authenticated user",
+      "request": null,
+      "response": {
+        "invitations": [
+          {
+            "invitationId": "inv_01xy",
+            "businessId": "biz_01hxyz",
+            "businessName": "Glow Beauty Lounge",
+            "role": "front_desk",
+            "status": "pending",
+            "sentAt": "2026-09-20T09:10:00Z"
+          }
+        ]
+      },
+      "errors": [],
+      "status": "live"
+    },
+    {
+      "id": "respond-to-invitation",
+      "screen": "Get Started (post-signup)",
+      "story": "O2",
+      "method": "POST",
+      "path": "/invitations/{invitationId}/respond",
+      "description": "Accepts or declines a pending team invitation. Accepting grants the responding user the invited role on that business.",
+      "auth": "any authenticated user",
+      "request": {
+        "action": "accept"
+      },
+      "response": {
+        "invitationId": "inv_01xy",
+        "status": "accepted"
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "No pending invitation found for this id"
+        },
+        {
+          "status": 409,
+          "code": "already_responded",
+          "message": "This invitation has already been accepted or declined"
+        }
+      ],
+      "status": "live"
+    },
+    {
+      "id": "add-team-member",
+      "screen": "Invite team member (business-owner app, Team tab \"+\")",
+      "story": "O2",
+      "method": "POST",
+      "path": "/businesses/{businessId}/team/members",
+      "description": "Post-publish equivalent of business-setup.json#invite-team-member (onboarding's Team invite step), but collects the fuller field set that step never asked for: name, commission split, and working days. At least one of email/phone is required. An invitation IS the team roster record — there's no separate 'member' entity — so this returns the same shape list-my-invitations/get-business-profile-style team lists would use.",
+      "auth": "owner",
+      "request": {
+        "name": "Jane Doe",
+        "email": "jane@example.com",
+        "phone": "+254798765432",
+        "role": "staff",
+        "commissionPercent": 40,
+        "workingDays": null
+      },
+      "response": {
+        "invitationId": "inv_01xy",
+        "staffId": "uuid | null",
+        "businessId": "biz_01hxyz",
+        "name": "Jane Doe",
+        "email": "jane@example.com",
+        "phone": "+254798765432",
+        "role": "staff",
+        "status": "pending",
+        "commissionPercent": 40,
+        "workingDays": null,
+        "sentAt": "2026-09-23T09:00:00Z"
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "validation_error",
+          "message": "email or phone is required"
+        },
+        {
+          "status": 409,
+          "code": "already_invited",
+          "message": "This email or phone already has a pending invitation"
+        },
+        {
+          "status": 409,
+          "code": "already_member",
+          "message": "This person is already on the team"
+        }
+      ],
+      "status": "live"
+    },
+    {
+      "id": "update-team-member",
+      "screen": "Member Detail (business-owner app)",
+      "story": "O2",
+      "method": "PATCH",
+      "path": "/businesses/{businessId}/team/members/{invitationId}",
+      "description": "Edits a team member's commission split and/or working days. Works the same whether the member's invitation is still pending or already accepted — no separate 'accepted member' record exists to edit instead. Only the fields sent are changed; send workingDays: null to clear it. Returns the full member.",
+      "auth": "owner",
+      "request": {
+        "commissionPercent": 45,
+        "workingDays": [
+          "monday",
+          "tuesday",
+          "wednesday",
+          "thursday",
+          "friday"
+        ]
+      },
+      "response": {
+        "invitationId": "inv_01xy",
+        "staffId": "uuid | null",
+        "commissionPercent": 45,
+        "workingDays": [
+          "monday",
+          "tuesday",
+          "wednesday",
+          "thursday",
+          "friday"
+        ]
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "validation_error",
+          "message": "commissionPercent must be between 0 and 100"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "invitationId does not exist for this business"
+        }
+      ],
+      "status": "live"
+    },
+    {
+      "id": "remove-team-member",
+      "screen": "Member Detail (business-owner app)",
+      "story": "O2",
+      "method": "DELETE",
+      "path": "/businesses/{businessId}/team/members/{invitationId}",
+      "description": "Cancels a still-pending invitation, or removes an already-accepted member from the team — same request either way, the meaning just depends on the record's current status. Removing an accepted member also removes their staff record.",
+      "auth": "owner",
+      "request": null,
+      "response": null,
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "invitationId does not exist for this business"
+        }
+      ],
+      "status": "live"
+    },
+    {
+      "id": "list-team-members",
+      "status": "live",
+      "screen": "Team (business app)",
+      "story": "O2",
+      "method": "GET",
+      "path": "/businesses/{businessId}/team/members",
+      "auth": "owner",
+      "description": "All invitations/members for the business, with name, role, status, commissionPercent and workingDays. The Team screen currently shows only members added on this device in this session (client memory), so it's empty after a reinstall or on a second device.",
+      "request": null,
+      "response": {
+        "members": [
+          {
+            "invitationId": "uuid",
+            "staffId": "uuid | null",
+            "businessId": "uuid",
+            "name": "Wanjiku",
+            "email": "wanjiku@example.com",
+            "phone": "+254712345678",
+            "role": "staff",
+            "status": "accepted",
+            "commissionPercent": 40,
+            "workingDays": null,
+            "sentAt": "2026-09-25T12:00:00Z"
+          }
+        ]
+      }
+    },
+    {
+      "id": "get-staff-services",
+      "status": "live",
+      "screen": "Member Detail (business-owner app): services they perform",
+      "story": "O2",
+      "method": "GET",
+      "path": "/businesses/{businessId}/staff/{staffId}/services",
+      "auth": "owner",
+      "request": null,
+      "response": {
+        "staffId": "uuid",
+        "allServices": false,
+        "serviceIds": [
+          "uuid"
+        ]
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "staffId does not exist for this business"
+        }
+      ]
+    },
+    {
+      "id": "set-staff-services",
+      "status": "live",
+      "screen": "Member Detail (business-owner app): services they perform",
+      "story": "O2",
+      "method": "PUT",
+      "path": "/businesses/{businessId}/staff/{staffId}/services",
+      "auth": "owner",
+      "description": "allServices: true = performs every service, including ones added later (the default for everyone). allServices: false = performs exactly serviceIds, which may be empty (e.g. front desk). Replaces the whole list. Deleting a service removes it from everyone's list; it never flips someone back to allServices.",
+      "request": {
+        "allServices": false,
+        "serviceIds": [
+          "uuid",
+          "uuid"
+        ]
+      },
+      "response": {
+        "staffId": "uuid",
+        "allServices": false,
+        "serviceIds": [
+          "uuid",
+          "uuid"
+        ]
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "validation_error",
+          "message": "serviceIds must be empty when allServices is true"
+        },
+        {
+          "status": 400,
+          "code": "validation_error",
+          "message": "serviceIds contains services not in this business: …"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "staffId does not exist for this business"
+        }
+      ]
+    }
+  ],
+  "notes": [
+    "2026-09-26 (BK-02): members carry staffId, which is null while the invitation is pending and set once accepted. It's the same id as the business profile's staff[].staffId, and it's the id bookings, availability and earnings use. Editing commission/working days still goes through PATCH /team/members/{invitationId}; the server keeps the staff record in sync. Only accepted members (non-null staffId) are bookable."
+  ]
+}

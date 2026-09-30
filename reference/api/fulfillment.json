@@ -1,0 +1,540 @@
+{
+  "domain": "fulfillment",
+  "baseUrl": "/api/v1",
+  "auth": "Requires a Bearer token. Roles per endpoint: owner and front desk see and act on the whole business; staff see only their own bookings, wallet and payouts.",
+  "endpoints": [
+    {
+      "id": "list-business-bookings",
+      "screen": "Today / Calendar / Earnings (business-owner app)",
+      "story": "S1",
+      "method": "GET",
+      "path": "/businesses/{businessId}/bookings?date=2026-09-25 | ?from=2026-09-01&to=2026-09-30 [&status=confirmed,in_progress] [&staffId=uuid] [&unassigned=true] | ?refund=due",
+      "description": "Soonest first. date = one day; from/to = an inclusive range of at most 62 days (one is required, except with refund=due). status is comma-separated. unassigned=true lists 'Any available' bookings waiting for someone (see assign-booking-staff). refund=due lists every booking with a refund owed. App: hooks/useSyncBusinessBookings loads Today (day), Calendar (month), Earnings and Member Detail (their range, split into ≤62-day chunks) into useBookingsStore as a cache; Manage Business → Unassigned bookings / Refunds owed use unassigned=true and refund=due.",
+      "auth": "owner or front desk (all bookings); staff (only their own)",
+      "request": null,
+      "response": {
+        "bookings": [
+          "Booking"
+        ]
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "validation_error",
+          "message": "Pass date, or from and to"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "No business found for this id"
+        }
+      ],
+      "status": "live"
+    },
+    {
+      "id": "create-walk-in-booking",
+      "screen": "New appointment — Now (business-owner app, Today tab \"+\")",
+      "story": "S1",
+      "method": "POST",
+      "path": "/bookings/walk-in",
+      "description": "The customer is here now: the server stamps the current time, status starts in_progress, no deposit. Prices come from the server. customerName defaults to 'Walk-in customer'. staffId optional (null = unassigned); it must be free right now, else 409.",
+      "auth": "owner or front desk",
+      "request": {
+        "businessId": "uuid",
+        "customerName": "Baraka",
+        "customerPhone": "+254733000111",
+        "customerEmail": null,
+        "services": [
+          {
+            "serviceId": "uuid",
+            "quantity": 1
+          }
+        ],
+        "staffId": "uuid | null",
+        "notes": null
+      },
+      "response": "Booking (status in_progress, source walk_in)",
+      "errors": [
+        {
+          "status": 409,
+          "code": "slot_unavailable",
+          "message": "This time is no longer available"
+        },
+        {
+          "status": 403,
+          "code": "forbidden",
+          "message": "Only the owner or front desk can do this"
+        }
+      ],
+      "status": "live"
+    },
+    {
+      "id": "create-scheduled-booking",
+      "screen": "New appointment — Schedule (business-owner app, Calendar tab \"+\", or a customer's \"New appointment\" button)",
+      "story": "S1",
+      "method": "POST",
+      "path": "/bookings/scheduled",
+      "description": "Book on a customer's behalf: same body as the walk-in plus date and time. Starts confirmed, no deposit. Must be in the future and inside working hours, but may be off the customer slot grid (e.g. 14:05) and needs no lead time.",
+      "auth": "owner or front desk",
+      "request": {
+        "…": "as create-walk-in-booking",
+        "date": "2026-09-25",
+        "time": "14:00"
+      },
+      "response": "Booking (status confirmed, source walk_in)",
+      "errors": [
+        {
+          "status": 400,
+          "code": "validation_error",
+          "message": "time is not within the business's working hours for that date"
+        },
+        {
+          "status": 400,
+          "code": "validation_error",
+          "message": "time is in the past"
+        },
+        {
+          "status": 409,
+          "code": "slot_unavailable",
+          "message": "This time is no longer available"
+        }
+      ],
+      "status": "live"
+    },
+    {
+      "id": "update-booking-status",
+      "screen": "Appointment Detail (business-owner app)",
+      "story": "S1",
+      "method": "PATCH",
+      "path": "/bookings/{bookingId}/status",
+      "description": "status: in_progress (check in / start), completed, no_show (only after the start time), cancelled (cancelReason 'business' unless a reason is sent; makes the whole paid deposit refundable). Returns the full Booking. Completing is allowed here until charge-booking exists.",
+      "auth": "owner or front desk; staff can set in_progress and completed on their own bookings",
+      "request": {
+        "status": "in_progress",
+        "reason": null
+      },
+      "response": "Booking",
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_status_transition",
+          "message": "Cannot move from completed to in_progress"
+        },
+        {
+          "status": 403,
+          "code": "forbidden",
+          "message": "Only the owner or front desk can do this"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "bookingId does not exist"
+        }
+      ],
+      "status": "live"
+    },
+    {
+      "id": "charge-booking",
+      "status": "live",
+      "screen": "Appointment Detail → Charge customer (owner / front desk)",
+      "story": "S1",
+      "method": "POST",
+      "path": "/bookings/{bookingId}/charge",
+      "auth": "owner or front desk",
+      "description": "The final charge at checkout (PaymentKind.CHARGE on the server), for an in_progress booking. The amount is the balance: totalAmount minus any deposit already paid. Same shape as start-booking-payment so both use one polling pattern. method 'cash': records it immediately and returns 200 with the Booking (status completed, paymentStatus paid, paymentMethod cash). method 'mpesa': sends an STK push to phone (any Kenyan format; defaults to the booking's customerPhone) routed to the business's own till/paybill/bank, and returns 202 at once. The app then polls GET /bookings/{bookingId} every 3s for up to ~2 min: success = status completed + paymentStatus paid, with paymentReference (M-Pesa receipt) and paymentMethod mpesa set; failure = chargePayment.status failed | timeout with a failureReason (same values as depositPayment). The customer can be re-prompted after a failure. No balance due (deposit covered everything): mpesa behaves like cash and completes immediately. If an M-Pesa charge lands after the booking was already paid another way (e.g. cash while the prompt was open), it's recorded as a refund owed (refund.status due). App: AppointmentDetailScreen's Charge customer sheet (src/api/booking.ts#chargeBookingPayment polls until paid or failed).",
+      "request": {
+        "method": "mpesa | cash",
+        "phone": "0712345678"
+      },
+      "response": {
+        "202 (mpesa)": {
+          "paymentId": "uuid",
+          "bookingId": "uuid",
+          "status": "pending",
+          "amount": 500,
+          "currency": "KES",
+          "phone": "254712345678",
+          "customerMessage": "Success. Request accepted for processing"
+        },
+        "200 (cash, or nothing left to pay)": "Booking (status completed, paymentStatus paid)"
+      },
+      "bookingChanges": {
+        "description": "Booking gains balanceDue (what charge-booking would take now) and chargePayment (null until an M-Pesa charge is started).",
+        "balanceDue": {
+          "amount": 500,
+          "currency": "KES"
+        },
+        "chargePayment": {
+          "paymentId": "uuid",
+          "status": "pending | succeeded | failed | timeout",
+          "failureReason": "cancelled | insufficient_funds | wrong_pin | timeout | busy | provider_error | failed | null"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_phone",
+          "message": "Enter a Kenyan mobile number, e.g. 0712 345 678"
+        },
+        {
+          "status": 409,
+          "code": "not_in_progress",
+          "message": "Only an in-progress appointment can be charged"
+        },
+        {
+          "status": 409,
+          "code": "already_paid",
+          "message": "This appointment is already paid"
+        },
+        {
+          "status": 409,
+          "code": "payment_in_progress",
+          "message": "An M-Pesa prompt was just sent; wait for the customer to respond",
+          "paymentId": "uuid"
+        },
+        {
+          "status": 409,
+          "code": "business_cannot_take_payments",
+          "message": "This business can't take M-Pesa payments right now"
+        },
+        {
+          "status": 429,
+          "code": "too_many_attempts",
+          "message": "Too many payment attempts for this booking"
+        },
+        {
+          "status": 502,
+          "code": "payment_provider_error",
+          "message": "M-Pesa couldn't send the prompt; please try again"
+        },
+        {
+          "status": 503,
+          "code": "payments_unavailable",
+          "message": "Payments are temporarily unavailable"
+        },
+        {
+          "status": 403,
+          "code": "forbidden",
+          "message": "Only the owner or front desk can do this"
+        }
+      ]
+    },
+    {
+      "id": "get-earnings-summary",
+      "screen": "Earnings (business-owner app)",
+      "story": "S2",
+      "method": "GET",
+      "path": "/businesses/{businessId}/earnings",
+      "description": "Revenue trend buckets, payment-method breakdown, per-service breakdown, per-transaction ledger, and appointment counts for a date range (`from`/`to` query params, both 'YYYY-MM-DD'). Also takes an optional `staffId` query param — when present, scopes every number to bookings assigned to that team member (see create-walk-in-booking's staffId), which is what TeamMemberDetailScreen's earnings section needs; omitted, it's the whole-business view EarningsScreen shows. Mirrors what src/utils/earnings.ts currently computes client-side by filtering every booking in memory — fine for mock data, not something a real backend should do at scale. `services` should include every service the business currently offers, not just ones with revenue (bookingsCount: 0 rows included) — both screens use that to show what isn't selling, not just what is. `transactions` is one row per service actually performed (not per booking), newest first — the client caps this at 10 for preset ranges and shows everything for a custom range, so a real backend could paginate rather than always returning every row, but the mock returns the full set and lets the client slice it. Only bookings with paymentStatus 'paid' count toward any amount here.",
+      "auth": "owner",
+      "request": null,
+      "response": {
+        "totalRevenue": 12400,
+        "completed": 14,
+        "noShow": 1,
+        "cancelled": 2,
+        "avgTicket": 886,
+        "buckets": [
+          {
+            "label": "Mon",
+            "amount": 1600
+          },
+          {
+            "label": "Tue",
+            "amount": 2400
+          }
+        ],
+        "paymentMethods": [
+          {
+            "method": "mpesa",
+            "amount": 9600,
+            "count": 11
+          },
+          {
+            "method": "cash",
+            "amount": 2800,
+            "count": 3
+          }
+        ],
+        "services": [
+          {
+            "serviceId": "svc_01a1",
+            "name": "Classic Haircut",
+            "amount": 8000,
+            "bookingsCount": 10
+          },
+          {
+            "serviceId": "svc_01a2",
+            "name": "Beard Trim",
+            "amount": 0,
+            "bookingsCount": 0
+          }
+        ],
+        "transactions": [
+          {
+            "bookingId": "booking_01a1",
+            "serviceId": "svc_01a1",
+            "date": "2026-09-23",
+            "time": "14:00",
+            "customerName": "Jane Doe",
+            "serviceName": "Classic Haircut",
+            "amount": 800,
+            "paymentMethod": "mpesa"
+          }
+        ]
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "No business found for this id"
+        }
+      ],
+      "status": "requested (not built; the app computes earnings from list-business-bookings, which is fine now that charge-booking marks bookings paid)"
+    },
+    {
+      "id": "save-customer",
+      "screen": "New appointment / Customer Detail (business-owner app)",
+      "story": "S1",
+      "method": "POST",
+      "path": "/businesses/{businessId}/customers",
+      "description": "The list fills itself from bookings (every booking with a phone adds or refreshes that person), so the app doesn't call this after booking — only for customers entered without a phone. With customerId: updates it. Without: updates whoever already has that phone (any format, stored E.164), otherwise creates. Customers without a phone are allowed and aren't deduplicated.",
+      "auth": "owner or front desk",
+      "request": {
+        "customerId": null,
+        "name": "Jane Doe",
+        "phone": "0798765432",
+        "email": "jane@example.com"
+      },
+      "response": {
+        "customerId": "uuid",
+        "businessId": "uuid",
+        "name": "Jane Doe",
+        "phone": "+254798765432",
+        "email": "jane@example.com",
+        "createdAt": "2026-09-22T11:35:00Z",
+        "bookingsCount": 3,
+        "lastBookingAt": "2026-09-28T14:00:00Z"
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_phone",
+          "message": "Enter a valid phone number"
+        },
+        {
+          "status": 409,
+          "code": "phone_taken",
+          "message": "Another customer already has this phone"
+        },
+        {
+          "status": 403,
+          "code": "forbidden",
+          "message": "Only the owner or front desk can do this"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "No business found for this id"
+        }
+      ],
+      "status": "live"
+    },
+    {
+      "id": "list-customers",
+      "screen": "Customers (business-owner app)",
+      "story": "S1",
+      "method": "GET",
+      "path": "/businesses/{businessId}/customers?query=&limit=100&offset=0",
+      "description": "A–Z. query searches name, email and phone digits; limit 1–500. bookingsCount and lastBookingAt count bookings with that phone, cancelled ones excluded. App: CustomersScreen loads on focus and searches server-side as you type.",
+      "auth": "owner or front desk",
+      "request": null,
+      "response": {
+        "customers": [
+          {
+            "customerId": "uuid",
+            "businessId": "uuid",
+            "name": "Jane Doe",
+            "phone": "+254798765432",
+            "email": "jane@example.com",
+            "createdAt": "2026-09-22T11:35:00Z",
+            "bookingsCount": 3,
+            "lastBookingAt": "2026-09-28T14:00:00Z"
+          }
+        ],
+        "total": 1
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "No business found for this id"
+        }
+      ],
+      "status": "live"
+    },
+    {
+      "id": "request-payout",
+      "screen": "Earnings — Request payout (staff app)",
+      "story": "S3",
+      "method": "POST",
+      "path": "/payouts",
+      "description": "Keyed by staffId (BK-02), not invitationId. staffId is optional and defaults to the caller's own staff record at businessId; any other staffId is 403. amount must be ≤ the available balance, checked on the server. Always comes back pending. App: StaffEarningsScreen, which shows the server's balance and refreshes it after each request.",
+      "auth": "staff (for themselves only)",
+      "request": {
+        "businessId": "uuid",
+        "staffId": "uuid (optional)",
+        "amount": 320
+      },
+      "response": {
+        "payoutId": "uuid",
+        "businessId": "uuid",
+        "staffId": "uuid",
+        "staffName": "Wanjiku",
+        "amount": 320,
+        "currency": "KES",
+        "status": "pending",
+        "requestedAt": "2026-09-30T18:05:00Z",
+        "respondedAt": null,
+        "rejectionReason": null
+      },
+      "errors": [
+        {
+          "status": 409,
+          "code": "insufficient_balance",
+          "message": "Amount exceeds available wallet balance (KES 120)"
+        },
+        {
+          "status": 403,
+          "code": "forbidden",
+          "message": "You can only request payouts for yourself"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "You don't work at this business"
+        }
+      ],
+      "status": "live"
+    },
+    {
+      "id": "list-business-payouts",
+      "screen": "Team — Payouts queue / Payout history (business-owner app)",
+      "story": "O4",
+      "method": "GET",
+      "path": "/businesses/{businessId}/payouts?status=pending&staffId=uuid",
+      "description": "App: TeamScreen loads status=pending for the queue; PayoutHistoryScreen loads everything; StaffEarningsScreen loads the staff member's own.",
+      "auth": "owner (everyone's); staff (their own)",
+      "request": null,
+      "response": {
+        "payouts": [
+          {
+            "payoutId": "uuid",
+            "businessId": "uuid",
+            "staffId": "uuid",
+            "staffName": "Wanjiku",
+            "amount": 320,
+            "currency": "KES",
+            "status": "pending",
+            "requestedAt": "2026-09-30T18:05:00Z",
+            "respondedAt": null,
+            "rejectionReason": null
+          }
+        ]
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "No business found for this id"
+        }
+      ],
+      "status": "live"
+    },
+    {
+      "id": "respond-to-payout",
+      "screen": "Payout Detail — Accept & send / Reject (business-owner app)",
+      "story": "O4",
+      "method": "POST",
+      "path": "/payouts/{payoutId}/respond",
+      "description": "approve records that the owner has already paid the staff member themselves (M-Pesa/cash); Trimmy never moves this money. reject releases the amount back to the staff member's available balance.",
+      "auth": "owner",
+      "request": {
+        "action": "approve | reject",
+        "rejectionReason": "only kept for reject"
+      },
+      "response": "Payout (status paid | rejected, respondedAt set)",
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "payoutId does not exist for this business"
+        },
+        {
+          "status": 409,
+          "code": "already_responded",
+          "message": "This payout has already been approved or rejected"
+        }
+      ],
+      "status": "live"
+    },
+    {
+      "id": "assign-booking-staff",
+      "status": "live",
+      "screen": "Appointment detail (owner / front desk): Assign staff",
+      "story": "S1",
+      "method": "PATCH",
+      "path": "/bookings/{bookingId}/staff",
+      "auth": "the business owner, or its front desk",
+      "description": "Assigns an unassigned booking, or reassigns an assigned one. The staff member must offer every service on the booking, work that weekday, and be free (including room for the business's other unassigned bookings at that time). Only pending_payment, confirmed and in_progress bookings can be (re)assigned. App: AppointmentDetailScreen's Assign staff / Reassign sheet, which stays open on staff_unavailable. Unassigned bookings are found with list-business-bookings?unassigned=true (Manage Business → Unassigned bookings).",
+      "request": {
+        "staffId": "uuid"
+      },
+      "response": "Booking (staffId and staffName now set)",
+      "errors": [
+        {
+          "status": 409,
+          "code": "staff_unavailable",
+          "message": "That staff member can't take this booking: busy, off that day, or doesn't offer the service"
+        },
+        {
+          "status": 409,
+          "code": "booking_not_active",
+          "message": "A cancelled booking can't be reassigned"
+        },
+        {
+          "status": 403,
+          "code": "forbidden",
+          "message": "Only the owner or front desk can assign staff"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "No booking found for this id / staffId does not exist for this business"
+        }
+      ]
+    },
+    {
+      "id": "get-payout-balance",
+      "status": "live",
+      "screen": "Staff Earnings (wallet); owner Member Detail",
+      "story": "S3",
+      "method": "GET",
+      "path": "/me/payouts/balance?businessId=uuid  |  /businesses/{businessId}/staff/{staffId}/payout-balance",
+      "auth": "/me: the staff member; /businesses/…: the owner, or that staff member",
+      "description": "earned = commission on paid bookings; available = earned − pending − paid. Commission is fixed on each booking when it's paid (total × the staff member's commissionPercent at that moment), so changing someone's rate only affects later bookings. Unassigned bookings earn no commission.",
+      "request": null,
+      "response": {
+        "businessId": "uuid",
+        "staffId": "uuid",
+        "currency": "KES",
+        "earned": 320,
+        "pending": 200,
+        "paid": 0,
+        "available": 120,
+        "commissionPercent": 40
+      },
+      "errors": []
+    }
+  ]
+}

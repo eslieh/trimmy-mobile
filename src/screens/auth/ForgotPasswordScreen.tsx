@@ -1,26 +1,46 @@
 import { useState } from 'react';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { StyleSheet, Text } from 'react-native';
+import { useRouter } from 'expo-router';
 import { AuthScreenLayout } from '../../components/AuthScreenLayout';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
-import { RootStackParamList } from '../../navigation/types';
+import { colors, typography } from '../../theme';
+import { authApi } from '../../api/auth';
+import { getApiErrorMessage } from '../../api/client';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'ForgotPassword'>;
-
-export function ForgotPasswordScreen({ navigation }: Props) {
+export function ForgotPasswordScreen() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSendCode = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      await authApi.forgotPassword(email.trim());
+      router.push({ pathname: '/forgot-password-verification', params: { email: email.trim() } });
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Something went wrong. Please try again.'));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <AuthScreenLayout
       title="Forgot password?"
       subtitle="Enter the email linked to your account and we'll send you a code to reset your password."
-      onBack={() => navigation.goBack()}
+      onBack={() => router.back()}
       footer={
-        <Button
-          label="Send code"
-          disabled={!email.trim()}
-          onPress={() => navigation.navigate('ForgotPasswordVerification', { email: email.trim() })}
-        />
+        <>
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          <Button
+            label={loading ? 'Sending...' : 'Send code'}
+            disabled={!email.trim() || loading}
+            onPress={handleSendCode}
+          />
+        </>
       }
     >
       <Input
@@ -35,3 +55,11 @@ export function ForgotPasswordScreen({ navigation }: Props) {
     </AuthScreenLayout>
   );
 }
+
+const styles = StyleSheet.create({
+  error: {
+    ...typography.caption,
+    color: colors.feedback.danger,
+    marginBottom: 8,
+  },
+});

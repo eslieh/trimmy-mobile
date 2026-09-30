@@ -31,6 +31,9 @@ yarn-error.*
 *.pem
 
 # local env files
+# .env.development/.staging/.production are committed — they only hold the
+# public API base URL (staging vs prod), never secrets.
+.env
 .env*.local
 
 # typescript

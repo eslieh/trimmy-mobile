@@ -1,26 +1,65 @@
 import { useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useRouter } from 'expo-router';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { Divider } from '../../components/Divider';
 import { GoogleIcon } from '../../components/icons/GoogleIcon';
 import { AppleIcon } from '../../components/icons/AppleIcon';
 import { PhoneIcon } from '../../components/icons/PhoneIcon';
-import { RootStackParamList } from '../../navigation/types';
+import { authApi } from '../../api/auth';
+import { getApiErrorMessage } from '../../api/client';
+import { useGoogleSignIn } from '../../hooks/useGoogleSignIn';
+import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
+import { seedOwnedBusinessForTesting } from '../../utils/devSeed';
 import { colors, spacing, typography } from '../../theme';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Welcome'>;
-
-export function WelcomeScreen({ navigation }: Props) {
+export function WelcomeScreen() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [checking, setChecking] = useState(false);
+  const [error, setError] = useState('');
+  const google = useGoogleSignIn();
+  const setOwnedBusiness = useOwnedBusinessStore((s) => s.setOwnedBusiness);
+  const setActiveMode = useOwnedBusinessStore((s) => s.setActiveMode);
+
+  // One email field for both paths: existing accounts go to Login (email
+  // prefilled), new ones start sign-up.
+  const handleContinue = async () => {
+    const trimmed = email.trim();
+    setChecking(true);
+    setError('');
+    try {
+      const { exists } = await authApi.checkEmail(trimmed);
+      router.push(
+        exists
+          ? { pathname: '/login', params: { email: trimmed } }
+          : { pathname: '/onboarding-password', params: { email: trimmed } },
+      );
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Something went wrong. Please try again.'));
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  // Google is real sign-in (useGoogleSignIn). Apple/phone OAuth don't exist
+  // yet, so those two stay role-testing shortcuts per explicit request:
+  // Apple → business (solo), phone → business (team). Neither reflects real
+  // auth; they only let the business app be reached without repeating the
+  // full wizard each time.
+  const enterAsBusiness = (teamMode: 'solo' | 'team') => {
+    setOwnedBusiness(seedOwnedBusinessForTesting(teamMode === 'solo' ? 0 : 1, teamMode));
+    setActiveMode('business');
+    router.dismissAll();
+    router.replace('/today');
+  };
 
   return (
     <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
       <Image source={require('../../../assets/icon.png')} style={styles.logo} resizeMode="contain" />
 
-      <Text style={styles.heading}>Welcome to Trimlyy</Text>
+      <Text style={styles.heading}>Welcome to Trimmy</Text>
       <Text style={styles.body}>
         Create an account or log in to book and manage your appointments
       </Text>
@@ -37,42 +76,42 @@ export function WelcomeScreen({ navigation }: Props) {
         style={styles.input}
       />
 
-      <Input
-        label="Password"
-        value={password}
-        onChangeText={setPassword}
-        placeholder="At least 8 characters"
-        secureTextEntry
-        style={styles.input}
-      />
-
+      {error ? <Text style={styles.error}>{error}</Text> : null}
       <Button
-        label="Continue"
-        onPress={() => navigation.navigate('OnboardingVerification', { email: email.trim(), password })}
+        label={checking ? 'Checking...' : 'Continue'}
+        onPress={handleContinue}
         variant="primary"
-        disabled={!email.trim() || password.length < 8}
+        disabled={!email.trim() || checking}
         style={styles.continueButton}
       />
 
       <Divider label="OR" />
 
       <View style={styles.buttonGroup}>
-        <Button label="Continue with mobile" onPress={() => {}} variant="secondary" icon={<PhoneIcon size={20} />} />
         <Button
-          label="Continue with Google"
-          onPress={() => {}}
+          label="Continue with mobile"
+          onPress={() => enterAsBusiness('team')}
+          variant="secondary"
+          icon={<PhoneIcon size={20} />}
+        />
+        <Button
+          label={google.loading ? 'Connecting to Google...' : 'Continue with Google'}
+          onPress={google.start}
+          disabled={google.loading}
           variant="secondary"
           icon={<GoogleIcon size={20} />}
         />
         <Button
           label="Continue with Apple"
-          onPress={() => {}}
+          onPress={() => enterAsBusiness('solo')}
           variant="secondary"
           icon={<AppleIcon size={20} />}
         />
       </View>
 
-      <Pressable style={styles.loginLink} onPress={() => navigation.navigate('Login')} hitSlop={8}>
+      {google.error ? <Text style={styles.googleError}>{google.error}</Text> : null}
+
+      <Pressable style={styles.loginLink} onPress={() => router.push('/login')} hitSlop={8}>
         <Text style={styles.loginLinkText}>
           Already have an account? <Text style={styles.loginLinkTextStrong}>Log in</Text>
         </Text>
@@ -112,6 +151,18 @@ const styles = StyleSheet.create({
   },
   input: {
     marginBottom: spacing.xl,
+  },
+  error: {
+    ...typography.caption,
+    color: colors.feedback.danger,
+    marginTop: -spacing.md,
+    marginBottom: spacing.md,
+  },
+  googleError: {
+    ...typography.caption,
+    color: colors.feedback.danger,
+    textAlign: 'center',
+    marginTop: spacing.md,
   },
   continueButton: {
     marginBottom: spacing.xl,

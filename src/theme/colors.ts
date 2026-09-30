@@ -1,4 +1,4 @@
-// Sampled from the Trimlyy wordmark (assets/icon.png) and the Airbnb-style
+// Sampled from the Trimmy wordmark (assets/icon.png) and the Airbnb-style
 // reference screens: near-black text, warm greys, white surfaces, and a
 // single saturated accent used sparingly (badges, active tab, links).
 export const colors = {
