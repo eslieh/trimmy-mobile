@@ -407,7 +407,7 @@
       "story": "O1",
       "method": "PATCH",
       "path": "/businesses/{businessId}",
-      "description": "Edits the business's identity fields (name, description, categories, phone, location) as a single combined update. Added for post-publish management — onboarding's Business Basics wizard only ever creates these fields via create-business, spread across 4 separate steps; this screen edits all of them together in one place instead.",
+      "description": "Edits the business's identity fields (name, description, categories, phone, location) as a single combined update. Added for post-publish management — onboarding's Business Basics wizard only ever creates these fields via create-business, spread across 4 separate steps; this screen edits all of them together in one place instead. amenities: sending a list replaces them ([] clears); leaving it out keeps them. amenities (always a list) is returned by create-business, update-business-info, get-business-draft and the profile. App: Edit Business Info sends the full list.",
       "auth": "owner",
       "request": {
         "name": "Glow Beauty Lounge",
@@ -455,10 +455,7 @@
           "message": "businessId does not exist"
         }
       ],
-      "status": "live",
-      "issues": [
-        "amenities are accepted in the body but ignored: service.update_business never writes them, and neither the create nor the update response returns them. Owners can set amenities during onboarding but can never change them. Please persist amenities on PATCH and include them in both responses; the app will then add them to Edit Business Info."
-      ]
+      "status": "live"
     },
     {
       "id": "delete-business-photo",

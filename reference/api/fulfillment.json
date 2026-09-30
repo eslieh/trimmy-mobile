@@ -8,8 +8,8 @@
       "screen": "Today / Calendar / Earnings (business-owner app)",
       "story": "S1",
       "method": "GET",
-      "path": "/businesses/{businessId}/bookings?date=2026-09-25 | ?from=2026-09-01&to=2026-09-30 [&status=confirmed,in_progress] [&staffId=uuid] [&unassigned=true] | ?refund=due",
-      "description": "Soonest first. date = one day; from/to = an inclusive range of at most 62 days (one is required, except with refund=due). status is comma-separated. unassigned=true lists 'Any available' bookings waiting for someone (see assign-booking-staff). refund=due lists every booking with a refund owed. App: hooks/useSyncBusinessBookings loads Today (day), Calendar (month), Earnings and Member Detail (their range, split into ≤62-day chunks) into useBookingsStore as a cache; Manage Business → Unassigned bookings / Refunds owed use unassigned=true and refund=due.",
+      "path": "/businesses/{businessId}/bookings?date=2026-09-25 | ?from=2026-09-01&to=2026-09-30 [&status=confirmed,in_progress] [&staffId=uuid] [&unassigned=true] | ?refund=due | ?customerId=uuid | ?phone=0722000111 [&status=][&limit=1-200]",
+      "description": "Soonest first. date = one day; from/to = an inclusive range of at most 62 days (one is required, except with refund=due). status is comma-separated. unassigned=true lists 'Any available' bookings waiting for someone (see assign-booking-staff). refund=due lists every booking with a refund owed. App: hooks/useSyncBusinessBookings loads Today (day), Calendar (month), Earnings and Member Detail (their range, split into ≤62-day chunks) into useBookingsStore as a cache; Manage Business → Unassigned bookings / Refunds owed use unassigned=true and refund=due. customerId (from list-customers; matched by phone, or email if saved without one) or phone (any format, 400 invalid_phone) lists one customer's bookings from every source, newest first, with no date needed; an unknown customerId is 404. App: Customer Detail history uses ?customerId=.",
       "auth": "owner or front desk (all bookings); staff (only their own)",
       "request": null,
       "response": {
@@ -29,10 +29,7 @@
           "message": "No business found for this id"
         }
       ],
-      "status": "live",
-      "issues": [
-        "REQUESTED (P3): a customerId (or phone) filter, e.g. ?customerId=uuid with no date required, newest first. Customer Detail's appointment history can only show bookings already cached on the device."
-      ]
+      "status": "live"
     },
     {
       "id": "create-walk-in-booking",

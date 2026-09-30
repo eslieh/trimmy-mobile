@@ -27,7 +27,8 @@ export type CreateBusinessInput = {
   categories: BusinessCategory[];
   phone: string;
   location: BusinessLocation;
-  // Create-only for now: the server's PATCH ignores amenities.
+  // Free-form labels (data/amenities.ts). On update, a list replaces them
+  // ([] clears); leaving it out keeps them.
   amenities?: string[];
 };
 
@@ -95,7 +96,7 @@ export function getBusiness(businessId: string): Promise<BusinessDetail> {
 // contract this implements. Added for post-publish editing (see
 // EditBusinessInfoScreen) — onboarding's create-business is the only
 // Business Basics endpoint, a combined POST, not a per-field PATCH.
-export type UpdateBusinessInfoInput = Omit<CreateBusinessInput, 'amenities'>;
+export type UpdateBusinessInfoInput = CreateBusinessInput;
 
 export function updateBusinessInfo(businessId: string, input: UpdateBusinessInfoInput): Promise<UpdateBusinessInfoInput> {
   if (USE_MOCK_API) {

@@ -10,6 +10,7 @@ import { PhoneInput } from '../../components/PhoneInput';
 import { LocationPicker } from '../../components/LocationPicker';
 import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
 import { BUSINESS_CATEGORIES } from '../../data/businessCategories';
+import { BUSINESS_AMENITIES } from '../../data/amenities';
 import { countries } from '../../data/countries';
 import { normalizePhoneNumber } from '../../utils/phone';
 import { colors, radii, spacing, typography } from '../../theme';
@@ -38,6 +39,7 @@ export function EditBusinessInfoScreen() {
   const [country, setCountry] = useState(initialCountry);
   const [rawPhone, setRawPhone] = useState(parsedPhone?.nationalNumber?.toString() ?? '');
   const [location, setLocation] = useState<BusinessLocation | null>(business?.location ?? null);
+  const [amenities, setAmenities] = useState<string[]>(business?.amenities ?? []);
 
   if (!business) {
     return (
@@ -60,6 +62,10 @@ export function EditBusinessInfoScreen() {
     );
   };
 
+  const toggleAmenity = (value: string) => {
+    setAmenities((current) => (current.includes(value) ? current.filter((a) => a !== value) : [...current, value]));
+  };
+
   const handleSave = async () => {
     if (!canSave || !location) return;
     // The store keeps the error for the inline message — stay on this step.
@@ -70,6 +76,8 @@ export function EditBusinessInfoScreen() {
         categories,
         phone: normalizePhoneNumber(rawPhone, country),
         location,
+        // The full list — it replaces what's saved ([] clears).
+        amenities,
       });
     } catch {
       return;
@@ -107,6 +115,24 @@ export function EditBusinessInfoScreen() {
                   style={[styles.pill, selected && styles.pillSelected]}
                 >
                   <Text style={[styles.pillText, selected && styles.pillTextSelected]}>{option.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
+        <View>
+          <Text style={styles.fieldLabel}>Amenities</Text>
+          <View style={styles.pillRow}>
+            {BUSINESS_AMENITIES.map((amenity) => {
+              const selected = amenities.includes(amenity);
+              return (
+                <Pressable
+                  key={amenity}
+                  onPress={() => toggleAmenity(amenity)}
+                  style={[styles.pill, selected && styles.pillSelected]}
+                >
+                  <Text style={[styles.pillText, selected && styles.pillTextSelected]}>{amenity}</Text>
                 </Pressable>
               );
             })}

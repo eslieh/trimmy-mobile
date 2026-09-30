@@ -484,11 +484,12 @@ export const useBusinessOnboardingStore = create<BusinessOnboardingState>((set, 
     set((state) => ({ invitations: state.invitations.filter((i) => i.invitationId !== invitationId) }));
   },
   hydrateFromServer: (detail) => {
-    const { workingHours, serviceCategories, amenities: _amenities, ...rest } = detail;
+    const { workingHours, serviceCategories, amenities, ...rest } = detail;
     set({
       business: {
         ...rest,
         description: detail.description ?? '',
+        amenities: amenities ?? [],
         photos: detail.photos ?? [],
         workingHours: workingHours?.weeklyHours,
         policies: detail.policies ?? undefined,

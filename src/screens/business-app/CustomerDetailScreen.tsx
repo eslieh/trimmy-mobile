@@ -1,40 +1,38 @@
-import { useMemo } from 'react';
+import { useCallback, useState } from 'react';
 import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { AppointmentCard } from '../../components/AppointmentCard';
 import { BackButton } from '../../components/BackButton';
 import { Button } from '../../components/Button';
 import { PhoneIcon } from '../../components/icons/PhoneIcon';
-import { useBookingsStore } from '../../store/useBookingsStore';
 import { useCustomersStore } from '../../store/useCustomersStore';
 import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
-import { getBookingDateTime } from '../../utils/date';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import { toQueryString } from '../../api/client';
+import { listBusinessBookings } from '../../api/booking';
+import type { Booking } from '../../types/booking';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 
-// Reached from CustomersScreen. Bookings don't carry a customerId (they
-// predate this store, and online bookings never go through it at all), so
-// appointment history is matched by phone when the customer has one —
-// the closest thing to a stable identifier this mock data has — falling
-// back to an exact name match otherwise.
+// Reached from CustomersScreen: contact card, Call, "New appointment"
+// prefilled, and their appointment history from the server.
 export function CustomerDetailScreen() {
   const router = useRouter();
   const { customerId } = useLocalSearchParams<{ customerId: string }>();
   const ownedBusiness = useBusinessContext();
   const customer = useCustomersStore((s) => s.customers.find((c) => c.customerId === customerId));
-  const bookings = useBookingsStore((s) => s.bookings);
-
-  const history = useMemo(() => {
-    if (!customer || !ownedBusiness) return [];
-    return bookings
-      .filter((b) => {
-        if (b.businessId !== ownedBusiness.businessId) return false;
-        return customer.phone ? b.customerPhone === customer.phone : b.customerName === customer.name;
-      })
-      .sort((a, b) => getBookingDateTime(b.date, b.time).getTime() - getBookingDateTime(a.date, a.time).getTime());
-  }, [bookings, customer, ownedBusiness]);
+  // Every booking this customer has made here (list-business-bookings
+  // ?customerId=), newest first: online, walk-ins and on their behalf.
+  const [history, setHistory] = useState<Booking[]>([]);
+  const businessId = ownedBusiness?.businessId;
+  useFocusEffect(
+    useCallback(() => {
+      if (!businessId || !customerId) return;
+      listBusinessBookings(businessId, { customerId })
+        .then(setHistory)
+        .catch(() => setHistory([]));
+    }, [businessId, customerId]),
+  );
 
   if (!customer || !ownedBusiness) {
     return (
@@ -82,8 +80,7 @@ export function CustomerDetailScreen() {
           </View>
           {customer.phone ? <Text style={styles.contactLine}>{customer.phone}</Text> : null}
           {customer.email ? <Text style={styles.contactLine}>{customer.email}</Text> : null}
-          {/* From the server, across every booking with this phone (the history
-              below only has bookings already loaded on this device). */}
+          {/* From the server, across every booking with this phone. */}
           <Text style={styles.contactLine}>
             {customer.bookingsCount} visit{customer.bookingsCount === 1 ? '' : 's'}
             {customer.lastBookingAt ? ` · last ${new Date(customer.lastBookingAt).toLocaleDateString()}` : ''}

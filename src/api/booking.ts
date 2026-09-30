@@ -102,11 +102,14 @@ export function listMyBookings(
 // desk see every booking; staff only their own. Pass one date, or an
 // inclusive from/to range (≤62 days). Soonest first. unassigned=true lists
 // "Any available" bookings waiting for staff; refund='due' lists every
-// booking with a refund owed (no date needed).
+// booking with a refund owed, and customerId one customer's bookings
+// (matched by phone, or email if saved without one) — neither needs a date.
 export type BusinessBookingsQuery =
   | { date: string; from?: never; to?: never }
   | { from: string; to: string; date?: never }
-  | { refund: 'due'; date?: never; from?: never; to?: never };
+  | { refund: 'due'; date?: never; from?: never; to?: never }
+  // One customer's history (Customer Detail), newest first, every source.
+  | { customerId: string; limit?: number; date?: never; from?: never; to?: never };
 
 export function listBusinessBookings(
   businessId: string,
@@ -124,6 +127,8 @@ export function listBusinessBookings(
     ['staffId', query.staffId],
     ['unassigned', query.unassigned ? 'true' : undefined],
     ['refund', 'refund' in query ? query.refund : undefined],
+    ['customerId', 'customerId' in query ? query.customerId : undefined],
+    ['limit', 'limit' in query ? query.limit : undefined],
   ]);
   return apiRequest<{ bookings: Booking[] }>(`/businesses/${businessId}/bookings?${qs}`).then((res) => res.bookings);
 }

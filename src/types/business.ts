@@ -58,6 +58,7 @@ export type Business = {
   paymentDestination?: PaymentDestination;
   teamMode?: TeamMode;
   bookingSettings?: BookingSettings;
+  amenities?: string[];
 };
 
 // How customers can book (availability uses these). All times are in

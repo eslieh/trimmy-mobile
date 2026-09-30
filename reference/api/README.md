@@ -10,10 +10,7 @@ ship. Anything the app still needs is an entry with `"status": "requested"`, lis
 What the app needs next from the backend, most urgent first. Each one has a full entry
 (`"status": "requested"`) in the file named, with request/response examples and errors.
 
-| Priority | Request | File → entry | Unblocks |
-|---|---|---|---|
-| P3 | Bookings by customer | fulfillment.json → `list-business-bookings` (issues) | Full history on Customer Detail |
-| P3 | `PATCH /businesses/{id}` ignores `amenities` | business-setup.json → `update-business-info` (issues) | Editing amenities after setup |
+None right now — every request so far has shipped. Add new ones here as `"status": "requested"` entries.
 
 ## Why JSON, not prose
 
