@@ -14,7 +14,6 @@ What the app needs next from the backend, most urgent first. Each one has a full
 |---|---|---|---|
 | P2 | Push tokens (BK-41) | auth.json → `register-push-token` | Notifications for every role; push reminders |
 | P3 | Reminder preferences (C5 "configurable") | — (not specified yet) | Customers turning reminders off / choosing times |
-| P3 | Favorites | discovery.json → `favorites` | Wishlist that survives reinstalls |
 | P3 | Bookings by customer | fulfillment.json → `list-business-bookings` (issues) | Full history on Customer Detail |
 | P3 | `PATCH /businesses/{id}` ignores `amenities` | business-setup.json → `update-business-info` (issues) | Editing amenities after setup |
 
@@ -31,7 +30,7 @@ shape) — they should stay accurate enough to hand to a backend engineer as-is.
 |---|---|---|
 | [auth.json](auth.json) | Auth | live (register, login, refresh, logout, verify-email, check-email, me + update/delete, change-password, forgot/verify-reset-otp/reset password, resend-otp, me/businesses, Google sign-in) |
 | [business-setup.json](business-setup.json) | Phase 1 — Business setup | live on staging/prod (create/read/wizard writes + post-publish management: update-business, photos, services, categories, policies, payment, publish) |
-| [discovery.json](discovery.json) | Phase 2 — Discovery | live on staging/prod (search — including all current filter params — + business profile, which embeds staff/reviews/policies; favorites/wishlist not yet covered — no story id for it in customer.md yet) |
+| [discovery.json](discovery.json) | Phase 2 — Discovery | live on staging/prod (search — including all current filter params — + business profile, which embeds staff/reviews/policies; favorites for businesses and staff) |
 | [booking.json](booking.json) | Phase 3 — Booking flow | live: availability, create/get/list bookings, M-Pesa deposit payment, cancel with manual refunds, reschedule |
 | [fulfillment.json](fulfillment.json) | Phase 4 — Fulfillment view | live: business bookings, walk-in, scheduled, status, assign staff, checkout charge, customers, payouts + wallet balance. earnings summary |
 | [team.json](team.json) | Phase 5 — Team management | live (my-invitations, respond, and list/add/update/remove team members) |

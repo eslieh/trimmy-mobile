@@ -185,13 +185,12 @@
     },
     {
       "id": "favorites",
-      "status": "requested",
-      "priority": "P3",
+      "status": "live",
       "screen": "Wishlist tab; heart on Business / Staff Profile; Discover 'Favorites' section",
       "story": "C1",
       "method": "GET / PUT / DELETE",
       "path": "GET /me/favorites · PUT /me/favorites/businesses/{businessId} · DELETE /me/favorites/businesses/{businessId} · PUT|DELETE /me/favorites/staff/{staffId}",
-      "description": "Why: C1 'save favorite businesses and favorite staff'. The wishlist is phone-only today and resets on reinstall. GET returns business summaries (same shape as search results) and staff with their business name.",
+      "description": "Any signed-in user. GET returns businesses (search-result shape, distanceKm 0) and staff ({ staffId, name, businessId, businessName, avatarUrl, role, rating }), newest saved first. PUT / DELETE are idempotent (204); saving something that isn't a published business (or staff at one) is 404. Unpublished businesses drop out (with their staff) and come back if republished. App: useFavoritesStore loads after login, hearts update first then call PUT/DELETE (undo on failure), Wishlist shows saved businesses and staff; Staff Profile has a heart. Signed-out favourites stay on the device.",
       "request": null,
       "response": {
         "businesses": [
@@ -203,7 +202,9 @@
             "name": "Wanjiku",
             "businessId": "uuid",
             "businessName": "Glow Beauty Lounge",
-            "avatarUrl": null
+            "avatarUrl": null,
+            "role": "staff",
+            "rating": 4.8
           }
         ]
       },

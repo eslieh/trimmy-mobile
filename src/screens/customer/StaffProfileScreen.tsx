@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Avatar } from '../../components/Avatar';
@@ -16,6 +16,8 @@ import { groupServicesByCategory } from '../../utils/services';
 import { colors, radii, spacing, typography } from '../../theme';
 import type { BookingServiceLine } from '../../types/booking';
 import type { BusinessProfile, BusinessProfileStaffMember } from '../../types/discovery';
+import { HeartIcon } from '../../components/icons/HeartIcon';
+import { useFavoritesStore } from '../../store/useFavoritesStore';
 
 type StaffTab = 'profile' | 'portfolio' | 'reviews';
 
@@ -27,6 +29,9 @@ type StaffTab = 'profile' | 'portfolio' | 'reviews';
 export function StaffProfileScreen() {
   const router = useRouter();
   const { businessId, staffId } = useLocalSearchParams<{ businessId: string; staffId: string }>();
+  // Favourite staff (C1) — synced with /me/favorites when signed in.
+  const isFavorite = useFavoritesStore((s) => s.isStaffFavorite(staffId));
+  const toggleStaffFavorite = useFavoritesStore((s) => s.toggleStaffFavorite);
   const [profile, setProfile] = useState<BusinessProfile | null>(null);
   const [tab, setTab] = useState<StaffTab>('profile');
   const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
@@ -86,8 +91,11 @@ export function StaffProfileScreen() {
 
   return (
     <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
-      <View style={styles.header}>
+      <View style={[styles.header, styles.headerRow]}>
         <BackButton onPress={() => router.back()} />
+        <Pressable onPress={() => toggleStaffFavorite(staffId)} hitSlop={8} accessibilityLabel="Save staff member">
+          <HeartIcon size={22} color={isFavorite ? colors.brand.pink : colors.text.primary} filled={isFavorite} />
+        </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -181,6 +189,11 @@ export function StaffProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   flex: {
     flex: 1,
     backgroundColor: colors.background.primary,

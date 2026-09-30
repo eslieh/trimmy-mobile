@@ -8,6 +8,7 @@ import { restoreOwnedBusiness } from '../utils/restoreOwnedBusiness';
 import { useOwnedBusinessStore } from '../store/useOwnedBusinessStore';
 import { useBusinessOnboardingStore } from '../store/useBusinessOnboardingStore';
 import { useFrontDeskStore } from '../store/useFrontDeskStore';
+import { useFavoritesStore } from '../store/useFavoritesStore';
 
 interface AuthContextType {
   user: User | null;
@@ -38,6 +39,7 @@ function clearBusinessState() {
   useOwnedBusinessStore.getState().clear();
   useBusinessOnboardingStore.setState(useBusinessOnboardingStore.getInitialState(), true);
   useFrontDeskStore.getState().clear();
+  useFavoritesStore.getState().clear();
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -53,7 +55,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // customer mode, same as before this existed.
   const restoreForUserId = user?.verified ? user.id : null;
   useEffect(() => {
-    if (restoreForUserId) restoreOwnedBusiness().catch(() => {});
+    if (!restoreForUserId) return;
+    restoreOwnedBusiness().catch(() => {});
+    useFavoritesStore.getState().load().catch(() => {});
   }, [restoreForUserId]);
 
   async function loadUser() {

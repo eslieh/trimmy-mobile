@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { BusinessResultCard } from '../../components/BusinessResultCard';
@@ -11,13 +11,21 @@ import type { BusinessSummary } from '../../types/discovery';
 export function WishlistScreen() {
   const router = useRouter();
   const businessIds = useFavoritesStore((s) => s.businessIds);
+  // Signed in: the server's saved businesses and staff (/me/favorites).
+  const synced = useFavoritesStore((s) => s.synced);
+  const savedBusinesses = useFavoritesStore((s) => s.businesses);
+  const savedStaff = useFavoritesStore((s) => s.staff);
   const [all, setAll] = useState<BusinessSummary[] | null>(null);
 
+  // Signed out: favourites are ids on this device; look the cards up.
   useEffect(() => {
-    searchBusinesses({}).then(setAll);
-  }, []);
+    if (!synced) searchBusinesses({}).then(setAll);
+  }, [synced]);
 
-  const favorites = all?.filter((business) => businessIds.has(business.businessId)) ?? [];
+  const favorites = synced
+    ? savedBusinesses.filter((business) => businessIds.has(business.businessId))
+    : (all?.filter((business) => businessIds.has(business.businessId)) ?? []);
+  const loading = !synced && all === null;
 
   return (
     <SafeAreaView style={styles.flex} edges={['top']}>
@@ -25,9 +33,9 @@ export function WishlistScreen() {
         <Text style={styles.title}>Wishlist</Text>
       </View>
 
-      {all === null ? (
+      {loading ? (
         <ActivityIndicator style={styles.loading} color={colors.text.secondary} />
-      ) : favorites.length === 0 ? (
+      ) : favorites.length === 0 && savedStaff.length === 0 ? (
         <View style={styles.empty}>
           <Text style={styles.emptyText}>No favourites yet — tap the heart on a business to save it here.</Text>
         </View>
@@ -41,6 +49,25 @@ export function WishlistScreen() {
           renderItem={({ item }) => (
             <BusinessResultCard business={item} onPress={() => router.push(`/business/${item.businessId}`)} />
           )}
+          ListFooterComponent={
+            savedStaff.length > 0 ? (
+              <View style={styles.staffSection}>
+                <Text style={styles.sectionTitle}>Saved staff</Text>
+                {savedStaff.map((member) => (
+                  <Pressable
+                    key={member.staffId}
+                    style={styles.staffRow}
+                    onPress={() => router.push(`/business/${member.businessId}/staff/${member.staffId}`)}
+                  >
+                    <Text style={styles.staffName}>{member.name}</Text>
+                    <Text style={styles.staffMeta}>
+                      {member.businessName} · ★ {member.rating.toFixed(1)}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null
+          }
         />
       )}
     </SafeAreaView>
@@ -48,6 +75,28 @@ export function WishlistScreen() {
 }
 
 const styles = StyleSheet.create({
+  staffSection: {
+    marginTop: spacing.xl,
+    gap: spacing.sm,
+  },
+  sectionTitle: {
+    ...typography.h3,
+    color: colors.text.primary,
+  },
+  staffRow: {
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border.subtle,
+    gap: 2,
+  },
+  staffName: {
+    ...typography.bodyMedium,
+    color: colors.text.primary,
+  },
+  staffMeta: {
+    ...typography.caption,
+    color: colors.text.secondary,
+  },
   flex: {
     flex: 1,
     backgroundColor: colors.background.primary,
