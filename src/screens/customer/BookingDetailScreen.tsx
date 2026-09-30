@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Avatar } from '../../components/Avatar';
 import { BackButton } from '../../components/BackButton';
 import { Button } from '../../components/Button';
@@ -45,11 +45,26 @@ export function BookingDetailScreen() {
   const [cancelReason, setCancelReason] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
 
+  // Refetch on focus too, so a reschedule shows its new time on return.
+  useFocusEffect(
+    useCallback(() => {
+      getBooking(bookingId)
+        .then(setFetched)
+        .catch((err) => setLoadError(getApiErrorMessage(err, "Couldn't load this booking.")));
+    }, [bookingId]),
+  );
+
+  // Rescheduling in the app is only allowed while cancelling would still be
+  // free — cancel-preview's freeUntil is that cutoff (BK-61).
+  const [freeUntil, setFreeUntil] = useState<string | null>(null);
+  const previewableId =
+    fetched && (fetched.status === 'confirmed' || fetched.status === 'pending_payment') ? fetched.bookingId : null;
   useEffect(() => {
-    getBooking(bookingId)
-      .then(setFetched)
-      .catch((err) => setLoadError(getApiErrorMessage(err, "Couldn't load this booking.")));
-  }, [bookingId]);
+    if (!previewableId) return;
+    getCancelPreview(previewableId)
+      .then((p) => setFreeUntil(p.freeUntil))
+      .catch(() => setFreeUntil(null));
+  }, [previewableId]);
 
   const bookingBusinessId = booking?.businessId;
   useEffect(() => {
@@ -81,6 +96,16 @@ export function BookingDetailScreen() {
   const canCancel = upcoming && (booking.status === 'confirmed' || booking.status === 'pending_payment');
   const staffMember = booking.staffId ? profile.staff.find((s) => s.staffId === booking.staffId) : null;
 
+
+  const canReschedule = canCancel && freeUntil !== null && Date.now() < new Date(freeUntil).getTime();
+
+  // Reuses the booking flow's date & time step in reschedule mode, with this
+  // booking's services and staff preloaded.
+  const handleReschedule = () => {
+    startBookingDraft(booking.businessId, booking.businessName, booking.services.map((service) => ({ ...service })));
+    setStaff(booking.staffId, booking.staffName);
+    router.push(`/business/${booking.businessId}/book/datetime?reschedule=${booking.bookingId}`);
+  };
 
   const handleRebook = () => {
     const lines: BookingServiceLine[] = booking.services.map((service) => ({ ...service }));
@@ -206,6 +231,14 @@ export function BookingDetailScreen() {
           </Text>
           <Text style={styles.policyText}>No-show fee: {profile.policies.noShow.feePercent}% of the total.</Text>
         </View>
+
+        {canReschedule ? (
+          <Button label="Reschedule" onPress={handleReschedule} style={styles.actionButton} />
+        ) : canCancel && freeUntil ? (
+          <Text style={styles.reference}>
+            It's too late to change the time in the app — please contact {booking.businessName}.
+          </Text>
+        ) : null}
 
         {canCancel ? (
           <Button

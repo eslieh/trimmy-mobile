@@ -441,6 +441,49 @@
           "message": "There's no refund owed on this booking"
         }
       ]
+    },
+    {
+      "id": "reschedule-booking",
+      "status": "live",
+      "screen": "Appointment Detail → Reschedule (customer: reuses Select Date & Time with ?reschedule=<bookingId>; owner / front desk: date + time sheet)",
+      "story": "C3",
+      "method": "POST",
+      "path": "/bookings/{bookingId}/reschedule",
+      "auth": "the customer who booked, or the business's owner / front desk",
+      "description": "Moves a pending_payment or confirmed booking that hasn't started. Customer: to a slot from get-availability (the booking's own old slot doesn't block it), and only while cancelling would still be free (before cancel-preview's freeUntil); later, 409 reschedule_window_passed — the app hides Reschedule after freeUntil and says to contact the business. Owner / front desk: any time inside working hours and in the future, off the slot grid allowed. staffId is optional (omit to keep the current staff). Services, price, deposit, paymentStatus, reference and an unpaid hold's expiresAt all stay the same. A confirmed booking's customer gets a new SMS with the new time.",
+      "request": {
+        "date": "2026-10-05",
+        "time": "15:30",
+        "staffId": "uuid (optional)"
+      },
+      "response": "Booking (new date, time, startsAt, staff)",
+      "errors": [
+        {
+          "status": 409,
+          "code": "slot_unavailable",
+          "message": "The selected time is no longer available"
+        },
+        {
+          "status": 409,
+          "code": "reschedule_window_passed",
+          "message": "It's too late to reschedule in the app; please contact the business"
+        },
+        {
+          "status": 409,
+          "code": "cannot_reschedule",
+          "message": "A cancelled booking can't be rescheduled / This appointment has already started"
+        },
+        {
+          "status": 400,
+          "code": "validation_error",
+          "message": "time is not within the business's working hours for that date (owner / front desk)"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "No booking found for this id"
+        }
+      ]
     }
   ],
   "bookingRefundFields": {

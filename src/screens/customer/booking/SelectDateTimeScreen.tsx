@@ -4,7 +4,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { AuthScreenLayout } from '../../../components/AuthScreenLayout';
 import { Button } from '../../../components/Button';
 import { getAvailability, getAvailabilityDays, type AvailabilityDay, type AvailabilitySlot } from '../../../api/availability';
-import { getApiErrorMessage } from '../../../api/client';
+import { getApiErrorCode, getApiErrorMessage } from '../../../api/client';
+import { rescheduleBooking } from '../../../api/booking';
+import { useBookingsStore } from '../../../store/useBookingsStore';
 import { useBookingDraftStore } from '../../../store/useBookingDraftStore';
 import { colors, radii, spacing, typography } from '../../../theme';
 
@@ -24,7 +26,13 @@ function dayLabels(date: string) {
 // existing bookings — the app no longer computes slots from working hours.
 export function SelectDateTimeScreen() {
   const router = useRouter();
-  const { businessId } = useLocalSearchParams<{ businessId: string }>();
+  // reschedule=<bookingId>: moving an existing booking (Appointment Detail →
+  // Reschedule, BK-61) instead of making a new one — Continue saves the new
+  // time directly rather than going on to Review.
+  const { businessId, reschedule } = useLocalSearchParams<{ businessId: string; reschedule?: string }>();
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [slotsVersion, setSlotsVersion] = useState(0);
 
   const draftServices = useBookingDraftStore((s) => s.services);
   const staffId = useBookingDraftStore((s) => s.staffId);
@@ -69,10 +77,30 @@ export function SelectDateTimeScreen() {
       })
       .catch((err) => setError(getApiErrorMessage(err, "Couldn't load times.")));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [businessId, selectedDate, query]);
+  }, [businessId, selectedDate, query, slotsVersion]);
 
   const handlePickDate = (dateKey: string) => {
     setDateTime(dateKey, '');
+  };
+
+  const handleSaveReschedule = async () => {
+    if (!reschedule || !selectedDate || !time) return;
+    setSaving(true);
+    setSaveError('');
+    try {
+      const moved = await rescheduleBooking(reschedule, { date: selectedDate, time, staffId: staffId ?? undefined });
+      useBookingsStore.getState().upsertBooking(moved);
+      router.back();
+    } catch (err) {
+      if (getApiErrorCode(err) === 'slot_unavailable') {
+        // Taken meanwhile — reload this day's times and pick again.
+        setDateTime(selectedDate, '');
+        setSlotsVersion((v) => v + 1);
+      }
+      setSaveError(getApiErrorMessage(err, "Couldn't move your appointment."));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handlePickTime = (timeValue: string) => {
@@ -94,11 +122,14 @@ export function SelectDateTimeScreen() {
       progress={2 / TOTAL_STEPS}
       onBack={() => router.back()}
       footer={
-        <Button
-          label="Continue"
-          disabled={!selectedDate || !time}
-          onPress={() => router.push(`/business/${businessId}/book/review`)}
-        />
+        <>
+          {saveError ? <Text style={styles.emptyText}>{saveError}</Text> : null}
+          <Button
+            label={reschedule ? (saving ? 'Saving…' : 'Move appointment') : 'Continue'}
+            disabled={!selectedDate || !time || saving}
+            onPress={reschedule ? handleSaveReschedule : () => router.push(`/business/${businessId}/book/review`)}
+          />
+        </>
       }
     >
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dayScroll}>

@@ -365,6 +365,21 @@ export function updateBookingStatus(booking: Booking, status: Booking['status'],
   });
 }
 
+// See reference/api/booking.json#reschedule-booking (BK-61). Moves a
+// pending_payment or confirmed booking that hasn't started; services,
+// price, deposit, payment status, reference and any unpaid hold stay the
+// same. Customer: to a get-availability slot, only before cancel-preview's
+// freeUntil (else 409 reschedule_window_passed). Owner / front desk: any
+// future time within working hours, off the slot grid allowed. staffId
+// omitted keeps the current staff. A confirmed booking's customer gets an
+// SMS with the new time.
+export function rescheduleBooking(
+  bookingId: string,
+  input: { date: string; time: string; staffId?: string },
+): Promise<Booking> {
+  return apiRequest<Booking>(`/bookings/${bookingId}/reschedule`, { method: 'POST', body: input });
+}
+
 // See reference/api/booking.json#cancel-preview / #cancel-booking (BK-60).
 // Deposits sit in the business's own account, so any refund is paid back
 // by the business by hand (see markBookingRefunded).

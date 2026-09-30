@@ -14,8 +14,11 @@ import {
   chargeBookingCash,
   chargeBookingPayment,
   getBooking,
+  rescheduleBooking,
   updateBookingStatus,
 } from '../../api/booking';
+import { DatePickerField } from '../../components/DatePickerField';
+import { TimePickerField } from '../../components/TimePickerField';
 import { depositFailureMessage } from '../../utils/depositPayment';
 import { MarkRefundedSheet } from '../../components/MarkRefundedSheet';
 import { showApiError } from '../../utils/showApiError';
@@ -59,6 +62,13 @@ export function AppointmentDetailScreen() {
   const upsertBooking = useBookingsStore((s) => s.upsertBooking);
   const [refundSheetVisible, setRefundSheetVisible] = useState(false);
   const [chargeError, setChargeError] = useState('');
+  // Owner / front desk reschedule: any future time within working hours,
+  // off the customer slot grid allowed (BK-61).
+  const [rescheduleVisible, setRescheduleVisible] = useState(false);
+  const [newDate, setNewDate] = useState('');
+  const [newTime, setNewTime] = useState('');
+  const [rescheduling, setRescheduling] = useState(false);
+  const [rescheduleError, setRescheduleError] = useState('');
 
   // Always refresh from the server — this may be opened from a list that
   // hasn't cached the booking (e.g. Unassigned or Refunds owed).
@@ -132,6 +142,29 @@ export function AppointmentDetailScreen() {
       );
     } finally {
       setAssigningStaffId(null);
+    }
+  };
+
+  const canReschedule = !isStaffView && (booking.status === 'confirmed' || booking.status === 'pending_payment');
+
+  const openReschedule = () => {
+    setNewDate(booking.date);
+    setNewTime(booking.time);
+    setRescheduleError('');
+    setRescheduleVisible(true);
+  };
+
+  const handleReschedule = async () => {
+    setRescheduling(true);
+    setRescheduleError('');
+    try {
+      // staffId omitted keeps whoever is assigned; the server checks they're free.
+      updateBooking(await rescheduleBooking(booking.bookingId, { date: newDate, time: newTime }));
+      setRescheduleVisible(false);
+    } catch (err) {
+      setRescheduleError(getApiErrorMessage(err, "Couldn't move this appointment."));
+    } finally {
+      setRescheduling(false);
     }
   };
 
@@ -315,6 +348,7 @@ export function AppointmentDetailScreen() {
         ) : booking.status === 'confirmed' ? (
           <>
             <Button label="Check in" disabled={isUpdatingStatus} onPress={() => setStatus('in_progress')} />
+            {canReschedule ? <Button label="Reschedule" variant="secondary" onPress={openReschedule} /> : null}
             <View style={styles.footerRow}>
               <Button
                 label="No-show"
@@ -337,6 +371,26 @@ export function AppointmentDetailScreen() {
           <Button label="Charge customer" onPress={() => setChargeSheetVisible(true)} />
         ) : null}
       </View>
+
+      <Modal visible={rescheduleVisible} transparent animationType="slide" onRequestClose={() => setRescheduleVisible(false)}>
+        <Pressable style={styles.overlay} onPress={() => setRescheduleVisible(false)}>
+          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.sheetTitle}>Reschedule</Text>
+            <Text style={styles.sheetSubtitle}>
+              Any time within working hours. The customer gets an SMS with the new time.
+            </Text>
+            <DatePickerField label="Date" value={newDate} onChange={setNewDate} minimumDate={new Date()} />
+            <TimePickerField label="Time" value={newTime} onChange={setNewTime} />
+            {rescheduleError ? <Text style={styles.assignError}>{rescheduleError}</Text> : null}
+            <Button
+              label={rescheduling ? 'Moving…' : 'Move appointment'}
+              disabled={rescheduling || !newDate || !newTime || (newDate === booking.date && newTime === booking.time)}
+              onPress={handleReschedule}
+              style={styles.sheetButton}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <MarkRefundedSheet
         booking={refundSheetVisible ? booking : null}
