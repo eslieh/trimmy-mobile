@@ -12,6 +12,7 @@ import { useBookingsStore } from '../../store/useBookingsStore';
 import { formatBookingDate } from '../../utils/date';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import type { Booking } from '../../types/booking';
+import { useBusinessContext } from '../../hooks/useBusinessContext';
 
 type QueueMode = 'unassigned' | 'refunds';
 
@@ -39,7 +40,7 @@ const COPY: Record<QueueMode, { title: string; empty: string }> = {
 //                refunded right in the list (BK-60).
 export function BookingQueueScreen({ mode }: { mode: QueueMode }) {
   const router = useRouter();
-  const business = useBusinessOnboardingStore((s) => s.business);
+  const business = useBusinessContext();
   const upsertBooking = useBookingsStore((s) => s.upsertBooking);
   const [bookings, setBookings] = useState<Booking[] | null>(null);
   const [error, setError] = useState('');

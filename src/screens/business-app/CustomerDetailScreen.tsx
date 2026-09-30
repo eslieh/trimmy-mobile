@@ -12,6 +12,7 @@ import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { getBookingDateTime } from '../../utils/date';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import { toQueryString } from '../../api/client';
+import { useBusinessContext } from '../../hooks/useBusinessContext';
 
 // Reached from CustomersScreen. Bookings don't carry a customerId (they
 // predate this store, and online bookings never go through it at all), so
@@ -21,7 +22,7 @@ import { toQueryString } from '../../api/client';
 export function CustomerDetailScreen() {
   const router = useRouter();
   const { customerId } = useLocalSearchParams<{ customerId: string }>();
-  const ownedBusiness = useOwnedBusinessStore((s) => s.business);
+  const ownedBusiness = useBusinessContext();
   const customer = useCustomersStore((s) => s.customers.find((c) => c.customerId === customerId));
   const bookings = useBookingsStore((s) => s.bookings);
 

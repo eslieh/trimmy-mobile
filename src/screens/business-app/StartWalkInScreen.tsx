@@ -17,8 +17,8 @@ import { countries } from '../../data/countries';
 import { normalizePhoneNumber } from '../../utils/phone';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import type { BookingServiceLine } from '../../types/booking';
-import { bookableStaff, teamMemberDisplayName } from '../../utils/team';
 import { showApiError } from '../../utils/showApiError';
+import { useBusinessContext } from '../../hooks/useBusinessContext';
 
 const DEFAULT_COUNTRY = countries.find((c) => c.iso2 === 'KE') ?? countries[0];
 
@@ -31,14 +31,14 @@ const DEFAULT_COUNTRY = countries.find((c) => c.iso2 === 'KE') ?? countries[0];
 // scheduling.
 export function StartWalkInScreen() {
   const router = useRouter();
-  const ownedBusiness = useOwnedBusinessStore((s) => s.business);
-  const serviceCategories = useBusinessOnboardingStore((s) => s.serviceCategories);
-  const services = useBusinessOnboardingStore((s) => s.services);
-  const invitations = useBusinessOnboardingStore((s) => s.invitations);
+  // Owner or front desk (see hooks/useBusinessContext).
+  const business = useBusinessContext();
+  const serviceCategories = useMemo(() => business?.serviceCategories ?? [], [business]);
+  const services = useMemo(() => business?.services ?? [], [business]);
   const addBooking = useBookingsStore((s) => s.addBooking);
   const saveCustomer = useCustomersStore((s) => s.saveCustomer);
 
-  const staffMembers = useMemo(() => bookableStaff(invitations), [invitations]);
+  const staffMembers = useMemo(() => business?.staff ?? [], [business]);
 
   const [customerName, setCustomerName] = useState('');
   const [country, setCountry] = useState(DEFAULT_COUNTRY);
@@ -62,7 +62,7 @@ export function StartWalkInScreen() {
     );
   };
 
-  if (!ownedBusiness) {
+  if (!business) {
     return (
       <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
         <BackButton onPress={() => router.back()} />
@@ -91,7 +91,7 @@ export function StartWalkInScreen() {
     // Bookings with a phone add the customer server-side; only someone
     // entered without a phone needs saving explicitly.
     if (!customerPhone && (trimmedName || customerEmail)) {
-      await saveCustomer(ownedBusiness.businessId, {
+      await saveCustomer(business.businessId, {
         name: trimmedName || 'Walk-in customer',
         phone: customerPhone,
         email: customerEmail,
@@ -103,7 +103,7 @@ export function StartWalkInScreen() {
     try {
       const booking = await createWalkInBooking(
         {
-          businessId: ownedBusiness.businessId,
+          businessId: business.businessId,
           customerName: trimmedName,
           customerPhone,
           customerEmail,
@@ -111,8 +111,8 @@ export function StartWalkInScreen() {
           staffId: assignedStaff?.staffId ?? null,
         },
         {
-          businessName: ownedBusiness.name,
-          staffName: assignedStaff ? teamMemberDisplayName(assignedStaff) : 'Any available',
+          businessName: business.name,
+          staffName: assignedStaff ? assignedStaff.name : 'Any available',
           lines: serviceLines,
         },
       );

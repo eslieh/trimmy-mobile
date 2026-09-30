@@ -12,6 +12,7 @@ import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { colors, radii, spacing, typography } from '../../theme';
 import type { Booking } from '../../types/booking';
 import { useSyncBusinessBookings } from '../../hooks/useSyncBusinessBookings';
+import { useBusinessContext } from '../../hooks/useBusinessContext';
 
 // Still open/in-flight vs already wrapped up — the owner only needs to *act*
 // on the former, so that's what gets top billing; resolved appointments are
@@ -44,7 +45,7 @@ function dateKeyForOffset(offset: number): string {
 // kept as a separate entry point rather than folded into this one.
 export function TodayTimelineScreen() {
   const router = useRouter();
-  const ownedBusiness = useOwnedBusinessStore((s) => s.business);
+  const ownedBusiness = useBusinessContext();
   const setActiveMode = useOwnedBusinessStore((s) => s.setActiveMode);
   const bookings = useBookingsStore((s) => s.bookings);
   const [dayOffset, setDayOffset] = useState<DayOffset>(0);
@@ -107,14 +108,6 @@ export function TodayTimelineScreen() {
         </View>
       </View>
 
-      {ownedBusiness.teamMode === 'team' ? (
-        <View style={styles.teamBanner}>
-          <Text style={styles.teamBannerText}>
-            Front Desk (the team calendar view) isn't built yet — showing the solo Today view as a
-            placeholder.
-          </Text>
-        </View>
-      ) : null}
 
       <View style={styles.dayRow}>
         {DAY_OPTIONS.map((option) => {
@@ -223,17 +216,6 @@ const styles = StyleSheet.create({
   exitLink: {
     ...typography.bodyMedium,
     color: colors.brand.purple,
-  },
-  teamBanner: {
-    marginHorizontal: spacing.xxl,
-    marginTop: spacing.md,
-    padding: spacing.md,
-    borderRadius: radii.md,
-    backgroundColor: '#FEF3C7',
-  },
-  teamBannerText: {
-    ...typography.caption,
-    color: colors.feedback.warning,
   },
   dayRow: {
     flexDirection: 'row',

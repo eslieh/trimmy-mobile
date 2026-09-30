@@ -71,9 +71,10 @@ export function GetStartedScreen() {
       staffId: workplace.staffId,
       role: workplace.role,
     });
-    setActiveMode('staff');
+    const frontDesk = workplace.role === 'front_desk';
+    setActiveMode(frontDesk ? 'front_desk' : 'staff');
     router.dismissAll();
-    router.replace('/staff/today');
+    router.replace(frontDesk ? '/front-desk/today' : '/staff/today');
   };
 
   const handleRespond = async (invitationId: string, action: 'accept' | 'decline') => {
@@ -107,15 +108,17 @@ export function GetStartedScreen() {
                 ? 'Your business'
                 : `You work here as ${workplace.role === 'staff' ? 'staff' : 'front desk'}`}
             </Text>
-            {workplace.role === 'front_desk' ? (
-              <Text style={styles.cardBody}>The front desk app is coming soon.</Text>
-            ) : (
-              <Button
-                label={workplace.role === 'owner' ? 'Open business' : 'Open my schedule'}
-                onPress={() => openWorkplace(workplace)}
-                style={styles.enrollButton}
-              />
-            )}
+            <Button
+              label={
+                workplace.role === 'owner'
+                  ? 'Open business'
+                  : workplace.role === 'front_desk'
+                    ? 'Open front desk'
+                    : 'Open my schedule'
+              }
+              onPress={() => openWorkplace(workplace)}
+              style={styles.enrollButton}
+            />
           </View>
         ))}
 

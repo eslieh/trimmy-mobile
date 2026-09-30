@@ -24,7 +24,6 @@ import { MarkRefundedSheet } from '../../components/MarkRefundedSheet';
 import { showApiError } from '../../utils/showApiError';
 import { getApiErrorCode, getApiErrorMessage } from '../../api/client';
 import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
-import { bookableStaff, teamMemberDisplayName } from '../../utils/team';
 import { useBookingsStore } from '../../store/useBookingsStore';
 import { BOOKING_STATUS_COLOR, BOOKING_STATUS_LABEL } from '../../utils/bookingStatus';
 import { formatBookingDateLong } from '../../utils/date';
@@ -33,6 +32,7 @@ import { normalizePhoneNumber } from '../../utils/phone';
 import { colors, radii, shadows, springs, spacing, typography } from '../../theme';
 import type { BookingStatus, PaymentMethod } from '../../types/booking';
 import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
+import { useBusinessContext } from '../../hooks/useBusinessContext';
 
 const DEFAULT_COUNTRY = countries.find((c) => c.iso2 === 'KE') ?? countries[0];
 const SUCCESS_DISMISS_DELAY = 1600;
@@ -82,7 +82,8 @@ export function AppointmentDetailScreen() {
   const [rawPhone, setRawPhone] = useState('');
   const [chargeStep, setChargeStep] = useState<ChargeStep>('form');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-  const invitations = useBusinessOnboardingStore((s) => s.invitations);
+  // Owner or front desk: who this booking can be assigned to.
+  const business = useBusinessContext();
   // Staff open this same screen from their own schedule, but can only start
   // their own appointments — no charging, assigning, refunds, no-shows or
   // cancelling (the server 403s those for staff).
@@ -124,7 +125,7 @@ export function AppointmentDetailScreen() {
   // Only active bookings can be (re)assigned; the server checks the rest
   // (offers the services, works that day, is free).
   const canAssign = !isStaffView && ['pending_payment', 'confirmed', 'in_progress'].includes(booking.status);
-  const assignableStaff = bookableStaff(invitations);
+  const assignableStaff = business?.staff ?? [];
 
   const handleAssign = async (staffId: string, staffName: string) => {
     setAssigningStaffId(staffId);
@@ -422,7 +423,7 @@ export function AppointmentDetailScreen() {
             <Text style={styles.sheetTitle}>{booking.staffId ? 'Reassign booking' : 'Assign staff'}</Text>
             {assignError ? <Text style={styles.assignError}>{assignError}</Text> : null}
             {assignableStaff.map((member) => {
-              const name = teamMemberDisplayName(member);
+              const name = member.name;
               const current = member.staffId === booking.staffId;
               return (
                 <Pressable

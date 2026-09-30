@@ -10,6 +10,7 @@ import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { getTimeSlots } from '../../utils/availability';
 import { colors, radii, spacing, typography } from '../../theme';
 import { useSyncBusinessBookings } from '../../hooks/useSyncBusinessBookings';
+import { useBusinessContext } from '../../hooks/useBusinessContext';
 
 // Just for browsing what's open on a day before any services are picked —
 // the real availability check (against the actual service duration) happens
@@ -41,7 +42,7 @@ function formatSelectedDate(dateKey: string): string {
 // date/time already chosen.
 export function CalendarScreen() {
   const router = useRouter();
-  const ownedBusiness = useOwnedBusinessStore((s) => s.business);
+  const ownedBusiness = useBusinessContext();
   const bookings = useBookingsStore((s) => s.bookings);
 
   const today = useMemo(() => new Date(), []);

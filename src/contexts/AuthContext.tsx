@@ -7,6 +7,7 @@ import { signInWithGoogle as runGoogleSignIn } from '../utils/googleSignIn';
 import { restoreOwnedBusiness } from '../utils/restoreOwnedBusiness';
 import { useOwnedBusinessStore } from '../store/useOwnedBusinessStore';
 import { useBusinessOnboardingStore } from '../store/useBusinessOnboardingStore';
+import { useFrontDeskStore } from '../store/useFrontDeskStore';
 
 interface AuthContextType {
   user: User | null;
@@ -36,6 +37,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 function clearBusinessState() {
   useOwnedBusinessStore.getState().clear();
   useBusinessOnboardingStore.setState(useBusinessOnboardingStore.getInitialState(), true);
+  useFrontDeskStore.getState().clear();
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {

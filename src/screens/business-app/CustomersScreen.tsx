@@ -10,6 +10,7 @@ import { useCustomersStore } from '../../store/useCustomersStore';
 import { getApiErrorMessage } from '../../api/client';
 import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
+import { useBusinessContext } from '../../hooks/useBusinessContext';
 
 // Reached from Manage Business's "Customers" row. Browse/search the
 // business's customers from the server (list-customers), which fills itself
@@ -19,7 +20,7 @@ import { colors, radii, shadows, spacing, typography } from '../../theme';
 // appointment history).
 export function CustomersScreen() {
   const router = useRouter();
-  const ownedBusiness = useOwnedBusinessStore((s) => s.business);
+  const ownedBusiness = useBusinessContext();
   const customers = useCustomersStore((s) => s.customers);
   const loadCustomers = useCustomersStore((s) => s.loadCustomers);
   const [query, setQuery] = useState('');

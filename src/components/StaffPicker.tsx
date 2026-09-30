@@ -1,10 +1,9 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { colors, radii, spacing, typography } from '../theme';
-import type { TeamInvitation } from '../types/team';
 
 interface StaffPickerProps {
   label: string;
-  staffMembers: (TeamInvitation & { staffId: string })[]; // see utils/team#bookableStaff
+  staffMembers: { staffId: string; name: string }[]; // hooks/useBusinessContext's staff
   value: string | null; // staffId, or null = "Any available"
   onChange: (value: string | null) => void;
 }
@@ -31,7 +30,7 @@ export function StaffPicker({ label, staffMembers, value, onChange }: StaffPicke
               onPress={() => onChange(member.staffId)}
             >
               <Text style={[styles.pillText, selected && styles.pillTextSelected]}>
-                {member.name || member.phone || member.email}
+                {member.name}
               </Text>
             </Pressable>
           );

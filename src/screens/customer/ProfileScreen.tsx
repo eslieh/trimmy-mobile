@@ -26,9 +26,10 @@ export function ProfileScreen() {
   const staffSession = useOwnedBusinessStore((s) => s.staffSession);
 
   const handleOpenMySchedule = () => {
-    setActiveMode('staff');
+    const frontDesk = staffSession?.role === 'front_desk';
+    setActiveMode(frontDesk ? 'front_desk' : 'staff');
     router.dismissAll();
-    router.replace('/staff/today');
+    router.replace(frontDesk ? '/front-desk/today' : '/staff/today');
   };
 
   const handleLogout = async () => {
@@ -135,9 +136,12 @@ export function ProfileScreen() {
         ) : null}
 
         {/* Where they work, restored from /me/businesses after login. */}
-        {staffSession?.role === 'staff' ? (
+        {staffSession ? (
           <Pressable style={styles.switchButton} onPress={handleOpenMySchedule}>
-            <Text style={styles.switchButtonText}>Open my schedule at {staffSession.businessName}</Text>
+            <Text style={styles.switchButtonText}>
+              {staffSession.role === 'front_desk' ? 'Open front desk at' : 'Open my schedule at'}{' '}
+              {staffSession.businessName}
+            </Text>
           </Pressable>
         ) : null}
 

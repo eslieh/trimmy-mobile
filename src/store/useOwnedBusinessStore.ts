@@ -30,7 +30,9 @@ export type StaffSession = {
 // don't own. Owning or working at a business doesn't put you in that mode
 // automatically (a host can still browse as a guest); this is which app
 // module you're currently in, not what you're allowed into.
-export type AppMode = 'customer' | 'business' | 'staff';
+// front_desk: the whole business's calendar, walk-ins, checkout and
+// refunds for someone invited as front desk (uses staffSession).
+export type AppMode = 'customer' | 'business' | 'staff' | 'front_desk';
 
 type OwnedBusinessState = {
   business: OwnedBusiness | null;

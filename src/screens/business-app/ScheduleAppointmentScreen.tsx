@@ -20,8 +20,8 @@ import { getTimeSlots, getUpcomingDays } from '../../utils/availability';
 import { formatBookingDate } from '../../utils/date';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import type { BookingServiceLine } from '../../types/booking';
-import { bookableStaff, teamMemberDisplayName } from '../../utils/team';
 import { showApiError } from '../../utils/showApiError';
+import { useBusinessContext } from '../../hooks/useBusinessContext';
 
 const DEFAULT_COUNTRY = countries.find((c) => c.iso2 === 'KE') ?? countries[0];
 
@@ -49,15 +49,14 @@ export function ScheduleAppointmentScreen() {
     customerPhone?: string;
     customerEmail?: string;
   }>();
-  const ownedBusiness = useOwnedBusinessStore((s) => s.business);
-  const business = useBusinessOnboardingStore((s) => s.business);
-  const serviceCategories = useBusinessOnboardingStore((s) => s.serviceCategories);
-  const services = useBusinessOnboardingStore((s) => s.services);
-  const invitations = useBusinessOnboardingStore((s) => s.invitations);
+  // Owner or front desk (see hooks/useBusinessContext).
+  const business = useBusinessContext();
+  const serviceCategories = useMemo(() => business?.serviceCategories ?? [], [business]);
+  const services = useMemo(() => business?.services ?? [], [business]);
   const addBooking = useBookingsStore((s) => s.addBooking);
   const saveCustomer = useCustomersStore((s) => s.saveCustomer);
 
-  const staffMembers = useMemo(() => bookableStaff(invitations), [invitations]);
+  const staffMembers = useMemo(() => business?.staff ?? [], [business]);
 
   const presetParsedPhone = presetCustomerPhone ? parsePhoneNumberFromString(presetCustomerPhone) : undefined;
   const presetCountry =
@@ -100,7 +99,7 @@ export function ScheduleAppointmentScreen() {
     );
   };
 
-  if (!ownedBusiness || !business) {
+  if (!business) {
     return (
       <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
         <BackButton onPress={() => router.back()} />
@@ -134,7 +133,7 @@ export function ScheduleAppointmentScreen() {
     // Bookings with a phone add the customer server-side; only someone
     // entered without a phone needs saving explicitly.
     if (!customerPhone) {
-      await saveCustomer(ownedBusiness.businessId, { name: trimmedName, phone: null, email: customerEmail });
+      await saveCustomer(business.businessId, { name: trimmedName, phone: null, email: customerEmail });
     }
 
     const assignedStaff = staffMembers.find((m) => m.staffId === assignedStaffId);
@@ -142,7 +141,7 @@ export function ScheduleAppointmentScreen() {
     try {
       const booking = await createScheduledBooking(
         {
-          businessId: ownedBusiness.businessId,
+          businessId: business.businessId,
           customerName: trimmedName,
           customerPhone,
           customerEmail,
@@ -152,8 +151,8 @@ export function ScheduleAppointmentScreen() {
           staffId: assignedStaff?.staffId ?? null,
         },
         {
-          businessName: ownedBusiness.name,
-          staffName: assignedStaff ? teamMemberDisplayName(assignedStaff) : 'Any available',
+          businessName: business.name,
+          staffName: assignedStaff ? assignedStaff.name : 'Any available',
           lines: serviceLines,
         },
       );
