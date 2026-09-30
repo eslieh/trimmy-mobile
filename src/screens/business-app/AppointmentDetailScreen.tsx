@@ -296,6 +296,16 @@ export function AppointmentDetailScreen() {
           </View>
         ) : null}
 
+        {booking.noShowFee ? (
+          <View style={styles.card}>
+            <Text style={styles.cardLabel}>No-show fee ({booking.noShowFee.percent}%)</Text>
+            <Text style={styles.cardValue}>KES {booking.noShowFee.kept.amount} kept from the deposit</Text>
+            {booking.noShowFee.uncollected.amount > 0 ? (
+              <Text style={styles.cardValueMuted}>KES {booking.noShowFee.uncollected.amount} not collected</Text>
+            ) : null}
+          </View>
+        ) : null}
+
         {booking.refund ? (
           <View style={styles.card}>
             <Text style={styles.cardLabel}>Refund</Text>

@@ -69,6 +69,18 @@ export type Booking = {
   // Both null unless a cancellation involved money (BK-60).
   cancellationFee?: Money | null; // kept by the business for a late cancellation
   refund?: BookingRefund | null; // owed back to the customer, paid by the business by hand
+  noShowFee?: NoShowFee | null; // set once the business marks it no_show (BK-64)
+};
+
+// The business's noShow.feePercent of the total. With no card on file only
+// a paid deposit can be kept: `kept` comes out of it (capped at it), any
+// deposit left over becomes a refund owed, and the rest of the fee is
+// `uncollected`.
+export type NoShowFee = {
+  percent: number;
+  fee: Money;
+  kept: Money;
+  uncollected: Money;
 };
 
 export type BookingRefund = {

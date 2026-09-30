@@ -110,7 +110,7 @@
       "story": "S1",
       "method": "PATCH",
       "path": "/bookings/{bookingId}/status",
-      "description": "status: in_progress (check in / start), completed, no_show (only after the start time), cancelled (cancelReason 'business' unless a reason is sent; makes the whole paid deposit refundable). Returns the full Booking. Completing is allowed here until charge-booking exists.",
+      "description": "status: in_progress (check in / start), completed, no_show (only after the start time), cancelled (cancelReason 'business' unless a reason is sent; makes the whole paid deposit refundable). Returns the full Booking. Completing is allowed here until charge-booking exists. no_show sets noShowFee on the Booking (BK-64): { percent, fee, kept, uncollected } — the business's noShow.feePercent of the total, kept out of any paid deposit (capped at it); leftover deposit becomes a refund owed, the rest of the fee is uncollected. App: shown on owner and customer Appointment Detail.",
       "auth": "owner or front desk; staff can set in_progress and completed on their own bookings",
       "request": {
         "status": "in_progress",
@@ -134,10 +134,7 @@
           "message": "bookingId does not exist"
         }
       ],
-      "status": "live",
-      "issues": [
-        "REQUESTED (P2, BK-64): when status becomes no_show, record the fee (no_show_fee_percent of the total, capped at any deposit paid, like cancellation) and return it on the Booking as noShowFee: { amount, currency } (null otherwise), so the owner and the customer can see it."
-      ]
+      "status": "live"
     },
     {
       "id": "charge-booking",
@@ -234,7 +231,7 @@
       "story": "S2",
       "method": "GET",
       "path": "/businesses/{businessId}/earnings?from=2026-10-05&to=2026-10-11[&staffId=uuid][&transactionsLimit=10]",
-      "description": "Computed on the server from paid bookings, following the rules src/utils/earnings.ts used to apply (buckets: 3-hour for one day, daily up to 16 days, weekly up to 70, monthly beyond). from/to are business-local days, inclusive, ≤366 days apart. services lists every current service (0 rows included) plus deleted ones that earned money in the range (serviceId null). transactions: one row per service performed, newest first; transactionsLimit returns the newest N and transactionsTotal the count. Extras: currency, granularity, paidBookings, commission (the scoped person's, or everyone's), staff[] (per-person breakdown on the whole-business view), money (deposits, cancellation fees, refunds), previous (the same-length period before, with revenueChangePercent). App: hooks/useEarningsSummary on Earnings, Member Detail (staffId, only once they have one) and the staff app's Earnings; presets send transactionsLimit=10.",
+      "description": "Computed on the server from paid bookings, following the rules src/utils/earnings.ts used to apply (buckets: 3-hour for one day, daily up to 16 days, weekly up to 70, monthly beyond). from/to are business-local days, inclusive, ≤366 days apart. services lists every current service (0 rows included) plus deleted ones that earned money in the range (serviceId null). transactions: one row per service performed, newest first; transactionsLimit returns the newest N and transactionsTotal the count. Extras: currency, granularity, paidBookings, commission (the scoped person's, or everyone's), staff[] (per-person breakdown on the whole-business view), money (deposits, cancellation fees, refunds), previous (the same-length period before, with revenueChangePercent). App: hooks/useEarningsSummary on Earnings, Member Detail (staffId, only once they have one) and the staff app's Earnings; presets send transactionsLimit=10. money.noShowFees = fees kept from no-shows' deposits in the range (not in totalRevenue).",
       "auth": "owner (whole business, or one person with staffId); staff always get their own (any other staffId is 403); front desk 403",
       "request": null,
       "response": {

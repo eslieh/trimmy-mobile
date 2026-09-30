@@ -1,11 +1,9 @@
 # API Contracts
 
 Machine-readable request/response contracts for the backend (one JSON file per MVP phase,
-matching [../TASKS.md](../TASKS.md)). They were written as the app's *requirements* before the
-backend existed; `trimmy-server` now implements the phases marked **live** below (auth, business
-setup, discovery, team) on staging/prod. Domains still **drafted** only — booking, fulfillment —
-stay on the app's mock layer (`USE_MOCK_BOOKING` / `USE_MOCK_FULFILLMENT` in `src/config/env.ts`)
-until those phases ship.
+matching [../TASKS.md](../TASKS.md)). They started as the app's *requirements* before the backend
+existed; `trimmy-server` now implements every domain below, and entries are marked `live` as they
+ship. Anything the app still needs is an entry with `"status": "requested"`, listed next.
 
 ## Open backend requests
 
@@ -20,7 +18,6 @@ What the app needs next from the backend, most urgent first. Each one has a full
 | P2 | Day summary + submit to owner (F4) | fulfillment.json → `get-day-summary`, `submit-day-summary` | Front desk end-of-day reconciliation |
 | P2 | Confirm front desk can use the public profile + every "owner or front desk" endpoint | fulfillment.json → `frontDeskNote` | Front desk app (F1–F3) |
 | P2 | Reviews | booking.json → `create-review` | Customers leaving reviews |
-| P2 | No-show fee on the booking (BK-64) | fulfillment.json → `update-booking-status` (issues) | Showing the fee to owner and customer |
 | P3 | Reminder preferences (C5 "configurable") | — (not specified yet) | Customers turning reminders off / choosing times |
 | P3 | Favorites | discovery.json → `favorites` | Wishlist that survives reinstalls |
 | P3 | Bookings by customer | fulfillment.json → `list-business-bookings` (issues) | Full history on Customer Detail |

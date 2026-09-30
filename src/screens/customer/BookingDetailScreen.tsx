@@ -158,6 +158,14 @@ export function BookingDetailScreen() {
                 : ''}
             </Text>
             {booking.reference ? <Text style={styles.reference}>Ref {booking.reference}</Text> : null}
+            {booking.noShowFee ? (
+              <Text style={styles.reference}>
+                {booking.noShowFee.kept.amount > 0
+                  ? `No-show fee: KES ${booking.noShowFee.kept.amount} kept from your deposit`
+                  : 'Marked as a no-show'}
+                {` (${booking.businessName} charges ${booking.noShowFee.percent}% for missed appointments)`}
+              </Text>
+            ) : null}
             {booking.refund ? (
               <Text style={styles.reference}>
                 {booking.refund.status === 'due'
