@@ -379,7 +379,7 @@
       "story": "S3",
       "method": "POST",
       "path": "/payouts",
-      "description": "Keyed by staffId (BK-02), not invitationId. staffId is optional and defaults to the caller's own staff record at businessId; any other staffId is 403. amount must be ≤ the available balance, checked on the server. Always comes back pending. App: StaffEarningsScreen, which shows the server's balance and refreshes it after each request.",
+      "description": "Keyed by staffId (BK-02), not invitationId. staffId is optional and defaults to the caller's own staff record at businessId; any other staffId is 403. amount must be ≤ the available balance, checked on the server. Always comes back pending. App: StaffEarningsScreen, which shows the server's balance and refreshes it after each request. Still per business (each owner pays their own staff): the staff wallet's request sheet picks the business when they work at more than one and checks that business's available.",
       "auth": "staff (for themselves only)",
       "request": {
         "businessId": "uuid",
@@ -522,7 +522,7 @@
       "method": "GET",
       "path": "/me/payouts/balance?businessId=uuid  |  /businesses/{businessId}/staff/{staffId}/payout-balance",
       "auth": "/me: the staff member; /businesses/…: the owner, or that staff member",
-      "description": "earned = commission on paid bookings; available = earned − pending − paid. Commission is fixed on each booking when it's paid (total × the staff member's commissionPercent at that moment), so changing someone's rate only affects later bookings. Unassigned bookings earn no commission.",
+      "description": "Per business. earned = commission on paid bookings (fixed when paid); tips / bonuses add and deductions / advances take away (owner adjustments). available = earned + tips + bonuses − deductions − advances − pending − paid, and can be negative after a deduction or advance (payout requests are refused until it's back above 0). App: owner Member Detail wallet card.",
       "request": null,
       "response": {
         "businessId": "uuid",
@@ -532,7 +532,11 @@
         "pending": 200,
         "paid": 0,
         "available": 120,
-        "commissionPercent": 40
+        "commissionPercent": 40,
+        "tips": 0,
+        "bonuses": 0,
+        "deductions": 0,
+        "advances": 0
       },
       "errors": []
     },
@@ -615,6 +619,146 @@
       },
       "response": "DaySummary (submission filled in)",
       "errors": []
+    },
+    {
+      "id": "get-my-wallet",
+      "status": "live",
+      "screen": "Staff Earnings (wallet), across every business they work at",
+      "story": "S3",
+      "method": "GET",
+      "path": "/me/wallet",
+      "auth": "any signed-in user (empty for someone with no staff record)",
+      "description": "One wallet across every business: overall totals plus a row per business (payouts are requested per business). App: staff Earnings wallet card (overall balance, breakdown, per-business rows when more than one).",
+      "request": null,
+      "response": {
+        "currency": "KES",
+        "earned": 470,
+        "tips": 200,
+        "bonuses": 0,
+        "deductions": 0,
+        "advances": 0,
+        "pending": 0,
+        "paid": 0,
+        "available": 670,
+        "businesses": [
+          {
+            "businessId": "uuid",
+            "businessName": "Glow Beauty",
+            "role": "staff",
+            "staffId": "uuid",
+            "currency": "KES",
+            "earned": 320,
+            "tips": 200,
+            "bonuses": 0,
+            "deductions": 0,
+            "advances": 0,
+            "pending": 0,
+            "paid": 0,
+            "available": 520,
+            "commissionPercent": 40
+          }
+        ]
+      },
+      "errors": []
+    },
+    {
+      "id": "get-wallet-statement",
+      "status": "live",
+      "screen": "Staff wallet → transactions; owner Member Detail → statement",
+      "story": "S3",
+      "method": "GET",
+      "path": "/me/wallet/transactions?businessId=uuid&limit=50&offset=0  |  /businesses/{businessId}/staff/{staffId}/wallet/transactions",
+      "auth": "/me: the staff member (businessId optional); /businesses/…: the owner, or that staff member",
+      "description": "Newest first. amount is the signed effect on the balance; balanceAfter the balance right after it (the newest = available). type: commission | tip | bonus | deduction | advance | payout; a payout is negative while pending or paid and 0 once rejected (payoutAmount = what was asked). limit 1-100; pass nextOffset back as offset (null on the last page). App: components/WalletStatementList + hooks/useWalletStatement.",
+      "request": null,
+      "response": {
+        "currency": "KES",
+        "balance": 420,
+        "total": 4,
+        "nextOffset": null,
+        "entries": [
+          {
+            "entryId": "payout:uuid",
+            "type": "payout",
+            "at": "2026-10-03T12:00:00Z",
+            "amount": -100,
+            "balanceAfter": 420,
+            "businessId": "uuid",
+            "businessName": "Glow Beauty",
+            "description": "Payout requested",
+            "payoutId": "uuid",
+            "payoutStatus": "pending",
+            "payoutAmount": 100
+          }
+        ]
+      },
+      "errors": []
+    },
+    {
+      "id": "add-wallet-adjustment",
+      "status": "live",
+      "screen": "Owner Member Detail → Adjust wallet; owner / front desk Appointment Detail → Add tip",
+      "story": "O4",
+      "method": "POST",
+      "path": "/businesses/{businessId}/staff/{staffId}/wallet-adjustments",
+      "auth": "owner (any kind); front desk (tip only)",
+      "description": "tip / bonus add to the wallet; deduction / advance take from it (an advance = cash handed over ahead of a payout). amount is positive KES; bookingId optional (the visit a tip was for). Tips are recorded by hand, not added to the M-Pesa charge. The staff member gets a push { type: wallet_adjusted, adjustmentId, businessId } (app opens the staff wallet).",
+      "request": {
+        "kind": "tip",
+        "amount": 200,
+        "note": "From Amina",
+        "bookingId": "uuid (optional)"
+      },
+      "response": {
+        "adjustmentId": "uuid",
+        "businessId": "uuid",
+        "staffId": "uuid",
+        "staffName": "Wanjiku",
+        "kind": "tip",
+        "amount": 200,
+        "signedAmount": 200,
+        "currency": "KES",
+        "note": "From Amina",
+        "bookingId": "uuid",
+        "createdAt": "2026-10-03T12:00:00Z",
+        "voidedAt": null
+      },
+      "errors": [
+        {
+          "status": 403,
+          "code": "forbidden",
+          "message": "Only the owner can do this (front desk can add tips)"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "staffId / bookingId does not exist for this business"
+        },
+        {
+          "status": 422,
+          "code": "validation_error",
+          "message": "kind must be tip, bonus, deduction or advance; amount > 0"
+        }
+      ]
+    },
+    {
+      "id": "void-wallet-adjustment",
+      "status": "live",
+      "screen": "Owner Member Detail → statement → long-press → Void",
+      "story": "O4",
+      "method": "POST",
+      "path": "/wallet-adjustments/{adjustmentId}/void",
+      "auth": "owner",
+      "description": "Undo a mistaken adjustment: kept on record (voidedAt set) but no longer counts and leaves the statement.",
+      "request": null,
+      "response": "Adjustment (voidedAt set)",
+      "errors": [
+        {
+          "status": 409,
+          "code": "already_voided",
+          "message": "This adjustment was already voided"
+        }
+      ]
     }
   ],
   "frontDeskNote": "Confirmed by the backend (2026-09-30): the public profile lists every staff record (role, allServices, serviceIds, workingDays), and front desk may call every 'owner or front desk' endpoint (covered by a test). Front desk start with no services, so they're not bookable; the app's assign/walk-in pickers list only staff who perform at least one service. The front desk app (F1–F3) is built at /front-desk/*."

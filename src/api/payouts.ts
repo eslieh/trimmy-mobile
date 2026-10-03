@@ -1,5 +1,13 @@
 import { apiRequest, toQueryString } from './client';
-import type { PayoutBalance, PayoutRequest, PayoutStatus } from '../types/payout';
+import type {
+  AdjustmentKind,
+  PayoutBalance,
+  PayoutRequest,
+  PayoutStatus,
+  Wallet,
+  WalletAdjustment,
+  WalletStatement,
+} from '../types/payout';
 
 // See reference/api/fulfillment.json#request-payout / #list-business-payouts /
 // #respond-to-payout / #get-payout-balance. The server computes and
@@ -53,4 +61,55 @@ export function getMyPayoutBalance(businessId: string): Promise<PayoutBalance> {
 // Owner (or that staff member) looking at one person's wallet.
 export function getStaffPayoutBalance(businessId: string, staffId: string): Promise<PayoutBalance> {
   return apiRequest<PayoutBalance>(`/businesses/${businessId}/staff/${staffId}/payout-balance`);
+}
+
+// See reference/api/fulfillment.json#get-my-wallet. Totals across every
+// business the signed-in person works at (empty without a staff record).
+export function getMyWallet(): Promise<Wallet> {
+  return apiRequest<Wallet>('/me/wallet');
+}
+
+// See reference/api/fulfillment.json#get-wallet-statement. Newest first;
+// pass nextOffset back as offset (null on the last page).
+export function getMyWalletStatement(
+  options: { businessId?: string; offset?: number; limit?: number } = {},
+): Promise<WalletStatement> {
+  const qs = toQueryString([
+    ['businessId', options.businessId],
+    ['limit', options.limit ?? 50],
+    ['offset', options.offset],
+  ]);
+  return apiRequest<WalletStatement>(`/me/wallet/transactions?${qs}`);
+}
+
+// The owner (or that staff member) viewing one person's statement.
+export function getStaffWalletStatement(
+  businessId: string,
+  staffId: string,
+  options: { offset?: number; limit?: number } = {},
+): Promise<WalletStatement> {
+  const qs = toQueryString([
+    ['limit', options.limit ?? 50],
+    ['offset', options.offset],
+  ]);
+  return apiRequest<WalletStatement>(`/businesses/${businessId}/staff/${staffId}/wallet/transactions?${qs}`);
+}
+
+// See reference/api/fulfillment.json#add-wallet-adjustment. Owner: any kind;
+// front desk: tips only. amount is positive KES; tip / bonus add, deduction /
+// advance take away. The staff member gets a wallet_adjusted push.
+export function addWalletAdjustment(
+  businessId: string,
+  staffId: string,
+  input: { kind: AdjustmentKind; amount: number; note?: string; bookingId?: string },
+): Promise<WalletAdjustment> {
+  return apiRequest<WalletAdjustment>(`/businesses/${businessId}/staff/${staffId}/wallet-adjustments`, {
+    method: 'POST',
+    body: { kind: input.kind, amount: input.amount, note: input.note?.trim() || null, bookingId: input.bookingId ?? null },
+  });
+}
+
+// Owner: undo a mistaken adjustment (kept on record, no longer counts).
+export function voidWalletAdjustment(adjustmentId: string): Promise<WalletAdjustment> {
+  return apiRequest<WalletAdjustment>(`/wallet-adjustments/${adjustmentId}/void`, { method: 'POST' });
 }

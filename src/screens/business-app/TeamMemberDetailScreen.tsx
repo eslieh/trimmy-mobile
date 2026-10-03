@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { BackButton } from '../../components/BackButton';
@@ -12,8 +12,16 @@ import { BarChart } from '../../components/charts/BarChart';
 import { DonutChart } from '../../components/charts/DonutChart';
 import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
 import { getStaffServices, setStaffServices, type StaffServices } from '../../api/team';
-import { getStaffPayoutBalance } from '../../api/payouts';
-import type { PayoutBalance } from '../../types/payout';
+import {
+  addWalletAdjustment,
+  getStaffPayoutBalance,
+  getStaffWalletStatement,
+  voidWalletAdjustment,
+} from '../../api/payouts';
+import { getApiErrorMessage } from '../../api/client';
+import { WalletStatementList } from '../../components/WalletStatementList';
+import { useWalletStatement } from '../../hooks/useWalletStatement';
+import type { AdjustmentKind, PayoutBalance, WalletEntry } from '../../types/payout';
 import {
   INVITATION_STATUS_COLOR,
   INVITATION_STATUS_LABEL,
@@ -90,12 +98,67 @@ export function TeamMemberDetailScreen() {
 
   const staffId = invitation?.staffId ?? null;
   const businessId = business?.businessId;
-  // Their wallet (commission on paid bookings minus payouts), from the server.
+  // Their wallet at this business (commission, tips, bonuses, deductions,
+  // advances, payouts) and its statement, from the server.
   const [wallet, setWallet] = useState<PayoutBalance | null>(null);
-  useEffect(() => {
+  const loadWallet = useCallback(() => {
     if (!businessId || !staffId) return;
     getStaffPayoutBalance(businessId, staffId).then(setWallet).catch(() => {});
   }, [businessId, staffId]);
+  useEffect(loadWallet, [loadWallet]);
+  const fetchStatement = useMemo(
+    () => (businessId && staffId ? (offset: number) => getStaffWalletStatement(businessId, staffId, { offset }) : null),
+    [businessId, staffId],
+  );
+  const statement = useWalletStatement(fetchStatement);
+
+  // Adjust wallet: tip / bonus add, deduction / advance take away.
+  const [adjustVisible, setAdjustVisible] = useState(false);
+  const [adjustKind, setAdjustKind] = useState<AdjustmentKind>('tip');
+  const [adjustAmount, setAdjustAmount] = useState('');
+  const [adjustNote, setAdjustNote] = useState('');
+  const [adjusting, setAdjusting] = useState(false);
+  const [adjustError, setAdjustError] = useState('');
+
+  const refreshWalletAndStatement = () => {
+    loadWallet();
+    statement.reload();
+  };
+
+  const handleAddAdjustment = async () => {
+    const amount = parseInt(adjustAmount, 10);
+    if (!businessId || !staffId || !(amount > 0)) return;
+    setAdjusting(true);
+    setAdjustError('');
+    try {
+      await addWalletAdjustment(businessId, staffId, { kind: adjustKind, amount, note: adjustNote });
+      setAdjustVisible(false);
+      setAdjustAmount('');
+      setAdjustNote('');
+      refreshWalletAndStatement();
+    } catch (err) {
+      setAdjustError(getApiErrorMessage(err, "Couldn't adjust the wallet."));
+    } finally {
+      setAdjusting(false);
+    }
+  };
+
+  // Long-press an adjustment in the statement to undo a mistake.
+  const confirmVoid = (entry: WalletEntry) => {
+    if (!entry.adjustmentId) return;
+    const adjustmentId = entry.adjustmentId;
+    Alert.alert('Void this adjustment?', `${entry.description} will no longer count towards their wallet.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Void',
+        style: 'destructive',
+        onPress: () =>
+          voidWalletAdjustment(adjustmentId)
+            .then(refreshWalletAndStatement)
+            .catch((err) => showApiError("Couldn't void it", err)),
+      },
+    ]);
+  };
 
   useEffect(() => {
     if (!businessId || !staffId) return;
@@ -334,11 +397,30 @@ export function TeamMemberDetailScreen() {
         {wallet ? (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Wallet</Text>
-            <Text style={styles.serviceName}>KSh {wallet.available.toLocaleString('en-US')} available</Text>
+            <Text style={styles.serviceName}>
+              {wallet.available < 0 ? '−' : ''}KSh {Math.abs(wallet.available).toLocaleString('en-US')} available
+            </Text>
             <Text style={styles.emptyHint}>
-              KSh {wallet.earned.toLocaleString('en-US')} earned · KSh {wallet.paid.toLocaleString('en-US')} paid out
+              KSh {wallet.earned.toLocaleString('en-US')} earned
+              {wallet.tips + wallet.bonuses > 0
+                ? ` · KSh ${(wallet.tips + wallet.bonuses).toLocaleString('en-US')} tips & bonuses`
+                : ''}
+              {wallet.deductions + wallet.advances > 0
+                ? ` · KSh ${(wallet.deductions + wallet.advances).toLocaleString('en-US')} deductions & advances`
+                : ''}
+              {` · KSh ${wallet.paid.toLocaleString('en-US')} paid out`}
               {wallet.pending > 0 ? ` · KSh ${wallet.pending.toLocaleString('en-US')} requested` : ''}
             </Text>
+            <Button label="Adjust wallet" variant="secondary" onPress={() => setAdjustVisible(true)} />
+            <Text style={styles.sectionLabel}>Statement</Text>
+            <Text style={styles.emptyHint}>Long-press a tip, bonus, deduction or advance to void it.</Text>
+            <WalletStatementList
+              entries={statement.entries}
+              hasMore={statement.hasMore}
+              loading={statement.loading}
+              onLoadMore={statement.loadMore}
+              onLongPressAdjustment={confirmVoid}
+            />
           </View>
         ) : null}
 
@@ -400,11 +482,72 @@ export function TeamMemberDetailScreen() {
           style={styles.removeButton}
         />
       </ScrollView>
+      <Modal visible={adjustVisible} transparent animationType="slide" onRequestClose={() => setAdjustVisible(false)}>
+        <Pressable style={styles.overlay} onPress={() => setAdjustVisible(false)}>
+          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.cardTitle}>Adjust wallet</Text>
+            <View style={styles.servicePills}>
+              {(
+                [
+                  { kind: 'tip', label: 'Tip' },
+                  { kind: 'bonus', label: 'Bonus' },
+                  { kind: 'deduction', label: 'Deduction' },
+                  { kind: 'advance', label: 'Advance' },
+                ] as const
+              ).map((option) => {
+                const selected = option.kind === adjustKind;
+                return (
+                  <Pressable
+                    key={option.kind}
+                    style={[styles.rangePill, selected && styles.rangePillSelected]}
+                    onPress={() => setAdjustKind(option.kind)}
+                  >
+                    <Text style={[styles.rangePillText, selected && styles.rangePillTextSelected]}>{option.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Text style={styles.emptyHint}>
+              {adjustKind === 'tip' || adjustKind === 'bonus'
+                ? 'Adds to their wallet.'
+                : adjustKind === 'advance'
+                  ? 'Cash you handed over ahead of a payout — taken from their wallet.'
+                  : 'Taken from their wallet.'}
+            </Text>
+            <Input label="Amount (KSh)" value={adjustAmount} onChangeText={setAdjustAmount} keyboardType="number-pad" />
+            <Input label="Note (optional)" value={adjustNote} onChangeText={setAdjustNote} placeholder="e.g. From Amina" />
+            {adjustError ? <Text style={styles.adjustError}>{adjustError}</Text> : null}
+            <Button
+              label={adjusting ? 'Saving…' : 'Save'}
+              disabled={adjusting || !(parseInt(adjustAmount, 10) > 0)}
+              onPress={handleAddAdjustment}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: colors.overlay,
+  },
+  sheet: {
+    backgroundColor: colors.background.primary,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    paddingHorizontal: spacing.xxl,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.xxxl,
+    gap: spacing.md,
+  },
+  adjustError: {
+    ...typography.caption,
+    color: colors.feedback.danger,
+  },
   flex: {
     flex: 1,
     backgroundColor: colors.background.primary,

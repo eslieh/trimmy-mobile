@@ -67,6 +67,7 @@ export function routeForNotification(data: Record<string, unknown>): Href | null
     case 'booking_assigned':
       return bookingId ? `/appointment/${bookingId}` : null; // staff's view
     case 'payout_responded':
+    case 'wallet_adjusted': // a tip / bonus / deduction / advance from the owner
       return '/staff/earnings';
     case 'day_summary_submitted':
       return typeof data.date === 'string' ? `/day-summary?date=${data.date}` : '/day-summary';

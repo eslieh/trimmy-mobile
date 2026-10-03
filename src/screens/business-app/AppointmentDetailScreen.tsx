@@ -18,6 +18,8 @@ import {
   updateBookingStatus,
 } from '../../api/booking';
 import { DatePickerField } from '../../components/DatePickerField';
+import { Input } from '../../components/Input';
+import { addWalletAdjustment } from '../../api/payouts';
 import { TimePickerField } from '../../components/TimePickerField';
 import { depositFailureMessage } from '../../utils/depositPayment';
 import { MarkRefundedSheet } from '../../components/MarkRefundedSheet';
@@ -69,6 +71,14 @@ export function AppointmentDetailScreen() {
   const [newTime, setNewTime] = useState('');
   const [rescheduling, setRescheduling] = useState(false);
   const [rescheduleError, setRescheduleError] = useState('');
+  // Tip for the staff member after checkout (recorded by hand — tips aren't
+  // added to the M-Pesa charge). Owner or front desk.
+  const [tipVisible, setTipVisible] = useState(false);
+  const [tipAmount, setTipAmount] = useState('');
+  const [tipNote, setTipNote] = useState('');
+  const [savingTip, setSavingTip] = useState(false);
+  const [tipError, setTipError] = useState('');
+  const [tipSaved, setTipSaved] = useState(false);
 
   // Always refresh from the server — this may be opened from a list that
   // hasn't cached the booking (e.g. Unassigned or Refunds owed).
@@ -166,6 +176,31 @@ export function AppointmentDetailScreen() {
       setRescheduleError(getApiErrorMessage(err, "Couldn't move this appointment."));
     } finally {
       setRescheduling(false);
+    }
+  };
+
+  const canTip = !isStaffView && booking.status === 'completed' && booking.paymentStatus === 'paid' && !!booking.staffId;
+
+  const handleAddTip = async () => {
+    const amount = parseInt(tipAmount, 10);
+    if (!booking.staffId || !(amount > 0)) return;
+    setSavingTip(true);
+    setTipError('');
+    try {
+      await addWalletAdjustment(booking.businessId, booking.staffId, {
+        kind: 'tip',
+        amount,
+        note: tipNote || `From ${booking.customerName}`,
+        bookingId: booking.bookingId,
+      });
+      setTipVisible(false);
+      setTipAmount('');
+      setTipNote('');
+      setTipSaved(true);
+    } catch (err) {
+      setTipError(getApiErrorMessage(err, "Couldn't add the tip."));
+    } finally {
+      setSavingTip(false);
     }
   };
 
@@ -381,12 +416,37 @@ export function AppointmentDetailScreen() {
             </View>
           </>
         ) : null}
+        {canTip ? (
+          tipSaved ? (
+            <Text style={styles.cardValueMuted}>Tip added to {booking.staffName}'s wallet.</Text>
+          ) : (
+            <Button label={`Add tip for ${booking.staffName}`} variant="secondary" onPress={() => setTipVisible(true)} />
+          )
+        ) : null}
         {/* In progress, or finished (e.g. by staff) but not yet paid. */}
         {!isStaffView &&
         (booking.status === 'in_progress' || (booking.status === 'completed' && booking.paymentStatus !== 'paid')) ? (
           <Button label="Charge customer" onPress={() => setChargeSheetVisible(true)} />
         ) : null}
       </View>
+
+      <Modal visible={tipVisible} transparent animationType="slide" onRequestClose={() => setTipVisible(false)}>
+        <Pressable style={styles.overlay} onPress={() => setTipVisible(false)}>
+          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.sheetTitle}>Tip for {booking.staffName}</Text>
+            <Text style={styles.sheetSubtitle}>Goes into their wallet. Record it once you've received it (e.g. cash).</Text>
+            <Input label="Amount (KSh)" value={tipAmount} onChangeText={setTipAmount} keyboardType="number-pad" />
+            <Input label="Note (optional)" value={tipNote} onChangeText={setTipNote} placeholder={`From ${booking.customerName}`} />
+            {tipError ? <Text style={styles.assignError}>{tipError}</Text> : null}
+            <Button
+              label={savingTip ? 'Saving…' : 'Add tip'}
+              disabled={savingTip || !(parseInt(tipAmount, 10) > 0)}
+              onPress={handleAddTip}
+              style={styles.sheetButton}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <Modal visible={rescheduleVisible} transparent animationType="slide" onRequestClose={() => setRescheduleVisible(false)}>
         <Pressable style={styles.overlay} onPress={() => setRescheduleVisible(false)}>

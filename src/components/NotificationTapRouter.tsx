@@ -30,6 +30,7 @@ export function NotificationTapRouter() {
       switch (data.type) {
         case 'booking_assigned':
         case 'payout_responded':
+        case 'wallet_adjusted':
           if (store.staffSession) store.setActiveMode(store.staffSession.role === 'front_desk' ? 'front_desk' : 'staff');
           break;
         case 'day_summary_submitted':

@@ -14,9 +14,11 @@ import { PAYOUT_STATUS_COLOR, PAYOUT_STATUS_LABEL } from '../../utils/payout';
 import { buildCustomDateRange, getPresetDateRange, type EarningsRange } from '../../utils/earnings';
 import { earningsViews, useEarningsSummary } from '../../hooks/useEarningsSummary';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
-import { getMyPayoutBalance } from '../../api/payouts';
+import { getMyWallet, getMyWalletStatement } from '../../api/payouts';
+import { WalletStatementList } from '../../components/WalletStatementList';
+import { useWalletStatement } from '../../hooks/useWalletStatement';
 import { showApiError } from '../../utils/showApiError';
-import type { PayoutBalance } from '../../types/payout';
+import type { Wallet } from '../../types/payout';
 
 const RANGE_OPTIONS: { value: EarningsRange; label: string }[] = [
   { value: 'today', label: 'Today' },
@@ -74,9 +76,12 @@ export function StaffEarningsScreen() {
   const payouts = usePayoutsStore((s) => s.payouts);
   const loadPayouts = usePayoutsStore((s) => s.loadPayouts);
   const requestPayoutNow = usePayoutsStore((s) => s.requestPayoutNow);
-  // The wallet comes from the server (get-payout-balance), which also
+  // One wallet across every business they work at (GET /me/wallet); the
+  // server also re-checks every payout request against it.
   // re-checks every request against it.
-  const [balance, setBalance] = useState<PayoutBalance | null>(null);
+  const [wallet, setWallet] = useState<Wallet | null>(null);
+  // Payouts are requested per business (each owner pays their own staff).
+  const [payoutBusinessId, setPayoutBusinessId] = useState<string | null>(null);
 
   const [range, setRange] = useState<EarningsRange>('today');
   const [customStart, setCustomStart] = useState(todayKey);
@@ -107,16 +112,26 @@ export function StaffEarningsScreen() {
   const staffId = staffSession?.staffId;
   const refreshWallet = useCallback(() => {
     if (!businessId) return;
-    getMyPayoutBalance(businessId)
-      .then(setBalance)
-      .catch((err) => showApiError("Couldn't load your balance", err));
+    getMyWallet()
+      .then(setWallet)
+      .catch((err) => showApiError("Couldn't load your wallet", err));
     loadPayouts(businessId, { staffId }).catch(() => {});
   }, [businessId, staffId, loadPayouts]);
   useFocusEffect(refreshWallet);
 
-  const commissionPercent = balance?.commissionPercent ?? 0;
-  const lifetimeCommission = balance?.earned ?? 0;
-  const availableBalance = balance?.available ?? 0;
+  // The statement across all their businesses, newest first.
+  const fetchStatement = useCallback((offset: number) => getMyWalletStatement({ offset }), []);
+  const statement = useWalletStatement(fetchStatement);
+
+  const multiBusiness = (wallet?.businesses.length ?? 0) > 1;
+  const thisBusiness = wallet?.businesses.find((b) => b.businessId === businessId);
+  const payoutBusiness =
+    wallet?.businesses.find((b) => b.businessId === (payoutBusinessId ?? businessId)) ?? thisBusiness;
+  const commissionPercent = thisBusiness?.commissionPercent ?? 0;
+  const lifetimeCommission = wallet?.earned ?? 0;
+  const totalAvailable = wallet?.available ?? 0;
+  // What can be requested from the business picked in the sheet.
+  const availableBalance = payoutBusiness?.available ?? 0;
 
   if (!staffSession) {
     return <SafeAreaView style={styles.flex} edges={['top']} />;
@@ -134,7 +149,7 @@ export function StaffEarningsScreen() {
     if (!canRequest || isRequesting) return;
     setIsRequesting(true);
     try {
-      await requestPayoutNow({ businessId: staffSession.businessId, amount: requestValue });
+      await requestPayoutNow({ businessId: payoutBusiness?.businessId ?? staffSession.businessId, amount: requestValue });
       setRequestSheetVisible(false);
       setRequestAmount('');
     } catch (err) {
@@ -143,6 +158,7 @@ export function StaffEarningsScreen() {
     } finally {
       setIsRequesting(false);
       refreshWallet();
+      statement.reload();
     }
   };
 
@@ -163,14 +179,33 @@ export function StaffEarningsScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.payoutCard}>
           <Text style={styles.payoutLabel}>Wallet balance</Text>
-          <Text style={styles.payoutValue}>{formatMoney(availableBalance)}</Text>
-          <Text style={styles.payoutHint}>
-            {formatMoney(lifetimeCommission)} earned · {formatMoney((balance?.pending ?? 0) + (balance?.paid ?? 0))} requested
+          <Text style={[styles.payoutValue, totalAvailable < 0 && styles.negativeValue]}>
+            {totalAvailable < 0 ? '−' : ''}
+            {formatMoney(Math.abs(totalAvailable))}
           </Text>
+          <Text style={styles.payoutHint}>
+            {formatMoney(lifetimeCommission)} earned
+            {wallet && wallet.tips + wallet.bonuses > 0 ? ` · ${formatMoney(wallet.tips + wallet.bonuses)} tips & bonuses` : ''}
+            {wallet && wallet.deductions + wallet.advances > 0
+              ? ` · ${formatMoney(wallet.deductions + wallet.advances)} deductions & advances`
+              : ''}
+            {` · ${formatMoney((wallet?.pending ?? 0) + (wallet?.paid ?? 0))} requested`}
+          </Text>
+          {multiBusiness
+            ? wallet!.businesses.map((b) => (
+                <Text key={b.businessId} style={styles.payoutHint}>
+                  {b.businessName}: {b.available < 0 ? '−' : ''}
+                  {formatMoney(Math.abs(b.available))}
+                </Text>
+              ))
+            : null}
+          {totalAvailable < 0 ? (
+            <Text style={styles.payoutHint}>Payouts open again once your balance is back above zero.</Text>
+          ) : null}
           <Button
             label="Request payout"
             variant="secondary"
-            disabled={availableBalance <= 0}
+            disabled={!wallet || !wallet.businesses.some((b) => b.available > 0)}
             onPress={openRequestSheet}
             style={styles.payoutButton}
           />
@@ -238,6 +273,17 @@ export function StaffEarningsScreen() {
               <Text style={styles.heroStatLabel}>Avg ticket</Text>
             </View>
           </View>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Wallet transactions</Text>
+          <WalletStatementList
+            entries={statement.entries}
+            hasMore={statement.hasMore}
+            loading={statement.loading}
+            onLoadMore={statement.loadMore}
+            showBusiness={multiBusiness}
+          />
         </View>
 
         <View style={styles.card}>
@@ -321,7 +367,31 @@ export function StaffEarningsScreen() {
         <Pressable style={styles.overlay} onPress={() => setRequestSheetVisible(false)}>
           <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
             <Text style={styles.sheetTitle}>Request payout</Text>
-            <Text style={styles.sheetSubtitle}>Available: {formatMoney(availableBalance)}</Text>
+            {multiBusiness ? (
+              <View style={styles.businessPills}>
+                {wallet!.businesses.map((b) => {
+                  const selected = b.businessId === payoutBusiness?.businessId;
+                  return (
+                    <Pressable
+                      key={b.businessId}
+                      style={[styles.businessPill, selected && styles.businessPillSelected]}
+                      onPress={() => {
+                        setPayoutBusinessId(b.businessId);
+                        setRequestAmount(b.available > 0 ? String(b.available) : '');
+                      }}
+                    >
+                      <Text style={[styles.businessPillText, selected && styles.businessPillTextSelected]}>
+                        {b.businessName}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : null}
+            <Text style={styles.sheetSubtitle}>
+              Available{multiBusiness && payoutBusiness ? ` at ${payoutBusiness.businessName}` : ''}:{' '}
+              {formatMoney(Math.max(0, availableBalance))}
+            </Text>
             <Input
               label="Amount (KSh)"
               value={requestAmount}
@@ -343,6 +413,31 @@ export function StaffEarningsScreen() {
 }
 
 const styles = StyleSheet.create({
+  negativeValue: {
+    color: colors.feedback.danger,
+  },
+  businessPills: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  businessPill: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.pill,
+    backgroundColor: colors.pill.unselectedBg,
+  },
+  businessPillSelected: {
+    backgroundColor: colors.pill.selectedBg,
+  },
+  businessPillText: {
+    ...typography.bodyMedium,
+    color: colors.pill.unselectedText,
+  },
+  businessPillTextSelected: {
+    color: colors.pill.selectedText,
+  },
   flex: {
     flex: 1,
     backgroundColor: colors.background.primary,
