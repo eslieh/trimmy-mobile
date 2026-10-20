@@ -37,6 +37,9 @@ import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 
 const DEFAULT_COUNTRY = countries.find((c) => c.iso2 === 'KE') ?? countries[0];
+// Quick picks for a tip at checkout (KSh); "Other amount" covers the rest.
+const TIP_PRESETS = [0, 50, 100, 200];
+
 const SUCCESS_DISMISS_DELAY = 1600;
 
 const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
@@ -88,6 +91,9 @@ export function AppointmentDetailScreen() {
 
   const [chargeSheetVisible, setChargeSheetVisible] = useState(false);
   const [chargeMethod, setChargeMethod] = useState<PaymentMethod>('mpesa');
+  // A tip charged with the balance (for the assigned staff member's wallet).
+  const [chargeTip, setChargeTip] = useState(0);
+  const [customTip, setCustomTip] = useState('');
   const [country, setCountry] = useState(DEFAULT_COUNTRY);
   const [rawPhone, setRawPhone] = useState('');
   const [chargeStep, setChargeStep] = useState<ChargeStep>('form');
@@ -182,7 +188,9 @@ export function AppointmentDetailScreen() {
     }
   };
 
-  const canTip = !isStaffView && booking.status === 'completed' && booking.paymentStatus === 'paid' && !!booking.staffId;
+  // A tip given after checkout (most come with the charge itself, above).
+  const canTip =
+    !isStaffView && booking.status === 'completed' && booking.paymentStatus === 'paid' && !!booking.staffId && !booking.tip;
 
   const handleAddTip = async () => {
     const amount = parseInt(tipAmount, 10);
@@ -219,6 +227,8 @@ export function AppointmentDetailScreen() {
     setChargeMethod('mpesa');
     setChargeError('');
     setRawPhone('');
+    setChargeTip(0);
+    setCustomTip('');
   };
 
   const finishWithSuccess = (charged: Parameters<typeof updateBooking>[0]) => {
@@ -237,13 +247,16 @@ export function AppointmentDetailScreen() {
     setChargeStep('form');
   };
 
+  const balance = (booking.balanceDue ?? booking.totalAmount).amount;
+  const chargeTotal = balance + chargeTip;
+
   const handleSendChargeRequest = async () => {
     if (rawPhone.length < 4) return;
-    setChargedAmount((booking.balanceDue ?? booking.totalAmount).amount);
+    setChargedAmount(chargeTotal);
     setChargeError('');
     setChargeStep('pending');
     try {
-      const charged = await chargeBookingPayment(booking, normalizePhoneNumber(rawPhone, country));
+      const charged = await chargeBookingPayment(booking, normalizePhoneNumber(rawPhone, country), chargeTip);
       finishWithSuccess(charged);
     } catch (err) {
       failCharge(err);
@@ -251,11 +264,11 @@ export function AppointmentDetailScreen() {
   };
 
   const handleChargeCash = async () => {
-    setChargedAmount((booking.balanceDue ?? booking.totalAmount).amount);
+    setChargedAmount(chargeTotal);
     setChargeError('');
     setChargeStep('pending');
     try {
-      finishWithSuccess(await chargeBookingCash(booking));
+      finishWithSuccess(await chargeBookingCash(booking, chargeTip));
     } catch (err) {
       failCharge(err);
     }
@@ -292,6 +305,9 @@ export function AppointmentDetailScreen() {
               <View style={styles.customerContactLines}>
                 {booking.customerPhone ? <Text style={styles.cardValue}>{booking.customerPhone}</Text> : null}
                 {booking.customerEmail ? <Text style={styles.cardValue}>{booking.customerEmail}</Text> : null}
+                {booking.customerHasAccount ? (
+                  <Text style={styles.cardValueMuted}>On Trimmy: they see this booking in their app</Text>
+                ) : null}
               </View>
               {booking.customerPhone ? (
                 <Pressable style={styles.callButton} onPress={handleCall} hitSlop={8}>
@@ -345,6 +361,11 @@ export function AppointmentDetailScreen() {
             <Text style={styles.cardLabel}>Payment</Text>
             <Text style={styles.cardValue}>{PAYMENT_METHOD_LABEL[booking.paymentMethod]}</Text>
             <Text style={styles.cardValue}>KSh {booking.totalAmount.amount} paid in total</Text>
+            {booking.tip ? (
+              <Text style={styles.cardValueMuted}>
+                + KSh {booking.tip.amount} tip, in {booking.staffName}'s wallet
+              </Text>
+            ) : null}
             {booking.depositPaid ? (
               <Text style={styles.cardValueMuted}>
                 KSh {booking.depositPaid.amount} deposit
@@ -570,10 +591,47 @@ export function AppointmentDetailScreen() {
               <>
                 <Text style={styles.sheetTitle}>Charge customer</Text>
                 <Text style={styles.sheetSubtitle}>
-                  {/* balanceDue = total minus any deposit paid (from charge-booking, once live). */}
-                  KSh {(booking.balanceDue ?? booking.totalAmount).amount} for {booking.customerName}
+                  {/* balanceDue = total minus any deposit paid. */}
+                  KSh {balance} for {booking.customerName}
+                  {chargeTip > 0 ? ` + KSh ${chargeTip} tip = KSh ${chargeTotal}` : ''}
                 </Text>
                 {chargeError ? <Text style={styles.assignError}>{chargeError}</Text> : null}
+
+                {booking.staffId ? (
+                  // One payment for both: the tip goes to their wallet once it's paid.
+                  <View style={styles.tipBlock}>
+                    <Text style={styles.cardLabel}>Tip for {booking.staffName} (optional)</Text>
+                    <View style={styles.methodRow}>
+                      {TIP_PRESETS.map((amount) => {
+                        const selected = chargeTip === amount && !customTip;
+                        return (
+                          <Pressable
+                            key={amount}
+                            style={[styles.methodPill, selected && styles.methodPillSelected]}
+                            onPress={() => {
+                              setCustomTip('');
+                              setChargeTip(amount);
+                            }}
+                          >
+                            <Text style={[styles.methodPillText, selected && styles.methodPillTextSelected]}>
+                              {amount === 0 ? 'None' : amount}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                    <Input
+                      label="Other amount (KSh)"
+                      value={customTip}
+                      keyboardType="number-pad"
+                      onChangeText={(text) => {
+                        const digits = text.replace(/[^0-9]/g, '').slice(0, 6);
+                        setCustomTip(digits);
+                        setChargeTip(digits ? parseInt(digits, 10) : 0);
+                      }}
+                    />
+                  </View>
+                ) : null}
 
                 <View style={styles.methodRow}>
                   {(['mpesa', 'cash'] as const).map((method) => {
@@ -602,14 +660,14 @@ export function AppointmentDetailScreen() {
                       onChangeText={setRawPhone}
                     />
                     <Button
-                      label="Send payment request"
+                      label={`Send KSh ${chargeTotal} request`}
                       disabled={rawPhone.length < 4}
                       onPress={handleSendChargeRequest}
                       style={styles.sheetButton}
                     />
                   </>
                 ) : (
-                  <Button label="Mark as paid (cash)" onPress={handleChargeCash} style={styles.sheetButton} />
+                  <Button label={`Mark KSh ${chargeTotal} paid (cash)`} onPress={handleChargeCash} style={styles.sheetButton} />
                 )}
               </>
             )}
@@ -823,6 +881,9 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.text.secondary,
     marginTop: -spacing.sm,
+  },
+  tipBlock: {
+    gap: spacing.sm,
   },
   methodRow: {
     flexDirection: 'row',

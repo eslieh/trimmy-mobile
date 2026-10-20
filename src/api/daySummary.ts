@@ -21,6 +21,8 @@ export type DaySummary = {
     mpesa: AmountCount;
     depositsCollected: AmountCount;
     balancePayments: AmountCount;
+    // Tips inside cash / M-Pesa: owed to staff (already in their wallets).
+    tips?: AmountCount;
   };
   refundsPaid: AmountCount;
   unpaid: { bookingId: string; customerName: string; time: string; status: string; balanceDue: Money }[];

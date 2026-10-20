@@ -102,6 +102,13 @@ export function DaySummaryScreen() {
                 label={`Balance payments (${summary.collected.balancePayments.count})`}
                 value={money(summary.collected.balancePayments.amount)}
               />
+              {summary.collected.tips && summary.collected.tips.amount > 0 ? (
+                // In the till, but the staff's: already credited to their wallets.
+                <Row
+                  label={`Tips for staff (${summary.collected.tips.count})`}
+                  value={money(summary.collected.tips.amount)}
+                />
+              ) : null}
               {summary.refundsPaid.count > 0 ? (
                 <Row
                   label={`Refunds paid back (${summary.refundsPaid.count})`}

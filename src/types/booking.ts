@@ -39,6 +39,9 @@ export type Booking = {
   customerName: string;
   customerPhone: string | null; // set once a charge STK push has been sent, or entered up front for a scheduled/walk-in appointment
   customerEmail: string | null;
+  // Linked to the customer's Trimmy account (matched by verified phone /
+  // email): they see the booking in their app and get its notifications.
+  customerHasAccount?: boolean;
   staffId: string | null;
   staffName: string;
   services: BookingServiceLine[];
@@ -63,6 +66,7 @@ export type Booking = {
   notes?: string | null;
   depositPayment?: DepositPayment | null; // null until a deposit payment is started (BK-31)
   depositPaid?: Money | null; // the deposit actually paid (BK-34); null if none / not yet
+  tip?: Money | null; // paid with the checkout charge; went to the staff member's wallet
   // Checkout (charge-booking): what's left to pay after any deposit, and the
   // M-Pesa charge attempt once one is started.
   balanceDue?: Money | null;

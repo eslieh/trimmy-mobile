@@ -262,7 +262,10 @@ async function waitForCharge(bookingId: string): Promise<Booking> {
 // wrong_pin, timeout, …) when the customer doesn't complete the prompt, or
 // an ApiError when the prompt couldn't be sent. On payment_in_progress it
 // keeps waiting on the prompt already out instead of sending another.
-export async function chargeBookingPayment(booking: Booking, customerPhone: string): Promise<Booking> {
+// `tip` (optional) is charged together with the balance in one prompt and
+// goes to the booking's staff member's wallet once paid (400 tip_needs_staff
+// if nobody is assigned).
+export async function chargeBookingPayment(booking: Booking, customerPhone: string, tip = 0): Promise<Booking> {
   if (USE_MOCK_CHARGE) {
     return mockDelay<Booking>(
       {
@@ -280,7 +283,7 @@ export async function chargeBookingPayment(booking: Booking, customerPhone: stri
   try {
     const res = await apiRequest<Booking | { paymentId: string }>(`/bookings/${booking.bookingId}/charge`, {
       method: 'POST',
-      body: { method: 'mpesa', phone: customerPhone },
+      body: { method: 'mpesa', phone: customerPhone, ...(tip > 0 ? { tip } : {}) },
     });
     // Nothing left to pay (deposit covered it) completes immediately.
     if ('bookingId' in res && 'status' in res && res.status === 'completed') return res as Booking;
@@ -291,7 +294,7 @@ export async function chargeBookingPayment(booking: Booking, customerPhone: stri
 }
 
 // Same endpoint, cash paid in person: recorded immediately.
-export function chargeBookingCash(booking: Booking): Promise<Booking> {
+export function chargeBookingCash(booking: Booking, tip = 0): Promise<Booking> {
   if (USE_MOCK_CHARGE) {
     return mockDelay<Booking>({
       ...booking,
@@ -304,7 +307,7 @@ export function chargeBookingCash(booking: Booking): Promise<Booking> {
 
   return apiRequest<Booking>(`/bookings/${booking.bookingId}/charge`, {
     method: 'POST',
-    body: { method: 'cash' },
+    body: { method: 'cash', ...(tip > 0 ? { tip } : {}) },
   });
 }
 
