@@ -16,6 +16,10 @@ import {
 import { AuthProvider } from '../src/contexts/AuthContext';
 import { NotificationTapRouter } from '../src/components/NotificationTapRouter';
 import { InAppToastHost } from '../src/components/InAppToastHost';
+import { AppTransitionOverlay } from '../src/components/AppTransitionOverlay';
+import { InvitationSheet } from '../src/components/InvitationSheet';
+import { OfflineBanner } from '../src/components/OfflineBanner';
+import { SessionGuard } from '../src/components/SessionGuard';
 import { RealtimeConnector } from '../src/realtime/RealtimeConnector';
 import { colors } from '../src/theme';
 
@@ -43,20 +47,27 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
+        <StatusBar style="dark" />
         <AuthProvider>
           <NotificationTapRouter />
           <RealtimeConnector />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              animation: 'slide_from_right',
-              contentStyle: { backgroundColor: colors.background.primary },
-            }}
-          />
-          {/* After the Stack so it draws above every screen. */}
-          <InAppToastHost />
+          <SessionGuard />
+          {/* The black "offline" band; the app slides down under it. */}
+          <OfflineBanner>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                animation: 'slide_from_right',
+                contentStyle: { backgroundColor: colors.background.primary },
+              }}
+            />
+            {/* After the Stack so they draw above every screen. */}
+            <InAppToastHost />
+            <InvitationSheet />
+          </OfflineBanner>
+          {/* Above everything, the banner included. */}
+          <AppTransitionOverlay />
         </AuthProvider>
-        <StatusBar style="dark" />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

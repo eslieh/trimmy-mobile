@@ -4,6 +4,8 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
+import { switchMode } from '../../utils/switchMode';
+import { AccountSection } from '../../components/AccountSection';
 
 // Business-owner session's Menu tab — account-level only (name/email
 // header, "Switch to browsing", Log out). Business management now lives in
@@ -15,23 +17,13 @@ import { colors, radii, shadows, spacing, typography } from '../../theme';
 // (e.g. if they also work shifts themselves).
 export function BusinessMenuScreen() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const ownedBusiness = useOwnedBusinessStore((s) => s.business);
-  const setActiveMode = useOwnedBusinessStore((s) => s.setActiveMode);
 
   const displayName = user ? [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Guest' : 'Guest';
 
-  const handleSwitchToBrowsing = () => {
-    setActiveMode('customer');
-    router.dismissAll();
-    router.replace('/explore');
-  };
+  const handleSwitchToBrowsing = () => switchMode(router, 'customer', { message: 'Switching to browsing…' });
 
-  const handleLogout = async () => {
-    await logout();
-    router.dismissAll();
-    router.replace('/');
-  };
 
   const handleSwitchToStaffView = () => {
     router.push('/today');
@@ -65,11 +57,7 @@ export function BusinessMenuScreen() {
           </View>
         )}
 
-        <View style={styles.group}>
-          <Pressable style={[styles.row, styles.rowLast]} onPress={handleLogout}>
-            <Text style={[styles.rowLabel, styles.logoutLabel]}>Log out</Text>
-          </Pressable>
-        </View>
+        <AccountSection />
       </View>
     </SafeAreaView>
   );

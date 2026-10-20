@@ -13,7 +13,8 @@ import type { OnboardingStep, TeamMode } from '../types/business';
 //     and the owned-business slot is set so they can switch into it;
 //   - draft → the wizard store holds it, so setup can resume at the next
 //     step (see nextSetupRoute).
-// Doesn't change activeMode: switching modes stays a manual action.
+// Workplaces they no longer have are cleared (SessionGuard then moves them
+// out of that mode). Doesn't change activeMode itself.
 export async function restoreOwnedBusiness(): Promise<void> {
   const businesses = await authApi.listMyBusinesses();
 
@@ -29,11 +30,14 @@ export async function restoreOwnedBusiness(): Promise<void> {
       staffId: membership.staffId,
       role: membership.role as 'staff' | 'front_desk',
     });
+  } else {
+    useOwnedBusinessStore.setState({ staffSession: null }); // removed from the team since
   }
 
   const owned =
     businesses.find((b) => b.role === 'owner' && b.status === 'published') ??
     businesses.find((b) => b.role === 'owner');
+  if (!owned || owned.status !== 'published') useOwnedBusinessStore.setState({ business: null });
   if (!owned) return;
 
   const detail = await getBusiness(owned.businessId);

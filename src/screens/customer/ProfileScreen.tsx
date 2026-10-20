@@ -1,40 +1,35 @@
-import type { ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
-import { UserIcon } from '../../components/icons/UserIcon';
 import { CalendarIcon } from '../../components/icons/CalendarIcon';
 import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { seedOwnedBusinessForTesting, seedSelfAsStaffForTesting } from '../../utils/devSeed';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import { PendingInvitations } from '../../components/PendingInvitations';
+import { AccountSection } from '../../components/AccountSection';
+import { Button } from '../../components/Button';
+import { NotificationBell } from '../../components/NotificationBell';
+import Svg, { Path } from 'react-native-svg';
+import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
+import { nextSetupRoute } from '../../utils/restoreOwnedBusiness';
+import { switchMode } from '../../utils/switchMode';
 import { sendTestNotification } from '../../api/notifications';
 import { receiveNotification } from '../../realtime/incoming';
 import { showApiError } from '../../utils/showApiError';
 
-type Row = {
-  key: string;
-  label: string;
-  icon?: ReactNode;
-  onPress?: () => void;
-};
-
 export function ProfileScreen() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const setOwnedBusiness = useOwnedBusinessStore((s) => s.setOwnedBusiness);
   const setStaffSession = useOwnedBusinessStore((s) => s.setStaffSession);
-  const setActiveMode = useOwnedBusinessStore((s) => s.setActiveMode);
   const ownedBusiness = useOwnedBusinessStore((s) => s.business);
   const staffSession = useOwnedBusinessStore((s) => s.staffSession);
+  // An unfinished business setup, restored from the server after login.
+  const setupBusiness = useBusinessOnboardingStore((s) => s.business);
+  const draft = !ownedBusiness && setupBusiness?.status === 'draft' ? setupBusiness : null;
 
-  const handleOpenMySchedule = () => {
-    const frontDesk = staffSession?.role === 'front_desk';
-    setActiveMode(frontDesk ? 'front_desk' : 'staff');
-    router.dismissAll();
-    router.replace(frontDesk ? '/front-desk/today' : '/staff/today');
-  };
+  const displayName = user ? [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Guest' : 'Guest';
 
   // Arrives like a real one: toast, buzz, bell. Live, the stream delivers it
   // (receiveNotification ignores the repeat); in mock mode this is the only path.
@@ -46,73 +41,41 @@ export function ProfileScreen() {
     }
   };
 
-  const handleLogout = async () => {
-    await logout();
-    router.dismissAll();
-    router.replace('/');
-  };
-
-  // The real path into business mode is publishing a business through the
-  // full setup wizard (ReviewPublishScreen sets the owned business there).
-  // If nothing's been published yet this session, this seeds from a mock
-  // discovery business instead (same businessId real customer bookings
-  // already use) — a stand-in for "you don't have a listing yet" rather
-  // than a dead end, since there's no real backend to check against.
-  // Two variants (solo/team) so both tab-bar shapes are reachable for
-  // testing — see (business-app)/_layout.tsx for how they differ (team
-  // hides Today/Calendar). Team lands on Earnings rather than Today, since
-  // Today isn't a visible tab in team mode.
-  const handleSwitchToHosting = (teamMode: 'solo' | 'team') => {
+  // Development builds only: seeded mock businesses, so every mode can be
+  // tried without the setup wizard (see utils/devSeed.ts).
+  const handleTestBusiness = (teamMode: 'solo' | 'team') => {
     setOwnedBusiness(seedOwnedBusinessForTesting(teamMode === 'solo' ? 0 : 1, teamMode));
-    setActiveMode('business');
-    router.dismissAll();
-    router.replace(teamMode === 'solo' ? '/today' : '/earnings');
+    switchMode(router, 'business');
   };
-
-  // Staff always seeds a team-mode business (staff only makes sense there)
-  // and a deterministic "you" TeamInvitation (role 'staff', already
-  // 'accepted' — skips the real invite/accept flow, which isn't reachable
-  // from this shortcut) so /staff/today etc. have a real invitationId to
-  // scope bookings to. See devSeed.ts. Lands on /staff/today, not /today —
-  // that's the business-owner app's Today tab, a different route entirely
-  // (see app/staff/_layout.tsx for why the staff app needed a real path
-  // segment instead of a route group).
-  const handleSwitchToStaff = () => {
+  const handleTestStaff = () => {
     setStaffSession(seedSelfAsStaffForTesting(1, displayName));
-    setActiveMode('staff');
-    router.dismissAll();
-    router.replace('/staff/today');
+    switchMode(router, 'staff');
   };
 
-  // The real way in: a published business, either just set by
-  // ReviewPublishScreen or restored from the server after login
-  // (utils/restoreOwnedBusiness.ts). Same landing rules as the testing
-  // shortcuts above.
-  const handleSwitchToOwnedBusiness = () => {
-    if (!ownedBusiness) return;
-    setActiveMode('business');
-    router.dismissAll();
-    router.replace(ownedBusiness.teamMode === 'solo' ? '/today' : '/earnings');
-  };
-
-  const displayName = user ? [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Guest' : 'Guest';
-
-  const accountRows: Row[] = [
-    {
-      key: 'profile',
-      label: 'Profile',
-      icon: <UserIcon size={20} />,
-      onPress: user ? () => router.push('/account/edit-profile') : undefined,
-    },
-    ...(user ? [{ key: 'password', label: 'Change password', onPress: () => router.push('/account/change-password') }] : []),
-    { key: 'appointments', label: 'My appointments', icon: <CalendarIcon size={20} />, onPress: () => router.push('/activity') },
-  ];
+  // The floating switch: their own business first, else where they work.
+  const workspace = ownedBusiness
+    ? { label: `Switch to ${ownedBusiness.name}`, open: () => switchMode(router, 'business', { message: `Opening ${ownedBusiness.name}…` }) }
+    : staffSession
+      ? {
+          label: staffSession.role === 'front_desk' ? 'Open front desk' : 'Open my schedule',
+          open: () =>
+            switchMode(router, staffSession.role === 'front_desk' ? 'front_desk' : 'staff', {
+              message: `Opening ${staffSession.businessName}…`,
+            }),
+        }
+      : null;
 
   return (
     <SafeAreaView style={styles.flex} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.scrollContent, workspace && styles.scrollContentWithPill]}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.header}>
-          <Text style={styles.title}>Profile</Text>
+          <View style={styles.headerTop}>
+            <Text style={styles.title}>Profile</Text>
+            <NotificationBell />
+          </View>
           <Text style={styles.name}>{displayName}</Text>
           {user?.email ? <Text style={styles.email}>{user.email}</Text> : null}
         </View>
@@ -122,13 +85,13 @@ export function ProfileScreen() {
             <View style={styles.testingSection}>
               <Text style={styles.testingLabel}>Testing: switch mode</Text>
               <View style={styles.testingButtonRow}>
-                <Pressable style={styles.switchButton} onPress={() => handleSwitchToHosting('solo')}>
+                <Pressable style={styles.switchButton} onPress={() => handleTestBusiness('solo')}>
                   <Text style={styles.switchButtonText}>Business (solo)</Text>
                 </Pressable>
-                <Pressable style={styles.switchButton} onPress={() => handleSwitchToHosting('team')}>
+                <Pressable style={styles.switchButton} onPress={() => handleTestBusiness('team')}>
                   <Text style={styles.switchButtonText}>Business (team)</Text>
                 </Pressable>
-                <Pressable style={styles.switchButton} onPress={handleSwitchToStaff}>
+                <Pressable style={styles.switchButton} onPress={handleTestStaff}>
                   <Text style={styles.switchButtonText}>Staff</Text>
                 </Pressable>
               </View>
@@ -141,59 +104,65 @@ export function ProfileScreen() {
             </View>
           ) : null}
 
-          {/* Team invitations for this user — accepting one adds the
-              "Open my schedule / front desk" button below. */}
+          {/* Invitations from businesses; the invitation sheet also offers them once. */}
           <PendingInvitations />
 
-          {ownedBusiness ? (
-            <Pressable style={styles.switchButton} onPress={handleSwitchToOwnedBusiness}>
-              <Text style={styles.switchButtonText}>Switch to {ownedBusiness.name}</Text>
-            </Pressable>
+          {user && !ownedBusiness ? (
+            <View style={styles.businessCard}>
+              <Text style={styles.businessEyebrow}>Trimmy for business</Text>
+              {draft ? (
+                <>
+                  <Text style={styles.businessTitle}>Finish setting up {draft.name}</Text>
+                  <Text style={styles.businessBody}>Your progress is saved. Pick up where you left off.</Text>
+                  <Button
+                    label="Continue setup"
+                    onPress={() => router.push(nextSetupRoute(draft.onboardingStep, draft.teamMode))}
+                  />
+                </>
+              ) : (
+                <>
+                  <Text style={styles.businessTitle}>Run your salon or barbershop on Trimmy</Text>
+                  <Text style={styles.businessBody}>
+                    Take bookings and M-Pesa payments, manage your team and see your earnings, all in one place.
+                  </Text>
+                  <Button label="Set up your business" onPress={() => router.push('/business-name')} />
+                </>
+              )}
+            </View>
           ) : null}
 
-          {/* Where they work, restored from /me/businesses after login. */}
-          {staffSession ? (
-            <Pressable style={styles.switchButton} onPress={handleOpenMySchedule}>
-              <Text style={styles.switchButtonText}>
-                {staffSession.role === 'front_desk' ? 'Open front desk at' : 'Open my schedule at'}{' '}
-                {staffSession.businessName}
-              </Text>
-            </Pressable>
-          ) : null}
-
-          <RowGroup rows={accountRows} />
-
-          <View style={styles.group}>
-            <Pressable style={[styles.row, !user && styles.rowLast]} onPress={handleLogout}>
-              <Text style={[styles.rowLabel, styles.logoutLabel]}>Log out</Text>
-            </Pressable>
-            {user ? (
-              <Pressable style={[styles.row, styles.rowLast]} onPress={() => router.push('/account/delete-account')}>
-                <Text style={[styles.rowLabel, styles.logoutLabel]}>Delete account</Text>
+          {user ? (
+            <View style={styles.group}>
+              <Pressable style={[styles.row, styles.rowLast]} onPress={() => router.push('/activity')}>
+                <CalendarIcon size={20} />
+                <Text style={styles.rowLabel}>My appointments</Text>
               </Pressable>
-            ) : null}
-          </View>
+            </View>
+          ) : null}
+
+          <AccountSection />
         </View>
       </ScrollView>
+
+      {workspace ? (
+        <View pointerEvents="box-none" style={styles.pillWrap}>
+          <Pressable style={styles.pill} onPress={workspace.open} accessibilityRole="button">
+            <SwitchIcon />
+            <Text style={styles.pillText}>{workspace.label}</Text>
+          </Pressable>
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
 
-function RowGroup({ rows }: { rows: Row[] }) {
+// Two arrows, one up one down: "switch".
+function SwitchIcon() {
   return (
-    <View style={styles.group}>
-      {rows.map((row, index) => (
-        <Pressable
-          key={row.key}
-          style={[styles.row, index === rows.length - 1 && styles.rowLast]}
-          onPress={row.onPress}
-          disabled={!row.onPress}
-        >
-          {row.icon}
-          <Text style={styles.rowLabel}>{row.label}</Text>
-        </Pressable>
-      ))}
-    </View>
+    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+      <Path d="M7 4v14M7 4L4 7M7 4l3 3M17 20V6M17 20l-3-3M17 20l3-3" stroke={colors.white} strokeWidth={2}
+        strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
   );
 }
 
@@ -201,6 +170,57 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
     backgroundColor: colors.background.primary,
+  },
+  scrollContentWithPill: {
+    paddingBottom: 96,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  businessCard: {
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    gap: spacing.sm,
+    backgroundColor: colors.background.primary,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    ...shadows.card,
+  },
+  businessEyebrow: {
+    ...typography.label,
+    color: colors.brand.purple,
+  },
+  businessTitle: {
+    ...typography.h3,
+    color: colors.text.primary,
+  },
+  businessBody: {
+    ...typography.body,
+    color: colors.text.secondary,
+    marginBottom: spacing.sm,
+  },
+  pillWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: spacing.lg,
+    alignItems: 'center',
+  },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: radii.pill,
+    backgroundColor: colors.button.primaryBg,
+    ...shadows.raised,
+  },
+  pillText: {
+    ...typography.button,
+    color: colors.button.primaryText,
   },
   scrollContent: {
     flexGrow: 1,

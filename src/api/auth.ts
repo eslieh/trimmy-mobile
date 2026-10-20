@@ -42,6 +42,8 @@ function mockAuthResponse(overrides: Partial<User>): AuthResponse {
 
 export type OtpPurpose = 'verification' | 'password_reset';
 
+export type RecoveryContact = { email: string } | { phone: string };
+
 export const authApi = {
   async register(data: RegisterRequest): Promise<AuthResponse> {
     if (USE_MOCK_API) {
@@ -128,28 +130,31 @@ export const authApi = {
     return response.data;
   },
 
-  async forgotPassword(email: string): Promise<MessageResponse> {
+  // Account recovery by email, or by a phone verified with a code (an SMS
+  // code is only sent to a proven number). Same answer either way, so it
+  // doesn't reveal whether an account exists.
+  async forgotPassword(contact: RecoveryContact): Promise<MessageResponse> {
     if (USE_MOCK_API) {
       return mockDelay({ message: 'If an account exists, a reset code has been sent.' });
     }
-    const response = await apiClient.post<MessageResponse>('/auth/forgot-password', { email });
+    const response = await apiClient.post<MessageResponse>('/auth/forgot-password', contact);
     return response.data;
   },
 
-  async verifyResetOtp(email: string, otp: string): Promise<{ valid: boolean }> {
+  async verifyResetOtp(contact: RecoveryContact, otp: string): Promise<{ valid: boolean }> {
     if (USE_MOCK_API) {
       return mockDelay({ valid: true });
     }
-    const response = await apiClient.post<{ valid: boolean }>('/auth/verify-reset-otp', { email, otp });
+    const response = await apiClient.post<{ valid: boolean }>('/auth/verify-reset-otp', { ...contact, otp });
     return response.data;
   },
 
-  async resetPassword(email: string, otp: string, newPassword: string): Promise<MessageResponse> {
+  async resetPassword(contact: RecoveryContact, otp: string, newPassword: string): Promise<MessageResponse> {
     if (USE_MOCK_API) {
       return mockDelay({ message: 'Password updated successfully' });
     }
     const response = await apiClient.post<MessageResponse>('/auth/reset-password', {
-      email,
+      ...contact,
       otp,
       new_password: newPassword,
     });

@@ -12,6 +12,7 @@ import type { MyBusiness } from '../api/types';
 import { useBusinessOnboardingStore } from '../store/useBusinessOnboardingStore';
 import { nextSetupRoute } from '../utils/restoreOwnedBusiness';
 import { colors, radii, shadows, spacing, typography } from '../theme';
+import { switchMode } from '../utils/switchMode';
 
 // Lands here after signup and login. Resolves the "what kind of user is
 // this" question from reference/TASKS.md: the businesses they already own
@@ -25,7 +26,6 @@ export function GetStartedScreen() {
   const draft = business?.status === 'draft' ? business : null;
 
   const [workplaces, setWorkplaces] = useState<MyBusiness[]>([]);
-  const setActiveMode = useOwnedBusinessStore((s) => s.setActiveMode);
   const setStaffSession = useOwnedBusinessStore((s) => s.setStaffSession);
 
   const loadWorkplaces = useCallback(() => {
@@ -48,11 +48,8 @@ export function GetStartedScreen() {
         showApiError("Couldn't open your business", err);
         return;
       }
-      const owned = useOwnedBusinessStore.getState().business;
-      if (!owned) return;
-      setActiveMode('business');
-      router.dismissAll();
-      router.replace(owned.teamMode === 'solo' ? '/today' : '/earnings');
+      if (!useOwnedBusinessStore.getState().business) return;
+      switchMode(router, 'business', { message: `Opening ${workplace.name}…` });
       return;
     }
     if (!workplace.staffId) return;
@@ -62,10 +59,9 @@ export function GetStartedScreen() {
       staffId: workplace.staffId,
       role: workplace.role,
     });
-    const frontDesk = workplace.role === 'front_desk';
-    setActiveMode(frontDesk ? 'front_desk' : 'staff');
-    router.dismissAll();
-    router.replace(frontDesk ? '/front-desk/today' : '/staff/today');
+    switchMode(router, workplace.role === 'front_desk' ? 'front_desk' : 'staff', {
+      message: `Opening ${workplace.name}…`,
+    });
   };
 
 

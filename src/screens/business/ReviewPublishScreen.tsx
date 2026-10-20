@@ -97,9 +97,9 @@ export function ReviewPublishScreen() {
           }
         : {
             title: 'Saved as draft',
-            subtitle: "Your business setup is saved. Publish anytime from here when you're ready.",
+            subtitle: "Your business setup is saved. Pick it up from Profile whenever you're ready to publish.",
             ctaLabel: 'Done',
-            nextRoute: '/get-started',
+            nextRoute: '/profile',
           },
     });
   };

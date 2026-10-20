@@ -8,7 +8,7 @@ import { useNotificationsStore } from '../store/useNotificationsStore';
 import type { AppNotification } from '../types/notification';
 import { receiveNotification, resyncNotifications } from './incoming';
 import { openEventStream } from './sseClient';
-import { setRealtimeConnected } from './status';
+import { markConnectionFailed, resetRealtimeStatus, setRealtimeConnected } from './status';
 
 // Keeps one live stream (GET /me/events) open while a signed-in user has the
 // app in the foreground, and none otherwise: closing it in the background
@@ -127,6 +127,8 @@ export function RealtimeConnector() {
             if (fresh) scheduleReconnect(0);
             return; // no session left: AuthContext handles signing out
           }
+          // Couldn't reach the server at all (no network, or it's down).
+          if (status === null || status >= 500) markConnectionFailed();
           if (status === 429) attempts = Math.max(attempts, 5); // too many streams: back off hard
           scheduleReconnect();
         },
@@ -142,6 +144,7 @@ export function RealtimeConnector() {
       } else if (state === 'background' && active) {
         active = false;
         disconnect();
+        resetRealtimeStatus(); // closed on purpose: not "offline"
       }
     };
 
@@ -152,6 +155,7 @@ export function RealtimeConnector() {
       stopped = true;
       subscription.remove();
       disconnect();
+      resetRealtimeStatus(); // signed out
     };
   }, [userId]);
 

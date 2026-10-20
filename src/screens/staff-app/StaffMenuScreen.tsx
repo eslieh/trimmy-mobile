@@ -6,6 +6,8 @@ import { getMyStaffServices, type MyStaffServices } from '../../api/team';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
+import { switchMode } from '../../utils/switchMode';
+import { AccountSection } from '../../components/AccountSection';
 
 // Staff session's Menu tab — mirrors BusinessMenuScreen's shape (account
 // identity, "Switch to browsing", Log out). No business-management rows
@@ -13,9 +15,8 @@ import { colors, radii, shadows, spacing, typography } from '../../theme';
 // different app module from (business-app), not just a filtered view of it.
 export function StaffMenuScreen() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const staffSession = useOwnedBusinessStore((s) => s.staffSession);
-  const setActiveMode = useOwnedBusinessStore((s) => s.setActiveMode);
   // What the owner has set them up to perform (GET /me/staff-services).
   const [myServices, setMyServices] = useState<MyStaffServices | null>(null);
   const businessId = staffSession?.businessId;
@@ -30,17 +31,8 @@ export function StaffMenuScreen() {
 
   const displayName = user ? [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Guest' : 'Guest';
 
-  const handleSwitchToBrowsing = () => {
-    setActiveMode('customer');
-    router.dismissAll();
-    router.replace('/explore');
-  };
+  const handleSwitchToBrowsing = () => switchMode(router, 'customer', { message: 'Switching to browsing…' });
 
-  const handleLogout = async () => {
-    await logout();
-    router.dismissAll();
-    router.replace('/');
-  };
 
   return (
     <SafeAreaView style={styles.flex} edges={['top']}>
@@ -95,11 +87,7 @@ export function StaffMenuScreen() {
           <Text style={styles.switchButtonText}>Switch to browsing</Text>
         </Pressable>
 
-        <View style={styles.group}>
-          <Pressable style={[styles.row, styles.rowLast]} onPress={handleLogout}>
-            <Text style={[styles.rowLabel, styles.logoutLabel]}>Log out</Text>
-          </Pressable>
-        </View>
+        <AccountSection />
       </ScrollView>
     </SafeAreaView>
   );

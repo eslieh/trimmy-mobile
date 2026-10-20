@@ -13,6 +13,13 @@ export function emitRealtime(notification: AppNotification | null): void {
   listeners.forEach((listener) => listener(notification));
 }
 
+// For app-wide listeners outside any screen (e.g. the invitation sheet).
+// Returns the unsubscribe.
+export function onRealtime(listener: Listener): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
 // Calls `refresh` when a matching notification arrives, but only while the
 // screen is focused — a backgrounded tab refetches on focus anyway, so this
 // never spends requests on screens nobody is looking at. Bursts are folded

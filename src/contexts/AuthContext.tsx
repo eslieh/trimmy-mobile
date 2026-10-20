@@ -3,6 +3,7 @@ import axios from 'axios';
 import { authApi } from '../api/auth';
 import { AuthResponse, UpdateMeRequest, User } from '../api/types';
 import { tokenStorage } from '../storage/tokenStorage';
+import { sessionStorage } from '../storage/sessionStorage';
 import { signInWithGoogle as runGoogleSignIn } from '../utils/googleSignIn';
 import { restoreOwnedBusiness } from '../utils/restoreOwnedBusiness';
 import { useOwnedBusinessStore } from '../store/useOwnedBusinessStore';
@@ -16,6 +17,9 @@ import { registerForPushNotifications, unregisterPushNotifications } from '../ut
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  // Reopened from the on-device snapshot (mode and workplace already set),
+  // rather than signed in just now.
+  resumed: boolean;
   register: (data: {
     email: string;
     password: string;
@@ -39,6 +43,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Business state belongs to whoever is logged in — wipe it on the way out
 // so the next person on this device doesn't inherit it.
 function clearBusinessState() {
+  sessionStorage.clear();
   useOwnedBusinessStore.getState().clear();
   useBusinessOnboardingStore.setState(useBusinessOnboardingStore.getInitialState(), true);
   useFrontDeskStore.getState().clear();
@@ -50,10 +55,34 @@ function clearBusinessState() {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [resumed, setResumed] = useState(false);
 
   useEffect(() => {
     loadUser();
   }, []);
+
+  // Keep the on-device snapshot (who, which mode, which workplace) current,
+  // so the next launch reopens right here. Writes are folded together.
+  const signedInId = user?.id;
+  useEffect(() => {
+    if (!user) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const save = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        const { activeMode, business, staffSession } = useOwnedBusinessStore.getState();
+        sessionStorage.save({ user, mode: activeMode, business, staffSession });
+      }, 300);
+    };
+    save();
+    const unsubscribe = useOwnedBusinessStore.subscribe(save);
+    return () => {
+      unsubscribe();
+      if (timer) clearTimeout(timer);
+    };
+    // The user object changes on profile edits too; that's worth saving.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signedInId, user]);
 
   // Business endpoints require a verified user, so wait for verification
   // (email OTP or Google). Best-effort: without it the user just starts in
@@ -67,20 +96,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [restoreForUserId]);
 
   async function loadUser() {
-    try {
-      const token = await tokenStorage.getAccessToken();
-      if (token) {
-        const u = await authApi.getMe();
-        setUser(u);
+    const [token, snapshot] = await Promise.all([tokenStorage.getAccessToken(), sessionStorage.load()]);
+    if (token && snapshot) {
+      // Reopen straight away from the device — instant, and works offline —
+      // then confirm with the server in the background.
+      useOwnedBusinessStore.setState({
+        activeMode: snapshot.mode,
+        business: snapshot.business,
+        staffSession: snapshot.staffSession,
+      });
+      setUser(snapshot.user);
+      setResumed(true);
+      setLoading(false);
+      try {
+        setUser(await authApi.getMe());
+      } catch (err) {
+        await signOutIfRejected(err);
       }
+      return;
+    }
+    try {
+      if (token) setUser(await authApi.getMe());
     } catch (err) {
-      // A cold start offline (or with the server down) must not sign the
-      // user out — only clear tokens when the server actually answered.
-      const isNetworkError = axios.isAxiosError(err) && !err.response;
-      if (!isNetworkError) await tokenStorage.clearTokens();
+      await signOutIfRejected(err);
     } finally {
       setLoading(false);
     }
+  }
+
+  // A cold start offline (or with the server down) must not sign the user
+  // out — only when the server actually answered (expired, deleted account).
+  async function signOutIfRejected(err: unknown) {
+    const isNetworkError = axios.isAxiosError(err) && !err.response;
+    if (isNetworkError) return;
+    await tokenStorage.clearTokens();
+    clearBusinessState();
+    setUser(null);
   }
 
   async function register(data: {
@@ -178,6 +229,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         loading,
+        resumed,
         register,
         login,
         verifyEmail,

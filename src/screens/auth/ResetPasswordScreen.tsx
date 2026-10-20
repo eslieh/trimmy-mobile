@@ -10,7 +10,7 @@ import { getApiErrorMessage } from '../../api/client';
 
 export function ResetPasswordScreen() {
   const router = useRouter();
-  const { email, otp } = useLocalSearchParams<{ email: string; otp: string }>();
+  const { email, phone, otp } = useLocalSearchParams<{ email?: string; phone?: string; otp: string }>();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -28,7 +28,7 @@ export function ResetPasswordScreen() {
     setError('');
     setLoading(true);
     try {
-      await authApi.resetPassword(email!, otp!, password);
+      await authApi.resetPassword(phone ? { phone } : { email: email ?? '' }, otp!, password);
       router.push({
         pathname: '/success',
         params: {

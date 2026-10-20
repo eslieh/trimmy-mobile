@@ -35,14 +35,16 @@ export function OnboardingVerificationScreen() {
         await routeAfterLogin(router);
         return;
       }
-      // Just signed up: Get Started (invites, enroll a business, or browse).
+      // Just signed up: straight into the customer app. Setting up a business
+      // and team invitations are offered from there (Profile, the invitation
+      // sheet), not as a detour now.
       router.push({
         pathname: '/success',
         params: {
           title: "You're all set!",
           subtitle: 'Your account is ready to go.',
-          ctaLabel: 'Get started',
-          nextRoute: '/get-started',
+          ctaLabel: 'Start exploring',
+          nextRoute: '/explore',
         },
       });
     } catch (err) {

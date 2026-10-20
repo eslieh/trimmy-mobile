@@ -9,11 +9,11 @@ import { ChevronDownIcon } from '../../components/icons/ChevronDownIcon';
 import { PlusIcon } from '../../components/icons/PlusIcon';
 import { NotificationBell } from '../../components/NotificationBell';
 import { useBookingsStore } from '../../store/useBookingsStore';
-import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { colors, radii, spacing, typography } from '../../theme';
 import type { Booking } from '../../types/booking';
 import { useSyncBusinessBookings } from '../../hooks/useSyncBusinessBookings';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
+import { switchMode } from '../../utils/switchMode';
 
 // Still open/in-flight vs already wrapped up — the owner only needs to *act*
 // on the former, so that's what gets top billing; resolved appointments are
@@ -47,16 +47,11 @@ function dateKeyForOffset(offset: number): string {
 export function TodayTimelineScreen() {
   const router = useRouter();
   const ownedBusiness = useBusinessContext();
-  const setActiveMode = useOwnedBusinessStore((s) => s.setActiveMode);
   const bookings = useBookingsStore((s) => s.bookings);
   const [dayOffset, setDayOffset] = useState<DayOffset>(0);
   const [showCompleted, setShowCompleted] = useState(false);
 
-  const handleExitToCustomer = () => {
-    setActiveMode('customer');
-    router.dismissAll();
-    router.replace('/explore');
-  };
+  const handleExitToCustomer = () => switchMode(router, 'customer');
 
   const dateKey = dateKeyForOffset(dayOffset);
   useSyncBusinessBookings(ownedBusiness?.businessId, dateKey, dateKey);

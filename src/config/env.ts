@@ -49,3 +49,13 @@ export const USE_MOCK_NOTIFICATIONS = false;
 // credentials are set up; while off the app never asks for notification
 // permission. The server has its own switch (NOTIFY_PUSH_ENABLED).
 export const PUSH_NOTIFICATIONS_ENABLED = false;
+
+// Legal and support links shown in every mode's Account section. Required by
+// the App Store and Play Store (a privacy policy link and in-app account
+// deletion). TODO before release: publish the real documents and point these
+// at them; they are placeholders until then.
+export const LEGAL = {
+  privacyPolicyUrl: 'https://trimmy.com/privacy',
+  termsUrl: 'https://trimmy.com/terms',
+  supportEmail: 'support@trimmy.com',
+} as const;

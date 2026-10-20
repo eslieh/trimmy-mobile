@@ -20,9 +20,9 @@ export function useGoogleSignIn() {
     try {
       const response = await signInWithGoogle();
       if (!response) return; // cancelled — no error shown
-      // Into their app by role; a brand-new account (no workplace yet) gets
-      // Get Started to enroll a business or browse.
-      await routeAfterLogin(router, '/get-started');
+      // Into their app by role; anyone else (a brand-new account too) into
+      // the customer app.
+      await routeAfterLogin(router);
     } catch (err) {
       setError(
         err instanceof GoogleSignInError

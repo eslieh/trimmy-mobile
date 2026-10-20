@@ -5,14 +5,16 @@ import { AuthScreenLayout } from '../../components/AuthScreenLayout';
 import { OtpInput } from '../../components/OtpInput';
 import { Button } from '../../components/Button';
 import { colors, spacing, typography } from '../../theme';
-import { authApi } from '../../api/auth';
+import { authApi, type RecoveryContact } from '../../api/auth';
 import { getApiErrorMessage } from '../../api/client';
 
 const CODE_LENGTH = 6;
 
 export function ForgotPasswordVerificationScreen() {
   const router = useRouter();
-  const { email } = useLocalSearchParams<{ email: string }>();
+  // Whichever the code went to (ForgotPasswordScreen): email, or a verified phone.
+  const { email, phone } = useLocalSearchParams<{ email?: string; phone?: string }>();
+  const contact: RecoveryContact = phone ? { phone } : { email: email ?? '' };
   const [code, setCode] = useState('');
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState('');
@@ -23,7 +25,8 @@ export function ForgotPasswordVerificationScreen() {
     setResending(true);
     setResendMessage('');
     try {
-      const result = await authApi.resendOtp(email!, 'password_reset');
+      // A phone code is re-sent the way it was sent: forgot-password again.
+      const result = phone ? await authApi.forgotPassword(contact) : await authApi.resendOtp(email!, 'password_reset');
       setResendMessage(result.message);
     } catch (err) {
       setResendMessage(getApiErrorMessage(err, 'Failed to resend code. Try again.'));
@@ -38,8 +41,8 @@ export function ForgotPasswordVerificationScreen() {
     setChecking(true);
     setError('');
     try {
-      await authApi.verifyResetOtp(email!, code);
-      router.push({ pathname: '/reset-password', params: { email, otp: code } });
+      await authApi.verifyResetOtp(contact, code);
+      router.push({ pathname: '/reset-password', params: { ...contact, otp: code } });
     } catch (err) {
       setError(getApiErrorMessage(err, 'Invalid or expired code. Please try again.'));
     } finally {
@@ -50,7 +53,7 @@ export function ForgotPasswordVerificationScreen() {
   return (
     <AuthScreenLayout
       title="Enter the code"
-      subtitle={`We sent a 6-digit code to ${email}`}
+      subtitle={`We sent a 6-digit code to ${phone ?? email}`}
       onBack={() => router.back()}
       footer={
         <>

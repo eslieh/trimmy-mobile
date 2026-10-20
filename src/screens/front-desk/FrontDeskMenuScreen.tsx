@@ -4,29 +4,21 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
+import { switchMode } from '../../utils/switchMode';
+import { AccountSection } from '../../components/AccountSection';
 
 // Front desk's Menu tab: who's signed in and where, the two work queues
 // (unassigned "Any available" bookings, refunds owed), switch to browsing,
 // log out. Same shape as StaffMenuScreen.
 export function FrontDeskMenuScreen() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const staffSession = useOwnedBusinessStore((s) => s.staffSession);
-  const setActiveMode = useOwnedBusinessStore((s) => s.setActiveMode);
 
   const displayName = user ? [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Guest' : 'Guest';
 
-  const handleSwitchToBrowsing = () => {
-    setActiveMode('customer');
-    router.dismissAll();
-    router.replace('/explore');
-  };
+  const handleSwitchToBrowsing = () => switchMode(router, 'customer', { message: 'Switching to browsing…' });
 
-  const handleLogout = async () => {
-    await logout();
-    router.dismissAll();
-    router.replace('/');
-  };
 
   return (
     <SafeAreaView style={styles.flex} edges={['top']}>
@@ -53,11 +45,7 @@ export function FrontDeskMenuScreen() {
           <Text style={styles.switchButtonText}>Switch to browsing</Text>
         </Pressable>
 
-        <View style={styles.group}>
-          <Pressable style={[styles.row, styles.rowLast]} onPress={handleLogout}>
-            <Text style={[styles.rowLabel, styles.logoutLabel]}>Log out</Text>
-          </Pressable>
-        </View>
+        <AccountSection />
       </View>
     </SafeAreaView>
   );

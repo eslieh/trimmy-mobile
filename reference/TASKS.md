@@ -40,6 +40,14 @@ The backend's change log is `trimmy-server/docs/booking/FRONTEND_CHANGES.md`. An
   - **Push is built but switched off** (`PUSH_NOTIFICATIONS_ENABLED`). It needs `eas init`, an APNs
     key and FCM credentials first.
 
+**App shell (2026-10-20):**
+- **Sessions are remembered on the device:** who's signed in, their last mode and their workplace (`storage/sessionStorage`). Launch reopens there straight away, even offline, behind the logo. The server check runs in the background, and `SessionGuard` moves them out of a mode whose workplace is gone, or to sign-in if the session was rejected.
+- **Mode switches go through `utils/switchMode`:** a logo transition, the old mode's data cleared, a fresh stack.
+- **Offline banner:** a black band at the top when the live connection has been down for 4 seconds.
+- **Signup and invitations:** signup lands in Explore. Team invitations come as a bottom sheet in the customer app, not a stop at login. Profile has "Trimmy for business" and a floating "Switch to …" pill.
+- **Account section in every mode:** personal details, password and security, notifications, help, privacy policy, terms, log out, delete account. The legal URLs in `config/env.ts` (`LEGAL`) are placeholders until the documents are published.
+- **Forgot password works by phone too.**
+
 **Open:**
 - [ ] Push go-live: EAS project id, APNs and FCM, then switch it on in the app and on the server
       (`NOTIFY_PUSH_ENABLED`).

@@ -11,10 +11,11 @@ import { authApi } from '../../api/auth';
 import { getApiErrorMessage } from '../../api/client';
 import { useGoogleSignIn } from '../../hooks/useGoogleSignIn';
 import { useAuth } from '../../contexts/AuthContext';
-import { routeAfterLogin } from '../../utils/routeAfterLogin';
+import { resumeSession, routeAfterLogin } from '../../utils/routeAfterLogin';
 import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { seedOwnedBusinessForTesting } from '../../utils/devSeed';
 import { colors, spacing, typography } from '../../theme';
+import { switchMode } from '../../utils/switchMode';
 
 export function WelcomeScreen() {
   const router = useRouter();
@@ -23,7 +24,6 @@ export function WelcomeScreen() {
   const [error, setError] = useState('');
   const google = useGoogleSignIn();
   const setOwnedBusiness = useOwnedBusinessStore((s) => s.setOwnedBusiness);
-  const setActiveMode = useOwnedBusinessStore((s) => s.setActiveMode);
 
   // One email field for both paths: existing accounts go to Login (email
   // prefilled), new ones start sign-up.
@@ -52,24 +52,31 @@ export function WelcomeScreen() {
   // full wizard each time.
   const enterAsBusiness = (teamMode: 'solo' | 'team') => {
     setOwnedBusiness(seedOwnedBusinessForTesting(teamMode === 'solo' ? 0 : 1, teamMode));
-    setActiveMode('business');
-    router.dismissAll();
-    router.replace('/today');
+    switchMode(router, 'business');
   };
 
   // This is the app's entry route ('/'). Someone already signed in (a saved
   // session on launch) goes straight into their app instead of seeing the
   // sign-in form; blank while the saved session is still being checked.
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, resumed } = useAuth();
   const redirectedRef = useRef(false);
   useEffect(() => {
     if (authLoading || !user || redirectedRef.current) return;
     redirectedRef.current = true;
-    routeAfterLogin(router);
-  }, [authLoading, user, router]);
+    // Reopened from the device: straight back into the mode they left, no
+    // network wait (SessionGuard corrects it if the server disagrees).
+    // Otherwise work out where they belong from the server.
+    if (resumed) resumeSession(router);
+    else routeAfterLogin(router);
+  }, [authLoading, user, resumed, router]);
 
   if (authLoading || user) {
-    return <View style={styles.flex} />;
+    // The logo while the saved session is checked: never a flash of the sign-in form.
+    return (
+      <View style={styles.launch}>
+        <Image source={require('../../../assets/splash-icon.png')} style={styles.launchLogo} resizeMode="contain" />
+      </View>
+    );
   }
 
   return (
@@ -144,6 +151,16 @@ export function WelcomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  launch: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background.primary,
+  },
+  launchLogo: {
+    width: 240,
+    height: 240,
+  },
   flex: {
     flex: 1,
     backgroundColor: colors.background.primary,

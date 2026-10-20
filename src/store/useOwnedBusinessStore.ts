@@ -48,13 +48,11 @@ type OwnedBusinessState = {
   clear: () => void;
 };
 
-// Client-only, session-scoped — same caveat as every other mock store in
-// this app (useCartStore, useBookingsStore, etc.): resets on app restart,
-// no real backend persistence yet. Mode always starts 'customer' on a fresh
-// session/login (matching how the app already behaves) rather than being
-// remembered across restarts — switching is a manual, per-session action via
-// each module's own menu, same as Airbnb doesn't restore your last mode
-// across a full app relaunch either.
+// Remembered on the device with the signed-in user (storage/sessionStorage,
+// saved by AuthContext), so the app reopens in the mode they left it in,
+// even offline. The server stays the source of truth: restoreOwnedBusiness
+// refreshes (or clears) the workplaces after launch, and SessionGuard moves
+// them out of a mode whose workplace is gone.
 export const useOwnedBusinessStore = create<OwnedBusinessState>((set) => ({
   business: null,
   staffSession: null,
