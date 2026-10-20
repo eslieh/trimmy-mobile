@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 1500,
-    elevation: 1500,
+    elevation: 1400,
     backgroundColor: colors.black,
   },
   row: {
