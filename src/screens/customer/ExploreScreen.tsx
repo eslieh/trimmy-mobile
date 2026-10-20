@@ -9,6 +9,7 @@ import { CloseIcon } from '../../components/icons/CloseIcon';
 import { FilterIcon } from '../../components/icons/FilterIcon';
 import { LocationPinIcon } from '../../components/icons/LocationPinIcon';
 import { SearchIcon } from '../../components/icons/SearchIcon';
+import { NotificationBell } from '../../components/NotificationBell';
 import { EMPTY_FILTERS, FilterSheet, activeFilterCount, type SearchFilters } from './FilterSheet';
 import { SearchResultsMap } from './SearchResultsMap';
 import { SearchSheet } from './SearchSheet';
@@ -119,10 +120,13 @@ export function ExploreScreen() {
   return (
     <SafeAreaView style={styles.flex} edges={['top']}>
       <View style={styles.header}>
-        <Pressable style={styles.locationChip} onPress={handleUseCurrentLocation} hitSlop={4}>
-          <LocationPinIcon size={14} color={colors.text.secondary} />
-          <Text style={styles.locationChipText}>{locationLabel}</Text>
-        </Pressable>
+        <View style={styles.topRow}>
+          <Pressable style={styles.locationChip} onPress={handleUseCurrentLocation} hitSlop={4}>
+            <LocationPinIcon size={14} color={colors.text.secondary} />
+            <Text style={styles.locationChipText}>{locationLabel}</Text>
+          </Pressable>
+          <NotificationBell />
+        </View>
 
         <View style={styles.searchPillRow}>
           <Pressable style={styles.searchPill} onPress={() => setSearchSheetVisible(true)}>
@@ -302,6 +306,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xxl,
     paddingTop: spacing.md,
     gap: spacing.sm,
+  },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   locationChip: {
     flexDirection: 'row',

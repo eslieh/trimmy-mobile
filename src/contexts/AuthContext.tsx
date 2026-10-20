@@ -9,6 +9,8 @@ import { useOwnedBusinessStore } from '../store/useOwnedBusinessStore';
 import { useBusinessOnboardingStore } from '../store/useBusinessOnboardingStore';
 import { useFrontDeskStore } from '../store/useFrontDeskStore';
 import { useFavoritesStore } from '../store/useFavoritesStore';
+import { useNotificationsStore } from '../store/useNotificationsStore';
+import { useToastStore } from '../store/useToastStore';
 import { registerForPushNotifications, unregisterPushNotifications } from '../utils/pushNotifications';
 
 interface AuthContextType {
@@ -41,6 +43,8 @@ function clearBusinessState() {
   useBusinessOnboardingStore.setState(useBusinessOnboardingStore.getInitialState(), true);
   useFrontDeskStore.getState().clear();
   useFavoritesStore.getState().clear();
+  useNotificationsStore.getState().reset();
+  useToastStore.getState().clear();
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {

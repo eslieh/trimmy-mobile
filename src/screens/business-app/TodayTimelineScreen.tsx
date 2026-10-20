@@ -7,6 +7,7 @@ import { Button } from '../../components/Button';
 import { CalendarIcon } from '../../components/icons/CalendarIcon';
 import { ChevronDownIcon } from '../../components/icons/ChevronDownIcon';
 import { PlusIcon } from '../../components/icons/PlusIcon';
+import { NotificationBell } from '../../components/NotificationBell';
 import { useBookingsStore } from '../../store/useBookingsStore';
 import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { colors, radii, spacing, typography } from '../../theme';
@@ -99,11 +100,9 @@ export function TodayTimelineScreen() {
           </Text>
         </View>
         <View style={styles.headerActions}>
+          <NotificationBell />
           <Pressable style={styles.addButton} onPress={() => router.push('/walk-in')} hitSlop={4}>
             <PlusIcon size={18} color={colors.text.primary} />
-          </Pressable>
-          <Pressable onPress={handleExitToCustomer} hitSlop={8}>
-            <Text style={styles.exitLink}>Exit</Text>
           </Pressable>
         </View>
       </View>
@@ -212,10 +211,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.background.secondary,
-  },
-  exitLink: {
-    ...typography.bodyMedium,
-    color: colors.brand.purple,
   },
   dayRow: {
     flexDirection: 'row',

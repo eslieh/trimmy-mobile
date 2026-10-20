@@ -6,6 +6,7 @@ import { BarChart } from '../../components/charts/BarChart';
 import { DonutChart } from '../../components/charts/DonutChart';
 import { DatePickerField } from '../../components/DatePickerField';
 import { TransactionList } from '../../components/TransactionList';
+import { NotificationBell } from '../../components/NotificationBell';
 import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { buildCustomDateRange, getPresetDateRange, type EarningsRange } from '../../utils/earnings';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
@@ -80,6 +81,7 @@ export function EarningsScreen() {
     <SafeAreaView style={styles.flex} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>Earnings</Text>
+        <NotificationBell />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -214,6 +216,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.primary,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: spacing.xxl,
     paddingTop: spacing.md,
   },

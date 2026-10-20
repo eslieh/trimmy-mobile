@@ -15,6 +15,8 @@ import {
 } from '@expo-google-fonts/manrope';
 import { AuthProvider } from '../src/contexts/AuthContext';
 import { NotificationTapRouter } from '../src/components/NotificationTapRouter';
+import { InAppToastHost } from '../src/components/InAppToastHost';
+import { RealtimeConnector } from '../src/realtime/RealtimeConnector';
 import { colors } from '../src/theme';
 
 SplashScreen.preventAutoHideAsync();
@@ -43,6 +45,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <AuthProvider>
           <NotificationTapRouter />
+          <RealtimeConnector />
           <Stack
             screenOptions={{
               headerShown: false,
@@ -50,6 +53,8 @@ export default function RootLayout() {
               contentStyle: { backgroundColor: colors.background.primary },
             }}
           />
+          {/* After the Stack so it draws above every screen. */}
+          <InAppToastHost />
         </AuthProvider>
         <StatusBar style="dark" />
       </SafeAreaProvider>

@@ -11,6 +11,7 @@ import { showApiError } from '../../utils/showApiError';
 import { usePayoutsStore } from '../../store/usePayoutsStore';
 import { INVITATION_STATUS_COLOR, INVITATION_STATUS_LABEL, TEAM_ROLE_LABEL, teamMemberDisplayName } from '../../utils/team';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
+import { useRealtimeRefresh } from '../../realtime/events';
 
 function formatMoney(amount: number): string {
   return `KSh ${amount.toLocaleString('en-US')}`;
@@ -48,6 +49,17 @@ export function TeamScreen() {
     // The payout queue: pending requests from the server.
     loadPayouts(businessId, { status: 'pending' }).catch((err) => showApiError("Couldn't load payout requests", err));
   }, [businessId, loadTeamMembers, loadPayouts]);
+
+  // A staff member's request appears in the queue as it's made; a new invitee
+  // accepting shows up in the roster.
+  useRealtimeRefresh(
+    (type) => type === 'payout_requested' || type.startsWith('team_'),
+    () => {
+      if (!businessId) return;
+      loadPayouts(businessId, { status: 'pending' }).catch(() => {});
+      loadTeamMembers(businessId).catch(() => {});
+    },
+  );
 
   const pendingPayouts = useMemo(
     () =>

@@ -80,7 +80,8 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   return headers;
 }
 
-async function refreshAccessToken(): Promise<string | null> {
+// Also used by the live stream (realtime/RealtimeConnector) when it gets a 401.
+export async function refreshAccessToken(): Promise<string | null> {
   const refreshToken = await tokenStorage.getRefreshToken();
   if (!refreshToken) return null;
   try {

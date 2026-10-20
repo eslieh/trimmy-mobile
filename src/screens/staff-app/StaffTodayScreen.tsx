@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { AppointmentCard } from '../../components/AppointmentCard';
 import { ChevronDownIcon } from '../../components/icons/ChevronDownIcon';
 import { CalendarIcon } from '../../components/icons/CalendarIcon';
+import { NotificationBell } from '../../components/NotificationBell';
 import { useBookingsStore } from '../../store/useBookingsStore';
 import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { colors, radii, spacing, typography } from '../../theme';
@@ -93,9 +94,12 @@ export function StaffTodayScreen() {
             {staffSession.businessName}
           </Text>
         </View>
-        <Pressable onPress={handleExitToCustomer} hitSlop={8}>
-          <Text style={styles.exitLink}>Exit</Text>
-        </Pressable>
+        <View style={styles.headerActions}>
+          <NotificationBell />
+          <Pressable onPress={handleExitToCustomer} hitSlop={8}>
+            <Text style={styles.exitLink}>Exit</Text>
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.dayRow}>
@@ -187,6 +191,12 @@ const styles = StyleSheet.create({
   subtitle: {
     ...typography.body,
     color: colors.text.secondary,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginTop: spacing.sm,
   },
   exitLink: {
     ...typography.bodyMedium,

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
@@ -9,6 +9,9 @@ import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { seedOwnedBusinessForTesting, seedSelfAsStaffForTesting } from '../../utils/devSeed';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import { PendingInvitations } from '../../components/PendingInvitations';
+import { sendTestNotification } from '../../api/notifications';
+import { receiveNotification } from '../../realtime/incoming';
+import { showApiError } from '../../utils/showApiError';
 
 type Row = {
   key: string;
@@ -31,6 +34,16 @@ export function ProfileScreen() {
     setActiveMode(frontDesk ? 'front_desk' : 'staff');
     router.dismissAll();
     router.replace(frontDesk ? '/front-desk/today' : '/staff/today');
+  };
+
+  // Arrives like a real one: toast, buzz, bell. Live, the stream delivers it
+  // (receiveNotification ignores the repeat); in mock mode this is the only path.
+  const handleTestNotification = async () => {
+    try {
+      receiveNotification(await sendTestNotification());
+    } catch (err) {
+      showApiError("Couldn't send a test notification", err);
+    }
   };
 
   const handleLogout = async () => {
@@ -92,78 +105,76 @@ export function ProfileScreen() {
       onPress: user ? () => router.push('/account/edit-profile') : undefined,
     },
     ...(user ? [{ key: 'password', label: 'Change password', onPress: () => router.push('/account/change-password') }] : []),
-    { key: 'messages', label: 'Messages' },
     { key: 'appointments', label: 'My appointments', icon: <CalendarIcon size={20} />, onPress: () => router.push('/activity') },
-    { key: 'forms', label: 'Forms' },
-    ...(user ? [{ key: 'notifications', label: 'Notifications', onPress: () => router.push('/account/notifications') }] : []),
-  ];
-
-  const supportRows: Row[] = [
-    { key: 'support', label: 'Support' },
-    { key: 'language', label: 'Language' },
   ];
 
   return (
     <SafeAreaView style={styles.flex} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Profile</Text>
-        <Text style={styles.name}>{displayName}</Text>
-        {user?.email ? <Text style={styles.email}>{user.email}</Text> : null}
-      </View>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Profile</Text>
+          <Text style={styles.name}>{displayName}</Text>
+          {user?.email ? <Text style={styles.email}>{user.email}</Text> : null}
+        </View>
 
-      <View style={styles.content}>
-        {__DEV__ ? (
-          <View style={styles.testingSection}>
-            <Text style={styles.testingLabel}>Testing: switch mode</Text>
-            <View style={styles.testingButtonRow}>
-              <Pressable style={styles.switchButton} onPress={() => handleSwitchToHosting('solo')}>
-                <Text style={styles.switchButtonText}>Business (solo)</Text>
-              </Pressable>
-              <Pressable style={styles.switchButton} onPress={() => handleSwitchToHosting('team')}>
-                <Text style={styles.switchButtonText}>Business (team)</Text>
-              </Pressable>
-              <Pressable style={styles.switchButton} onPress={handleSwitchToStaff}>
-                <Text style={styles.switchButtonText}>Staff</Text>
-              </Pressable>
+        <View style={styles.content}>
+          {__DEV__ ? (
+            <View style={styles.testingSection}>
+              <Text style={styles.testingLabel}>Testing: switch mode</Text>
+              <View style={styles.testingButtonRow}>
+                <Pressable style={styles.switchButton} onPress={() => handleSwitchToHosting('solo')}>
+                  <Text style={styles.switchButtonText}>Business (solo)</Text>
+                </Pressable>
+                <Pressable style={styles.switchButton} onPress={() => handleSwitchToHosting('team')}>
+                  <Text style={styles.switchButtonText}>Business (team)</Text>
+                </Pressable>
+                <Pressable style={styles.switchButton} onPress={handleSwitchToStaff}>
+                  <Text style={styles.switchButtonText}>Staff</Text>
+                </Pressable>
+              </View>
+              {user ? (
+                <Pressable style={styles.testNotificationButton} onPress={handleTestNotification}>
+                  <Text style={styles.testNotificationText}>Send test notification</Text>
+                </Pressable>
+              ) : null}
+              <Text style={styles.testingHint}>Development builds only — uses seeded mock data.</Text>
             </View>
-            <Text style={styles.testingHint}>Development builds only — uses seeded mock data.</Text>
-          </View>
-        ) : null}
+          ) : null}
 
-        {/* Team invitations for this user — accepting one adds the
-            "Open my schedule / front desk" button below. */}
-        <PendingInvitations />
+          {/* Team invitations for this user — accepting one adds the
+              "Open my schedule / front desk" button below. */}
+          <PendingInvitations />
 
-        {ownedBusiness ? (
-          <Pressable style={styles.switchButton} onPress={handleSwitchToOwnedBusiness}>
-            <Text style={styles.switchButtonText}>Switch to {ownedBusiness.name}</Text>
-          </Pressable>
-        ) : null}
-
-        {/* Where they work, restored from /me/businesses after login. */}
-        {staffSession ? (
-          <Pressable style={styles.switchButton} onPress={handleOpenMySchedule}>
-            <Text style={styles.switchButtonText}>
-              {staffSession.role === 'front_desk' ? 'Open front desk at' : 'Open my schedule at'}{' '}
-              {staffSession.businessName}
-            </Text>
-          </Pressable>
-        ) : null}
-
-        <RowGroup rows={accountRows} />
-        <RowGroup rows={supportRows} />
-
-        <View style={styles.group}>
-          <Pressable style={[styles.row, !user && styles.rowLast]} onPress={handleLogout}>
-            <Text style={[styles.rowLabel, styles.logoutLabel]}>Log out</Text>
-          </Pressable>
-          {user ? (
-            <Pressable style={[styles.row, styles.rowLast]} onPress={() => router.push('/account/delete-account')}>
-              <Text style={[styles.rowLabel, styles.logoutLabel]}>Delete account</Text>
+          {ownedBusiness ? (
+            <Pressable style={styles.switchButton} onPress={handleSwitchToOwnedBusiness}>
+              <Text style={styles.switchButtonText}>Switch to {ownedBusiness.name}</Text>
             </Pressable>
           ) : null}
+
+          {/* Where they work, restored from /me/businesses after login. */}
+          {staffSession ? (
+            <Pressable style={styles.switchButton} onPress={handleOpenMySchedule}>
+              <Text style={styles.switchButtonText}>
+                {staffSession.role === 'front_desk' ? 'Open front desk at' : 'Open my schedule at'}{' '}
+                {staffSession.businessName}
+              </Text>
+            </Pressable>
+          ) : null}
+
+          <RowGroup rows={accountRows} />
+
+          <View style={styles.group}>
+            <Pressable style={[styles.row, !user && styles.rowLast]} onPress={handleLogout}>
+              <Text style={[styles.rowLabel, styles.logoutLabel]}>Log out</Text>
+            </Pressable>
+            {user ? (
+              <Pressable style={[styles.row, styles.rowLast]} onPress={() => router.push('/account/delete-account')}>
+                <Text style={[styles.rowLabel, styles.logoutLabel]}>Delete account</Text>
+              </Pressable>
+            ) : null}
+          </View>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -190,6 +201,9 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
     backgroundColor: colors.background.primary,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   header: {
     paddingHorizontal: spacing.xxl,
@@ -238,6 +252,17 @@ const styles = StyleSheet.create({
   switchButtonText: {
     ...typography.button,
     color: colors.button.primaryText,
+  },
+  testNotificationButton: {
+    alignSelf: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: radii.pill,
+    backgroundColor: colors.background.secondary,
+  },
+  testNotificationText: {
+    ...typography.button,
+    color: colors.text.primary,
   },
   testingHint: {
     ...typography.caption,

@@ -38,3 +38,14 @@ export const USE_MOCK_CHARGE = false;
 // Business customer list (fulfillment.json#save-customer / list-customers)
 // — live; the server fills it from bookings with a phone.
 export const USE_MOCK_CUSTOMERS = false;
+
+// In-app notification inbox and live stream (auth.json#list-notifications,
+// GET /me/events) — live; needs the server with migration 025. Flip to true
+// for offline work: the inbox uses seeded mocks, the live stream stays off,
+// and Profile's testing panel simulates an incoming notification.
+export const USE_MOCK_NOTIFICATIONS = false;
+
+// Push (Expo → APNs/FCM). Off until the EAS project id, APNs key and FCM
+// credentials are set up; while off the app never asks for notification
+// permission. The server has its own switch (NOTIFY_PUSH_ENABLED).
+export const PUSH_NOTIFICATIONS_ENABLED = false;

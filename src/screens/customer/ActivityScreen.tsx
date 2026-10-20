@@ -13,6 +13,7 @@ import { colors, durations, radii, shadows, spacing, typography } from '../../th
 import { BOOKING_STATUS_COLOR, BOOKING_STATUS_LABEL } from '../../utils/bookingStatus';
 import { formatBookingDate } from '../../utils/date';
 import type { Booking } from '../../types/booking';
+import { useRealtimeRefresh } from '../../realtime/events';
 
 type ActivityTab = MyBookingsFilter;
 
@@ -77,6 +78,8 @@ export function ActivityScreen() {
       load(tab, null);
     }, [load, tab]),
   );
+  // A business cancelling or confirming shows up without leaving the screen.
+  useRealtimeRefresh((type) => type.startsWith('booking_'), () => load(tab, null));
 
   const current = tabs[tab];
   const visible = current.bookings;

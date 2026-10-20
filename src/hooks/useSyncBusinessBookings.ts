@@ -3,6 +3,7 @@ import { useFocusEffect } from 'expo-router';
 import { listBusinessBookings } from '../api/booking';
 import { getApiErrorMessage } from '../api/client';
 import { useBookingsStore } from '../store/useBookingsStore';
+import { useRealtimeRefresh } from '../realtime/events';
 
 const MAX_RANGE_DAYS = 62; // server limit per request
 
@@ -61,6 +62,8 @@ export function useSyncBusinessBookings(businessId: string | undefined, from: st
   }, [businessId, from, to, replaceBusinessRange]);
 
   useFocusEffect(refresh);
+  // New, cancelled, moved or assigned bookings show up without leaving the screen.
+  useRealtimeRefresh((type) => type.startsWith('booking_'), refresh);
 
   return { loading, error, refresh };
 }

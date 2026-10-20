@@ -10,7 +10,7 @@ ship. Anything the app still needs is an entry with `"status": "requested"`, lis
 What the app needs next from the backend, most urgent first. Each one has a full entry
 (`"status": "requested"`) in the file named, with request/response examples and errors.
 
-None right now — every request so far has shipped. Add new ones here as `"status": "requested"` entries.
+1. **In-app notification inbox + live stream** — [auth.json](auth.json) `list-notifications`, `get-unread-notification-count`, `mark-notification-read`, `mark-all-notifications-read`, `send-test-notification`, `event-stream`. **Built** in trimmy-server (migration 025), `"status": "built"`; flip `USE_MOCK_NOTIFICATIONS` to false and mark these `live` once deployed. Also lists five new push types the inbox and pushes need (`booking_created`, `booking_cancelled_by_customer`, `booking_rescheduled_by_customer`, `payout_requested`, `team_invitation`).
 
 ## Why JSON, not prose
 
