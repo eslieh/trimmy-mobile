@@ -7,7 +7,7 @@ import { WifiOffIcon } from './icons/WifiOffIcon';
 import { useRealtimeStatus } from '../realtime/status';
 import { colors, spacing, typography } from '../theme';
 
-const TEXT_ROW = 30;
+const TEXT_ROW = 24;
 // A blip (a tunnel, a lift, the stream rotating) shouldn't flash the banner.
 const GRACE_MS = 4000;
 
@@ -44,7 +44,7 @@ export function OfflineBanner({ children }: { children: ReactNode }) {
         >
           <StatusBar style="light" />
           <View style={styles.row}>
-            <WifiOffIcon size={15} />
+            <WifiOffIcon size={13} />
             <Text style={styles.text} numberOfLines={1}>
               Your device is offline.
             </Text>
@@ -73,11 +73,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.sm,
+    gap: spacing.xs,
     paddingHorizontal: spacing.lg,
+    paddingBottom: 4,
   },
   text: {
     ...typography.label,
+    fontSize: 12,
+    lineHeight: 16,
     color: colors.white,
   },
 });
