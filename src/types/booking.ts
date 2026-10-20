@@ -62,8 +62,9 @@ export type Booking = {
   cancelReason?: string | null; // e.g. payment_expired
   notes?: string | null;
   depositPayment?: DepositPayment | null; // null until a deposit payment is started (BK-31)
-  // Checkout (charge-booking, not built yet): what's left to pay after any
-  // deposit, and the M-Pesa charge attempt once one is started.
+  depositPaid?: Money | null; // the deposit actually paid (BK-34); null if none / not yet
+  // Checkout (charge-booking): what's left to pay after any deposit, and the
+  // M-Pesa charge attempt once one is started.
   balanceDue?: Money | null;
   chargePayment?: DepositPayment | null;
   // Both null unless a cancellation involved money (BK-60).
@@ -103,4 +104,10 @@ export type DepositPayment = {
   paymentId: string;
   status: 'pending' | 'succeeded' | 'failed' | 'timeout';
   failureReason: string | null;
+  // BK-34: what was asked for; the M-Pesa receipt and time once it succeeded;
+  // and where the money went (straight to the business, D1).
+  amount?: Money;
+  receipt?: string | null;
+  paidAt?: string | null;
+  destination?: { type: 'mpesa_till' | 'mpesa_paybill' | 'bank_account'; label: string } | null;
 };

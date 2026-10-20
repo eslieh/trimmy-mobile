@@ -2,7 +2,7 @@
   "domain": "booking",
   "baseUrl": "/api/v1",
   "auth": "Requires a Bearer token for a signed-in, verified user unless noted.",
-  "note": "As of 2026-09-27: availability, create/get/list bookings, M-Pesa deposit payment, and cancel with manual refunds (BK-60) are live and wired in the app. Deposits sit in the business's own account, so refunds are paid back by the business by hand (decision D10). Customers get an SMS when a booking becomes confirmed (BK-40; not for walk-ins); Booking Confirmed mentions it when the booking has a customerPhone.",
+  "note": "As of 2026-09-27: availability, create/get/list bookings, M-Pesa deposit payment, and cancel with manual refunds (BK-60) are live and wired in the app. Deposits sit in the business's own account, so refunds are paid back by the business by hand (decision D10). Customers get an SMS when a booking becomes confirmed (BK-40; not for walk-ins); Booking Confirmed mentions it when the booking has a customerPhone. Updated 2026-10-20 (BK-52): every endpoint here is live; bookings carry depositPaid and the deposit's M-Pesa receipt and destination (BK-34).",
   "endpoints": [
     {
       "id": "get-availability-days",
@@ -155,7 +155,29 @@
         "notes": "Short on the sides",
         "createdAt": "2026-09-27T10:00:00Z",
         "cancellationFee": null,
-        "refund": null
+        "refund": null,
+        "depositPaid": null,
+        "_bk34_after_payment": {
+          "depositPaid": {
+            "amount": 300,
+            "currency": "KES"
+          },
+          "depositPayment": {
+            "paymentId": "uuid",
+            "status": "succeeded",
+            "failureReason": null,
+            "amount": {
+              "amount": 300,
+              "currency": "KES"
+            },
+            "receipt": "SJK1ABC2DE",
+            "paidAt": "2026-09-28T09:12:00+03:00",
+            "destination": {
+              "type": "mpesa_till",
+              "label": "Till 123456"
+            }
+          }
+        }
       },
       "errors": [
         {
@@ -202,7 +224,7 @@
       "method": "GET",
       "path": "/bookings/{bookingId}",
       "auth": "the customer who booked, or the business's owner or staff",
-      "description": "The same Booking shape create-booking returns. depositPayment is null until a deposit payment is started, then { paymentId, status: pending | succeeded | failed | timeout, failureReason: cancelled | insufficient_funds | wrong_pin | timeout | busy | provider_error | failed }. paymentReference (M-Pesa receipt) and paymentMethod 'mpesa' are set once it succeeds. An unpaid booking whose hold ran out shows status cancelled with cancelReason payment_expired. paymentStatus is unpaid | deposit_paid | paid. STK Push Pending polls this every 3s while paying.",
+      "description": "The same Booking shape create-booking returns. depositPayment is null until a deposit payment is started, then { paymentId, status: pending | succeeded | failed | timeout, failureReason: cancelled | insufficient_funds | wrong_pin | timeout | busy | provider_error | failed }. paymentReference (M-Pesa receipt) and paymentMethod 'mpesa' are set once it succeeds. An unpaid booking whose hold ran out shows status cancelled with cancelReason payment_expired. paymentStatus is unpaid | deposit_paid | paid. STK Push Pending polls this every 3s while paying. BK-34: depositPaid is the deposit actually paid (null otherwise); depositPayment and chargePayment carry amount, the M-Pesa receipt and paidAt once succeeded, and destination {type, label}: where the money was routed (account numbers shortened to the last 4). See create-booking's _bk34_after_payment example.",
       "request": null,
       "response": "Booking (see create-booking)",
       "errors": [

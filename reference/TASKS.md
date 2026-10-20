@@ -7,6 +7,49 @@ phases without updating this file so "what's next" stays trustworthy.
 
 Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
+## Where we are (2026-10-20)
+
+Read this first; the phase sections below are the build history and keep their original detail.
+
+**The app runs against the real backend for everything.** Every `USE_MOCK_*` flag in
+`src/config/env.ts` is `false`, including notifications. The mocks are still there for offline work.
+The backend's change log is `trimmy-server/docs/booking/FRONTEND_CHANGES.md`. An audit on
+2026-10-20 found every entry integrated, apart from the review prompt (since added) and push
+(switched off, see below).
+
+**Four app modes, switched with `useOwnedBusinessStore.activeMode` and routed by role after login
+(`utils/routeAfterLogin.ts`):**
+- **Customer** — `(tabs)`: Explore, Wishlist, Activity, Profile.
+- **Business owner** — `(business-app)`: Today and Calendar (solo, or an owner who takes clients),
+  Earnings, Team (team mode), Business, Menu.
+- **Staff** — `staff/`: Today, Calendar, Earnings with wallet and payouts, Menu.
+- **Front desk** — `front-desk/`: Today, Calendar and Customers (the owner's screens, scoped to the
+  business), Menu with the day summary, unassigned bookings and refunds owed.
+
+**Done since the phase notes below were written:**
+- **Bookings, all live:** real availability, M-Pesa deposits (production), cancel within policy
+  with manual refunds, reschedule (customer and business), reviews, no-show fees, checkout charge
+  (M-Pesa or cash), and the deposit's receipt and destination on the booking (BK-34).
+- **Team:** invitations, payouts and approval, and one staff wallet across businesses (tips,
+  bonuses, deductions, advances).
+- **Notifications:**
+  - A bell and inbox (`/notifications`), with live updates over SSE while the app is open
+    (`src/realtime/`) and a toast with a vibration.
+  - Settings per category and channel (`/account/notifications`, opened from the inbox).
+  - Booking emails and SMS are sent by the server.
+  - **Push is built but switched off** (`PUSH_NOTIFICATIONS_ENABLED`). It needs `eas init`, an APNs
+    key and FCM credentials first.
+
+**Open:**
+- [ ] Push go-live: EAS project id, APNs and FCM, then switch it on in the app and on the server
+      (`NOTIFY_PUSH_ENABLED`).
+- [ ] Rebuild the dev client: `expo-haptics` was added on 2026-10-20.
+- [ ] Front desk F1: a staff × time grid. Front desk uses the owner's single-column day today.
+- [ ] Staff S4 availability (blocking out time).
+- [ ] Small things: the Exit link on the staff app's Today; the payout detail screen can't load a
+      payout that isn't already in the store (opened from a notification);
+      `money.noShowFees` / `previous` aren't shown in Earnings.
+
 ## Resolved decisions
 
 - **Marketplace visibility** — manual toggle at the end of the onboarding wizard ("Publish to
@@ -45,7 +88,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
   Expo Router is only a routing-layer change, orthogonal to that requirement (see the native
   modules note below — keeping these was a deliberate choice, not something the router fixes).
 
-## Codebase audit — current state (as of `e60b0ee`)
+## Codebase audit (historical, as of `e60b0ee`; see "Where we are" above)
 
 Stack: Expo `~57.0.22`, React Native `0.86.3`, React `19.2.3`, TypeScript `~6.0.3` (`strict: true`).
 
@@ -82,8 +125,8 @@ Stack: Expo `~57.0.22`, React Native `0.86.3`, React `19.2.3`, TypeScript `~6.0.
 
 - **Backend** — custom REST API (not a BaaS). Live against staging for auth, business setup
   (incl. post-publish management), discovery, and team — `USE_MOCK_API = false` in
-  `src/config/env.ts`. Booking (`USE_MOCK_BOOKING`) and customer fulfillment
-  (`USE_MOCK_FULFILLMENT`) stay on mock until Phase 3/4 ship.
+  `src/config/env.ts`. Since then every other domain went live too: booking, deposits, fulfillment,
+  charge, customers, payouts and notifications. All `USE_MOCK_*` flags are `false`.
   Env URLs are committed: `.env.development` / `.env.staging` →
   `https://trimmy-staging.pesagrid.co.ke`, `.env.production` →
   `https://trimmy-api.pesagrid.co.ke`. Never localhost (the 2026-09-22 incident —
@@ -124,16 +167,16 @@ backend team — one JSON file per phase, e.g. [api/business-setup.json](api/bus
 for Phase 1. These use dummy example data and should be kept in sync as each phase's screens
 firm up; see [api/README.md](api/README.md) for the schema convention.
 
-## Phase 0 — Foundation (in progress)
+## Phase 0 — Foundation
 
 - [x] Auth screens (login/signup)
 - [x] Splash screen
 - [x] **Get Started** screen — post-signup hub: pending invitations vs. "enroll your business"
       vs. continue as customer (resolves the owner-vs-customer entry point decision above)
-- [ ] Session/role model: user can hold one or more of `owner` / `front_desk` / `staff` /
-      `customer`; active-role context available app-wide (needed before role switching in O5,
-      but a single hardcoded role is fine to start)
-- [ ] Base navigation shell (per-session navigator, swappable root)
+- [x] Session/role model: `useOwnedBusinessStore` holds the owned business and the staff or front
+      desk session, with `activeMode` app-wide. Restored from `GET /me/businesses` after login.
+- [x] Base navigation shell: one route group per mode, with the root picked by role
+      (`utils/routeAfterLogin.ts`).
 
 ## Phase 1 — Business setup ([O1](business-owner.md#o1--business-setup))
 
@@ -438,8 +481,9 @@ review,payment,pending,confirmed}.tsx`, all thin re-exports of `src/screens/cust
       plain-language ones. Populated for all 6 mock businesses in `discoveryData.ts` with hours/
       policies consistent with their existing summary strings. Threaded through
       `discovery.json#get-business-profile`
-- [ ] M-Pesa STK push integration decision (sandbox vs. provider, shared by C2/F3/O4) — still open;
-      everything above works against the mock regardless of which provider gets picked
+- [x] M-Pesa STK push: Daraja on Trimmy's shortcode, with the money routed straight to each
+      business's till, paybill or bank (decision D1). Live in production (BK-51), and the app polls
+      the booking (`StkPendingScreen`).
 
 **Activity / Booking Detail** (pulled forward from [C3](customer.md#c3--manage-appointments), not
 the full C3 — see gaps below), Airbnb Trips-inspired per user reference screenshots:
@@ -567,11 +611,13 @@ correctly slides over and hides the tab bar.
       built yet, since this shortcut can reach that state and the screen would otherwise silently
       show the solo view with no indication anything's missing
 
-`team_mode = team` → business gets a Front Desk view ([F1](front-desk.md#f1--live-calendar)) — not
-started, separate follow-up (this pass was explicitly scoped to solo/S1 only):
+`team_mode = team` → business gets a Front Desk view ([F1](front-desk.md#f1--live-calendar)). The
+front desk app (`app/front-desk/`) now exists, with Today, Calendar, Customers and Menu reusing the
+owner's screens. What's still missing from F1:
 - [ ] **Day Calendar (Grid)** — staff rows × time columns, live from Phase 3 bookings
 - [ ] **Appointment Detail** modal — status stepper (check-in → in progress → complete/no-show/cancel)
-- [ ] Double-booking warning on create/move
+- [x] Double-booking: the server refuses an overlap (`409 slot_unavailable`, proven under
+      concurrency, BK-50), and the app shows it.
 - [ ] Would also need its own tab (or the Today/Menu shell's `today` tab conditionally swapping to
       a calendar view based on `ownedBusiness.teamMode`) — not decided yet
 
@@ -1147,32 +1193,38 @@ requests KES X"), not something they'd have to open each member to discover.
 
 ## MVP done when
 
-- [x] An owner can set up a business end-to-end (Phase 1) — done against mocks; still needs the
-      real backend swapped in per endpoint once it exists (see USE_MOCK_API)
-- [ ] A customer can find that business and complete a paid booking (Phases 2–3)
-- [ ] The business side can see and act on that booking (Phase 4)
-- [ ] The owner can staff the business with real team members (Phase 5)
+All four are built against the live backend. Check them end to end on a device once staging is
+back up (it was returning 502 on 2026-10-20).
 
-## Post-MVP backlog (not sequenced yet)
+- [x] An owner can set up a business end-to-end (Phase 1)
+- [x] A customer can find that business and complete a paid booking (Phases 2–3): real
+      availability, an M-Pesa deposit in production, confirmation and reminders
+- [x] The business side can see and act on that booking (Phase 4): Today, Calendar, check in,
+      charge, no-show, cancel and refund, in the owner, staff and front desk apps
+- [x] The owner can staff the business with real team members (Phase 5): invitations matched by
+      email or phone, sent by SMS or email to people without an account, and accepted from Get
+      Started or Profile
 
-- Customer: [C3](customer.md#c3--manage-appointments) reschedule/cancel,
-  [C4](customer.md#c4--saved-styles--preferences) saved styles,
-  [C5](customer.md#c5--reminders) reminders
-- Front Desk: [F2](front-desk.md#f2--walk-ins) walk-ins,
-  [F3](front-desk.md#f3--check-in--checkout-pos) checkout/POS,
-  [F4](front-desk.md#f4--end-of-day-summary) day summary
-- Owner: [O3](business-owner.md#o3--performance-dashboard) dashboard — **done for solo** (the
-  Earnings tab) **and for viewing one member at a time** (Team → Member Detail's earnings section),
-  not a single team-wide rollup across every member,
-  [O4](business-owner.md#o4--payout-approval) payouts — **the missing half of the loop**: staff can
-  now request one ([S3](staff.md#s3--payout-request), below), but there's no owner screen to
-  see/approve it — every request just sits `pending` forever,
-  [O5](business-owner.md#o5--role-switching) role switching — **done**: customer↔business↔staff and
-  solo↔team-tab-shape switching all exist (`ProfileScreen`'s testing panel, `(business-app)`/
-  `(staff-app)` layouts) — only Front Desk has no session to switch into
-- Staff: [S1](staff.md#s1--daily-schedule) daily schedule — **done** (`(staff-app)`'s Today/
-  Calendar), [S2](staff.md#s2--earnings-tracking) earnings — **done**, their own view (`(staff-app)`'s
-  Earnings tab), [S3](staff.md#s3--payout-request) payout request — **request side done**, no
-  approval side (see O4 above),
-  [S4](staff.md#s4--availability) availability — still not built (feeds Front Desk's booking logic,
-  which doesn't exist yet either, so wouldn't do anything yet)
+## Post-MVP backlog (as of 2026-10-20)
+
+- Customer:
+  - [x] [C3](customer.md#c3--manage-appointments) reschedule and cancel within policy, with refunds
+  - [x] [C5](customer.md#c5--reminders) reminders 24h and 2h before, configurable, by SMS, email
+        and in the app (push once it's switched on)
+  - [ ] [C4](customer.md#c4--saved-styles--preferences) saved styles
+  - [ ] WhatsApp as a channel (named in C2/C5; not started)
+- Front desk:
+  - [x] [F2](front-desk.md#f2--walk-ins) walk-ins
+  - [x] [F3](front-desk.md#f3--check-in--checkout-pos) check-in and checkout (M-Pesa or cash, tips)
+  - [x] [F4](front-desk.md#f4--end-of-day-summary) day summary, submitted to the owner
+  - [ ] [F1](front-desk.md#f1--live-calendar) staff × time grid (bookings already update live)
+- Owner:
+  - [x] [O3](business-owner.md#o3--performance-dashboard) dashboard: Earnings for the business and
+        per member
+  - [x] [O4](business-owner.md#o4--payout-approval) payout approval, notified when one is requested
+  - [x] [O5](business-owner.md#o5--role-switching) role switching between every mode
+- Staff:
+  - [x] [S1](staff.md#s1--daily-schedule) schedule
+  - [x] [S2](staff.md#s2--earnings-tracking) earnings
+  - [x] [S3](staff.md#s3--payout-request) payout request and wallet
+  - [ ] [S4](staff.md#s4--availability) availability

@@ -249,9 +249,15 @@ export function BookingDetailScreen() {
           </View>
           {booking.depositAmount ? (
             <Text style={styles.metaLine}>
-              {booking.paymentStatus !== 'unpaid' || booking.depositPayment?.status === 'succeeded'
-                ? `Deposit paid: KSh ${booking.depositAmount.amount}`
+              {booking.depositPaid || booking.depositPayment?.status === 'succeeded'
+                ? `Deposit paid: KSh ${(booking.depositPaid ?? booking.depositAmount).amount}`
                 : `Deposit: KSh ${booking.depositAmount.amount} (not paid)`}
+            </Text>
+          ) : null}
+          {booking.depositPayment?.receipt ? (
+            <Text style={styles.metaLine}>
+              M-Pesa {booking.depositPayment.receipt}
+              {booking.depositPayment.destination ? ` · to ${booking.depositPayment.destination.label}` : ''}
             </Text>
           ) : null}
         </View>

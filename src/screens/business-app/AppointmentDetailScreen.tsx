@@ -326,15 +326,30 @@ export function AppointmentDetailScreen() {
           </View>
         </View>
 
+        {booking.depositPaid && booking.paymentStatus !== 'paid' ? (
+          // BK-34: the deposit is already in the business's account.
+          <View style={styles.card}>
+            <Text style={styles.cardLabel}>Deposit</Text>
+            <Text style={styles.cardValue}>KSh {booking.depositPaid.amount} paid by M-Pesa</Text>
+            {booking.depositPayment?.receipt ? (
+              <Text style={styles.cardValueMuted}>M-Pesa ref: {booking.depositPayment.receipt}</Text>
+            ) : null}
+            {booking.depositPayment?.destination ? (
+              <Text style={styles.cardValueMuted}>Sent to {booking.depositPayment.destination.label}</Text>
+            ) : null}
+          </View>
+        ) : null}
+
         {booking.paymentStatus === 'paid' && booking.paymentMethod ? (
           <View style={styles.card}>
             <Text style={styles.cardLabel}>Payment</Text>
             <Text style={styles.cardValue}>{PAYMENT_METHOD_LABEL[booking.paymentMethod]}</Text>
             <Text style={styles.cardValue}>KSh {booking.totalAmount.amount} paid in total</Text>
-            {booking.depositAmount && booking.depositPayment?.status === 'succeeded' ? (
+            {booking.depositPaid ? (
               <Text style={styles.cardValueMuted}>
-                KSh {booking.depositAmount.amount} deposit + KSh{' '}
-                {booking.totalAmount.amount - booking.depositAmount.amount} at checkout
+                KSh {booking.depositPaid.amount} deposit
+                {booking.depositPayment?.receipt ? ` (${booking.depositPayment.receipt})` : ''} + KSh{' '}
+                {booking.totalAmount.amount - booking.depositPaid.amount} at checkout
               </Text>
             ) : null}
             {booking.paymentReference ? (
