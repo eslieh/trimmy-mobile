@@ -412,6 +412,18 @@ export function TeamMemberDetailScreen() {
               {wallet.pending > 0 ? ` · KSh ${wallet.pending.toLocaleString('en-US')} requested` : ''}
             </Text>
             <Button label="Adjust wallet" variant="secondary" onPress={() => setAdjustVisible(true)} />
+            {businessId && staffId ? (
+              <Button
+                label="Time off"
+                variant="secondary"
+                onPress={() =>
+                  router.push({
+                    pathname: '/time-off',
+                    params: { businessId, staffId, name: teamMemberDisplayName(invitation) },
+                  })
+                }
+              />
+            ) : null}
             <Text style={styles.sectionLabel}>Statement</Text>
             <Text style={styles.emptyHint}>Long-press a tip, bonus, deduction or advance to void it.</Text>
             <WalletStatementList

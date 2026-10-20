@@ -1,1 +1,1 @@
-export { TodayTimelineScreen as default } from '../../src/screens/business-app/TodayTimelineScreen';
+export { FrontDeskDayScreen as default } from '../../src/screens/front-desk/FrontDeskDayScreen';

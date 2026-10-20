@@ -80,6 +80,17 @@ export function StaffMenuScreen() {
           </View>
         ) : null}
 
+        {staffSession ? (
+          <View style={styles.group}>
+            <Pressable style={[styles.row, styles.rowLast]} onPress={() => router.push('/time-off')}>
+              <View style={styles.serviceInfo}>
+                <Text style={styles.rowLabel}>Time off</Text>
+                <Text style={styles.serviceMeta}>Block out times you can't be booked</Text>
+              </View>
+            </Pressable>
+          </View>
+        ) : null}
+
         <Pressable style={styles.switchButton} onPress={handleSwitchToBrowsing}>
           <Text style={styles.switchButtonText}>Switch to browsing</Text>
         </Pressable>

@@ -39,16 +39,9 @@ function dateKeyForOffset(offset: number): string {
 export function StaffTodayScreen() {
   const router = useRouter();
   const staffSession = useOwnedBusinessStore((s) => s.staffSession);
-  const setActiveMode = useOwnedBusinessStore((s) => s.setActiveMode);
   const bookings = useBookingsStore((s) => s.bookings);
   const [dayOffset, setDayOffset] = useState<DayOffset>(0);
   const [showCompleted, setShowCompleted] = useState(false);
-
-  const handleExitToCustomer = () => {
-    setActiveMode('customer');
-    router.dismissAll();
-    router.replace('/explore');
-  };
 
   const dateKey = dateKeyForOffset(dayOffset);
   // Staff only get their own bookings from the server.
@@ -96,9 +89,6 @@ export function StaffTodayScreen() {
         </View>
         <View style={styles.headerActions}>
           <NotificationBell />
-          <Pressable onPress={handleExitToCustomer} hitSlop={8}>
-            <Text style={styles.exitLink}>Exit</Text>
-          </Pressable>
         </View>
       </View>
 
@@ -196,11 +186,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    marginTop: spacing.sm,
-  },
-  exitLink: {
-    ...typography.bodyMedium,
-    color: colors.brand.purple,
     marginTop: spacing.sm,
   },
   dayRow: {

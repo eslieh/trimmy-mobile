@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import {
+  getPayout,
   listBusinessPayouts,
   requestPayout,
   respondToPayout,
@@ -12,6 +13,8 @@ type PayoutsState = {
   // Server → cache (list-business-payouts). Replaces the cached payouts for
   // the business (narrowed by status / staffId when given).
   loadPayouts: (businessId: string, filters?: { status?: PayoutStatus; staffId?: string }) => Promise<void>;
+  // Server → cache for one payout (upserted), e.g. opened from a notification.
+  loadPayout: (payoutId: string) => Promise<PayoutRequest>;
   requestPayoutNow: (input: RequestPayoutInput) => Promise<PayoutRequest>;
   respondToPayoutNow: (payoutId: string, action: 'approve' | 'reject', rejectionReason?: string) => Promise<PayoutRequest>;
 };
@@ -25,6 +28,11 @@ export const usePayoutsStore = create<PayoutsState>((set) => ({
       (!filters.status || p.status === filters.status) &&
       (!filters.staffId || p.staffId === filters.staffId);
     set((state) => ({ payouts: [...fetched, ...state.payouts.filter((p) => !covered(p))] }));
+  },
+  loadPayout: async (payoutId) => {
+    const payout = await getPayout(payoutId);
+    set((state) => ({ payouts: [payout, ...state.payouts.filter((p) => p.payoutId !== payout.payoutId)] }));
+    return payout;
   },
   requestPayoutNow: async (input) => {
     const payout = await requestPayout(input);

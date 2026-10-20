@@ -42,9 +42,11 @@ export function ScheduleAppointmentScreen() {
     customerName: presetCustomerName,
     customerPhone: presetCustomerPhone,
     customerEmail: presetCustomerEmail,
+    staffId: presetStaffId,
   } = useLocalSearchParams<{
     date?: string;
     time?: string;
+    staffId?: string; // from tapping an empty slot in someone's column (front desk day grid)
     customerName?: string;
     customerPhone?: string;
     customerEmail?: string;
@@ -70,7 +72,7 @@ export function ScheduleAppointmentScreen() {
   const [selectedDate, setSelectedDate] = useState<string | null>(presetDate ?? null);
   const [selectedTime, setSelectedTime] = useState<string | null>(presetTime ?? null);
   const [pickerLocked, setPickerLocked] = useState(Boolean(presetDate && presetTime));
-  const [assignedStaffId, setAssignedStaffId] = useState<string | null>(null);
+  const [assignedStaffId, setAssignedStaffId] = useState<string | null>(presetStaffId ?? null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const selectedServices = useMemo(

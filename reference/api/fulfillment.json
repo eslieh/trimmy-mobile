@@ -452,6 +452,25 @@
       "status": "live"
     },
     {
+      "id": "get-payout",
+      "status": "live",
+      "screen": "Payout detail (opened from a notification)",
+      "story": "O4",
+      "method": "GET",
+      "path": "/payouts/{payoutId}",
+      "auth": "the business's owner, or the staff member who asked",
+      "description": "One payout request, same shape as request-payout's response. 404 for anyone else.",
+      "request": null,
+      "response": "PayoutRequest (see request-payout)",
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "message": "payoutId does not exist"
+        }
+      ]
+    },
+    {
       "id": "respond-to-payout",
       "screen": "Payout Detail — Accept & send / Reject (business-owner app)",
       "story": "O4",

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Avatar } from '../../components/Avatar';
@@ -10,6 +10,7 @@ import { usePayoutsStore } from '../../store/usePayoutsStore';
 import { PAYOUT_STATUS_COLOR, PAYOUT_STATUS_LABEL } from '../../utils/payout';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import { showApiError } from '../../utils/showApiError';
+import { getApiErrorMessage } from '../../api/client';
 
 function formatMoney(amount: number): string {
   return `KSh ${amount.toLocaleString('en-US')}`;
@@ -37,7 +38,16 @@ export function PayoutDetailScreen() {
   const router = useRouter();
   const { payoutId } = useLocalSearchParams<{ payoutId: string }>();
   const payout = usePayoutsStore((s) => s.payouts.find((p) => p.payoutId === payoutId));
+  const loadPayout = usePayoutsStore((s) => s.loadPayout);
   const respondToPayoutNow = usePayoutsStore((s) => s.respondToPayoutNow);
+  const [loadError, setLoadError] = useState('');
+
+  // Opened directly (a notification, a link) rather than from a list that
+  // already loaded it: fetch it. Also refreshes a cached one in the background.
+  useEffect(() => {
+    if (!payoutId) return;
+    loadPayout(payoutId).catch((err) => setLoadError(getApiErrorMessage(err, "Couldn't load this payout request.")));
+  }, [payoutId, loadPayout]);
 
   const [sheetMode, setSheetMode] = useState<SheetMode>('none');
   const [rejectionReason, setRejectionReason] = useState('');
@@ -46,7 +56,15 @@ export function PayoutDetailScreen() {
   if (!payout) {
     return (
       <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
-        <BackButton onPress={() => router.back()} />
+        <View style={styles.header}>
+          <BackButton onPress={() => router.back()} />
+          <Text style={styles.headerTitle}>Payout request</Text>
+        </View>
+        {loadError ? (
+          <Text style={styles.loadError}>{loadError}</Text>
+        ) : (
+          <ActivityIndicator style={styles.loading} color={colors.text.secondary} />
+        )}
       </SafeAreaView>
     );
   }
@@ -267,5 +285,13 @@ const styles = StyleSheet.create({
   },
   sheetButton: {
     marginTop: spacing.sm,
+  },
+  loading: {
+    marginTop: spacing.xxxl,
+  },
+  loadError: {
+    ...typography.body,
+    color: colors.text.secondary,
+    paddingHorizontal: spacing.xxl,
   },
 });

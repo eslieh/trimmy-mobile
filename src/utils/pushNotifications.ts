@@ -88,8 +88,8 @@ export function routeForNotification(data: Record<string, unknown>): Href | null
     case 'booking_cancelled_by_customer':
     case 'booking_rescheduled_by_customer':
       return bookingId ? `/appointment/${bookingId}` : null; // owner / front desk view
-    case 'payout_requested':
-      return '/payouts'; // the detail screen only reads the store, so open the list
+    case 'payout_requested': // the owner's approve / reject screen (it loads the payout itself)
+      return typeof data.payoutId === 'string' ? `/payouts/${data.payoutId}` : '/payouts';
     case 'team_invitation':
       return '/profile'; // PendingInvitations lists it there
     case 'payout_responded':

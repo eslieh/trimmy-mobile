@@ -40,6 +40,13 @@ export function listBusinessPayouts(
   );
 }
 
+// One payout (fulfillment.json#get-payout): its business's owner, or the
+// staff member who asked; 404 for anyone else. For opening one directly,
+// e.g. from a notification.
+export function getPayout(payoutId: string): Promise<PayoutRequest> {
+  return apiRequest<PayoutRequest>(`/payouts/${payoutId}`);
+}
+
 // Owner. approve = they've paid the staff member themselves (M-Pesa/cash);
 // reject releases the amount back to the staff member's balance.
 export function respondToPayout(

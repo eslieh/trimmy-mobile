@@ -44,11 +44,14 @@ The backend's change log is `trimmy-server/docs/booking/FRONTEND_CHANGES.md`. An
 - [ ] Push go-live: EAS project id, APNs and FCM, then switch it on in the app and on the server
       (`NOTIFY_PUSH_ENABLED`).
 - [ ] Rebuild the dev client: `expo-haptics` was added on 2026-10-20.
-- [ ] Front desk F1: a staff × time grid. Front desk uses the owner's single-column day today.
-- [ ] Staff S4 availability (blocking out time).
-- [ ] Small things: the Exit link on the staff app's Today; the payout detail screen can't load a
-      payout that isn't already in the store (opened from a notification);
-      `money.noShowFees` / `previous` aren't shown in Earnings.
+- [x] Front desk F1: Today is a staff × time day grid (`components/StaffDayGrid.tsx`) with day
+      arrows. Tap a booking to open it, an empty spot to book that person then, or a name for
+      their time off.
+- [x] Staff S4 time off: Staff Menu → Time off, the owner's Team → member → Time off, and shown on
+      the grid. Availability never offers or books over it (server).
+- [x] The Exit link is gone from both Today screens; modes switch from the Menus.
+- [x] Payout detail loads the payout itself (`GET /payouts/{id}`), so notifications open it directly.
+- [ ] `money.noShowFees` / `previous` aren't shown in Earnings (optional).
 
 ## Resolved decisions
 
@@ -614,7 +617,7 @@ correctly slides over and hides the tab bar.
 `team_mode = team` → business gets a Front Desk view ([F1](front-desk.md#f1--live-calendar)). The
 front desk app (`app/front-desk/`) now exists, with Today, Calendar, Customers and Menu reusing the
 owner's screens. What's still missing from F1:
-- [ ] **Day Calendar (Grid)** — staff rows × time columns, live from Phase 3 bookings
+- [x] **Day Calendar (Grid)**: staff columns × time rows (vertical time scrolls better on a phone), live from bookings, with time off greyed out. `FrontDeskDayScreen` + `StaffDayGrid`, 2026-10-20
 - [ ] **Appointment Detail** modal — status stepper (check-in → in progress → complete/no-show/cancel)
 - [x] Double-booking: the server refuses an overlap (`409 slot_unavailable`, proven under
       concurrency, BK-50), and the app shows it.
@@ -1217,7 +1220,7 @@ back up (it was returning 502 on 2026-10-20).
   - [x] [F2](front-desk.md#f2--walk-ins) walk-ins
   - [x] [F3](front-desk.md#f3--check-in--checkout-pos) check-in and checkout (M-Pesa or cash, tips)
   - [x] [F4](front-desk.md#f4--end-of-day-summary) day summary, submitted to the owner
-  - [ ] [F1](front-desk.md#f1--live-calendar) staff × time grid (bookings already update live)
+  - [x] [F1](front-desk.md#f1--live-calendar) staff × time grid, updating live
 - Owner:
   - [x] [O3](business-owner.md#o3--performance-dashboard) dashboard: Earnings for the business and
         per member
@@ -1227,4 +1230,4 @@ back up (it was returning 502 on 2026-10-20).
   - [x] [S1](staff.md#s1--daily-schedule) schedule
   - [x] [S2](staff.md#s2--earnings-tracking) earnings
   - [x] [S3](staff.md#s3--payout-request) payout request and wallet
-  - [ ] [S4](staff.md#s4--availability) availability
+  - [x] [S4](staff.md#s4--availability) availability: time off, respected by booking

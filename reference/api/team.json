@@ -293,6 +293,100 @@
           "message": "You don't work at this business"
         }
       ]
+    },
+    {
+      "id": "list-time-off",
+      "status": "live",
+      "screen": "Staff Menu → Time off; front desk day grid",
+      "story": "S4",
+      "method": "GET",
+      "path": "/businesses/{businessId}/time-off?from=2026-10-22&to=2026-10-22[&staffId=uuid]",
+      "auth": "owner / front desk (everyone), staff (their own)",
+      "description": "Staff time off overlapping the date range (at most 62 days), oldest first. Times are business-local; end is '24:00' for the end of a day; until is the last day of a multi-day block.",
+      "request": null,
+      "response": {
+        "timeOff": [
+          {
+            "timeOffId": "uuid",
+            "staffId": "uuid",
+            "staffName": "Wanjiku",
+            "date": "2026-10-22",
+            "until": "2026-10-22",
+            "start": "12:30",
+            "end": "15:00",
+            "allDay": false,
+            "reason": "Doctor"
+          }
+        ]
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "validation_error",
+          "message": "to must be on or after from, and within 62 days"
+        }
+      ]
+    },
+    {
+      "id": "create-time-off",
+      "status": "live",
+      "screen": "Time off → Add",
+      "story": "S4",
+      "method": "POST",
+      "path": "/businesses/{businessId}/staff/{staffId}/time-off",
+      "auth": "the staff member themselves, the owner or front desk",
+      "description": "A block of business-local time the person can't be booked: {date, start, end} or {date, allDay: true[, until]} (until for several whole days, at most 31). Availability treats it like a booking for that person: it's never offered to customers and never booked over (customer, walk-in, on-behalf, reschedule, assign).",
+      "request": {
+        "date": "2026-10-22",
+        "start": "12:30",
+        "end": "15:00",
+        "reason": "Doctor"
+      },
+      "response": {
+        "timeOffId": "uuid",
+        "staffId": "uuid",
+        "staffName": "Wanjiku",
+        "date": "2026-10-22",
+        "until": "2026-10-22",
+        "start": "12:30",
+        "end": "15:00",
+        "allDay": false,
+        "reason": "Doctor"
+      },
+      "errors": [
+        {
+          "status": 409,
+          "code": "has_bookings",
+          "message": "Wanjiku has 2 bookings then. Move or reassign them first.",
+          "references": [
+            "BK7F3AQ9",
+            "BKX2Y8ZQ"
+          ]
+        },
+        {
+          "status": 400,
+          "code": "validation_error",
+          "message": "That time has already passed"
+        },
+        {
+          "status": 403,
+          "code": "forbidden",
+          "message": "You can only change your own time off"
+        }
+      ]
+    },
+    {
+      "id": "delete-time-off",
+      "status": "live",
+      "screen": "Time off → remove",
+      "story": "S4",
+      "method": "DELETE",
+      "path": "/time-off/{timeOffId}",
+      "auth": "the staff member themselves, the owner or front desk",
+      "description": "204. The time is bookable again straight away.",
+      "request": null,
+      "response": null,
+      "errors": []
     }
   ],
   "notes": [
