@@ -187,6 +187,11 @@ export function BookingDetailScreen() {
                 {` (${booking.businessName} charges ${booking.noShowFee.percent}% for missed appointments)`}
               </Text>
             ) : null}
+            {booking.cancellationFee && booking.cancellationFee.amount > 0 ? (
+              <Text style={styles.reference}>
+                Late cancellation fee: KES {booking.cancellationFee.amount} kept from your deposit
+              </Text>
+            ) : null}
             {booking.refund ? (
               <Text style={styles.reference}>
                 {booking.refund.status === 'due'
@@ -243,7 +248,11 @@ export function BookingDetailScreen() {
             <Text style={styles.totalValue}>KSh {booking.totalAmount.amount}</Text>
           </View>
           {booking.depositAmount ? (
-            <Text style={styles.metaLine}>Deposit paid: KSh {booking.depositAmount.amount}</Text>
+            <Text style={styles.metaLine}>
+              {booking.paymentStatus !== 'unpaid' || booking.depositPayment?.status === 'succeeded'
+                ? `Deposit paid: KSh ${booking.depositAmount.amount}`
+                : `Deposit: KSh ${booking.depositAmount.amount} (not paid)`}
+            </Text>
           ) : null}
         </View>
 

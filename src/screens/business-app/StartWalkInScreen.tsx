@@ -90,12 +90,14 @@ export function StartWalkInScreen() {
 
     // Bookings with a phone add the customer server-side; only someone
     // entered without a phone needs saving explicitly.
+    // Best-effort: a failed save mustn't block the walk-in (or leave the
+    // button stuck) — the visit matters more than the customer-list entry.
     if (!customerPhone && (trimmedName || customerEmail)) {
       await saveCustomer(business.businessId, {
         name: trimmedName || 'Walk-in customer',
         phone: customerPhone,
         email: customerEmail,
-      });
+      }).catch(() => {});
     }
 
     const assignedStaff = staffMembers.find((m) => m.staffId === assignedStaffId);

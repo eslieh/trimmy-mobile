@@ -14,6 +14,7 @@ import { BOOKING_STATUS_COLOR, BOOKING_STATUS_LABEL } from '../../utils/bookingS
 import { formatBookingDate } from '../../utils/date';
 import type { Booking } from '../../types/booking';
 import { useRealtimeRefresh } from '../../realtime/events';
+import { StarIcon } from '../../components/icons/StarIcon';
 
 type ActivityTab = MyBookingsFilter;
 
@@ -155,6 +156,15 @@ export function ActivityScreen() {
                     </Text>
                   ))}
                   <Text style={styles.metaLine}>{booking.time}</Text>
+                  {/* The review lives on the detail screen; nudge toward it here. */}
+                  {booking.status === 'completed' ? (
+                    <View style={styles.reviewRow}>
+                      <StarIcon size={13} color={booking.review ? undefined : colors.brand.pink} />
+                      <Text style={[styles.reviewText, !booking.review && styles.reviewPrompt]}>
+                        {booking.review ? `You rated it ${booking.review.rating}/5` : 'Leave a review'}
+                      </Text>
+                    </View>
+                  ) : null}
                 </Pressable>
               </View>
             ))}
@@ -261,6 +271,20 @@ const styles = StyleSheet.create({
   },
   status: {
     ...typography.caption,
+  },
+  reviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  reviewText: {
+    ...typography.caption,
+    color: colors.text.secondary,
+  },
+  reviewPrompt: {
+    ...typography.label,
+    color: colors.brand.pink,
   },
   metaLine: {
     ...typography.body,

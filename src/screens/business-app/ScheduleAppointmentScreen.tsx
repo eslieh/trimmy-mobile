@@ -132,8 +132,9 @@ export function ScheduleAppointmentScreen() {
 
     // Bookings with a phone add the customer server-side; only someone
     // entered without a phone needs saving explicitly.
+    // Best-effort, as on the walk-in screen: never block the booking over it.
     if (!customerPhone) {
-      await saveCustomer(business.businessId, { name: trimmedName, phone: null, email: customerEmail });
+      await saveCustomer(business.businessId, { name: trimmedName, phone: null, email: customerEmail }).catch(() => {});
     }
 
     const assignedStaff = staffMembers.find((m) => m.staffId === assignedStaffId);

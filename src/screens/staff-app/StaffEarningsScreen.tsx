@@ -260,7 +260,8 @@ export function StaffEarningsScreen() {
           <View style={styles.heroStatsRow}>
             <View style={styles.heroStat}>
               <Text style={styles.heroStatValue}>
-                {formatMoney(Math.round(stats.totalRevenue * (commissionPercent / 100)))}
+                {/* Fixed per booking when it was paid (server), not today's rate × revenue. */}
+                {formatMoney(summary?.commission ?? Math.round(stats.totalRevenue * (commissionPercent / 100)))}
               </Text>
               <Text style={styles.heroStatLabel}>Your split</Text>
             </View>

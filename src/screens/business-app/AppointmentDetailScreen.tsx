@@ -91,6 +91,9 @@ export function AppointmentDetailScreen() {
   const [country, setCountry] = useState(DEFAULT_COUNTRY);
   const [rawPhone, setRawPhone] = useState('');
   const [chargeStep, setChargeStep] = useState<ChargeStep>('form');
+  // What this charge was for (the balance after any deposit), captured when
+  // it starts: the booking that comes back is paid, with nothing left due.
+  const [chargedAmount, setChargedAmount] = useState(0);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   // Owner or front desk: who this booking can be assigned to.
   const business = useBusinessContext();
@@ -236,6 +239,7 @@ export function AppointmentDetailScreen() {
 
   const handleSendChargeRequest = async () => {
     if (rawPhone.length < 4) return;
+    setChargedAmount((booking.balanceDue ?? booking.totalAmount).amount);
     setChargeError('');
     setChargeStep('pending');
     try {
@@ -247,6 +251,7 @@ export function AppointmentDetailScreen() {
   };
 
   const handleChargeCash = async () => {
+    setChargedAmount((booking.balanceDue ?? booking.totalAmount).amount);
     setChargeError('');
     setChargeStep('pending');
     try {
@@ -325,7 +330,13 @@ export function AppointmentDetailScreen() {
           <View style={styles.card}>
             <Text style={styles.cardLabel}>Payment</Text>
             <Text style={styles.cardValue}>{PAYMENT_METHOD_LABEL[booking.paymentMethod]}</Text>
-            <Text style={styles.cardValue}>KSh {booking.totalAmount.amount} paid</Text>
+            <Text style={styles.cardValue}>KSh {booking.totalAmount.amount} paid in total</Text>
+            {booking.depositAmount && booking.depositPayment?.status === 'succeeded' ? (
+              <Text style={styles.cardValueMuted}>
+                KSh {booking.depositAmount.amount} deposit + KSh{' '}
+                {booking.totalAmount.amount - booking.depositAmount.amount} at checkout
+              </Text>
+            ) : null}
             {booking.paymentReference ? (
               <Text style={styles.cardValueMuted}>M-Pesa ref: {booking.paymentReference}</Text>
             ) : null}
@@ -339,6 +350,13 @@ export function AppointmentDetailScreen() {
             {booking.noShowFee.uncollected.amount > 0 ? (
               <Text style={styles.cardValueMuted}>KES {booking.noShowFee.uncollected.amount} not collected</Text>
             ) : null}
+          </View>
+        ) : null}
+
+        {booking.cancellationFee && booking.cancellationFee.amount > 0 ? (
+          <View style={styles.card}>
+            <Text style={styles.cardLabel}>Late cancellation fee</Text>
+            <Text style={styles.cardValue}>KES {booking.cancellationFee.amount} kept from the deposit</Text>
           </View>
         ) : null}
 
@@ -415,6 +433,9 @@ export function AppointmentDetailScreen() {
               />
             </View>
           </>
+        ) : booking.status === 'pending_payment' && canReschedule ? (
+          // Still waiting on the deposit: the time can move, nothing else to do yet.
+          <Button label="Reschedule" variant="secondary" onPress={openReschedule} />
         ) : null}
         {canTip ? (
           tipSaved ? (
@@ -529,7 +550,7 @@ export function AppointmentDetailScreen() {
                 )}
               </View>
             ) : chargeStep === 'success' ? (
-              <ChargeSuccessState method={chargeMethod} amount={booking.totalAmount.amount} />
+              <ChargeSuccessState method={chargeMethod} amount={chargedAmount} />
             ) : (
               <>
                 <Text style={styles.sheetTitle}>Charge customer</Text>
