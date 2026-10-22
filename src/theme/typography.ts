@@ -1,11 +1,10 @@
-// Manrope stands in for Google Sans (proprietary, not distributable) — it
-// shares the same rounded-geometric, high-x-height shape at display sizes.
+// Plus Jakarta Sans, the trimmy-landing typeface (web uses the same font).
 export const fontFamily = {
-  regular: 'Manrope_400Regular',
-  medium: 'Manrope_500Medium',
-  semiBold: 'Manrope_600SemiBold',
-  bold: 'Manrope_700Bold',
-  extraBold: 'Manrope_800ExtraBold',
+  regular: 'PlusJakartaSans_400Regular',
+  medium: 'PlusJakartaSans_500Medium',
+  semiBold: 'PlusJakartaSans_600SemiBold',
+  bold: 'PlusJakartaSans_700Bold',
+  extraBold: 'PlusJakartaSans_800ExtraBold',
 };
 
 type TextStyle = {
@@ -19,8 +18,8 @@ type TextStyle = {
 // ("Profile", "Messages"), medium-weight section titles, and quiet grey body
 // copy for secondary/meta text.
 export const typography: Record<string, TextStyle> = {
-  display: { fontFamily: fontFamily.extraBold, fontSize: 34, lineHeight: 40, letterSpacing: -0.6 },
-  h1: { fontFamily: fontFamily.extraBold, fontSize: 28, lineHeight: 34, letterSpacing: -0.4 },
+  display: { fontFamily: fontFamily.bold, fontSize: 34, lineHeight: 40, letterSpacing: -0.6 },
+  h1: { fontFamily: fontFamily.bold, fontSize: 28, lineHeight: 34, letterSpacing: -0.4 },
   h2: { fontFamily: fontFamily.bold, fontSize: 22, lineHeight: 28, letterSpacing: -0.2 },
   h3: { fontFamily: fontFamily.bold, fontSize: 18, lineHeight: 24 },
   bodyLarge: { fontFamily: fontFamily.regular, fontSize: 17, lineHeight: 23 },

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
@@ -79,74 +80,90 @@ export function WelcomeScreen() {
     );
   }
 
+  // The landing's look: the sky photo behind the mark and a white headline,
+  // the form on a white card. A plain JPEG (AVIF isn't decoded on older
+  // Android) cropped to portrait so low-end phones decode a small bitmap.
   return (
-    <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
-      <Image source={require('../../../assets/icon.png')} style={styles.logo} resizeMode="contain" />
+    <ImageBackground source={require('../../../assets/sky.jpg')} style={styles.flex} resizeMode="cover">
+      <StatusBar style="light" />
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <View style={styles.mark}>
+          <View style={styles.markTile}>
+            <Text style={styles.markT}>T</Text>
+          </View>
+          <Text style={styles.markRest}>rimmy</Text>
+        </View>
 
-      <Text style={styles.heading}>Welcome to Trimmy</Text>
-      <Text style={styles.body}>
-        Create an account or log in to book and manage your appointments
-      </Text>
-
-      <Input
-        label="Email"
-        helperText="We'll send you a verification code"
-        value={email}
-        onChangeText={setEmail}
-        placeholder="you@example.com"
-        keyboardType="email-address"
-        autoCapitalize="none"
-        autoCorrect={false}
-        style={styles.input}
-      />
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      <Button
-        label={checking ? 'Checking...' : 'Continue'}
-        onPress={handleContinue}
-        variant="primary"
-        disabled={!email.trim() || checking}
-        style={styles.continueButton}
-      />
-
-      <Divider label="OR" />
-
-      <View style={styles.buttonGroup}>
-        {/* Phone sign-in doesn't exist yet — development-only shortcut. */}
-        {__DEV__ ? (
-          <Button
-            label="Continue with mobile"
-            onPress={() => enterAsBusiness('team')}
-            variant="secondary"
-            icon={<PhoneIcon size={20} />}
-          />
-        ) : null}
-        <Button
-          label={google.loading ? 'Connecting to Google...' : 'Continue with Google'}
-          onPress={google.start}
-          disabled={google.loading}
-          variant="secondary"
-          icon={<GoogleIcon size={20} />}
-        />
-        {/* Apple sign-in doesn't exist yet — development-only shortcut. */}
-        {__DEV__ ? (
-          <Button
-            label="Continue with Apple"
-            onPress={() => enterAsBusiness('solo')}
-            variant="secondary"
-            icon={<AppleIcon size={20} />}
-          />
-        ) : null}
-      </View>
-
-      {google.error ? <Text style={styles.googleError}>{google.error}</Text> : null}
-
-      <Pressable style={styles.loginLink} onPress={() => router.push('/login')} hitSlop={8}>
-        <Text style={styles.loginLinkText}>
-          Already have an account? <Text style={styles.loginLinkTextStrong}>Log in</Text>
+        <Text style={styles.heading}>
+          Welcome to{'\n'}
+          <Text style={styles.headingAccent}>Trimmy</Text>
         </Text>
-      </Pressable>
-    </ScrollView>
+        <Text style={styles.body}>
+          Create an account or log in to book and manage your appointments
+        </Text>
+
+        <View style={styles.card}>
+          <Input
+            label="Email"
+            helperText="We'll send you a verification code"
+            value={email}
+            onChangeText={setEmail}
+            placeholder="you@example.com"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            style={styles.input}
+          />
+
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          <Button
+            label={checking ? 'Checking...' : 'Continue'}
+            onPress={handleContinue}
+            variant="accent"
+            disabled={!email.trim() || checking}
+            style={styles.continueButton}
+          />
+
+          <Divider label="OR" />
+
+          <View style={styles.buttonGroup}>
+            {/* Phone sign-in doesn't exist yet — development-only shortcut. */}
+            {__DEV__ ? (
+              <Button
+                label="Continue with mobile"
+                onPress={() => enterAsBusiness('team')}
+                variant="secondary"
+                icon={<PhoneIcon size={20} />}
+              />
+            ) : null}
+            <Button
+              label={google.loading ? 'Connecting to Google...' : 'Continue with Google'}
+              onPress={google.start}
+              disabled={google.loading}
+              variant="secondary"
+              icon={<GoogleIcon size={20} />}
+            />
+            {/* Apple sign-in doesn't exist yet — development-only shortcut. */}
+            {__DEV__ ? (
+              <Button
+                label="Continue with Apple"
+                onPress={() => enterAsBusiness('solo')}
+                variant="secondary"
+                icon={<AppleIcon size={20} />}
+              />
+            ) : null}
+          </View>
+
+          {google.error ? <Text style={styles.googleError}>{google.error}</Text> : null}
+
+          <Pressable style={styles.loginLink} onPress={() => router.push('/login')} hitSlop={8}>
+            <Text style={styles.loginLinkText}>
+              Already have an account? <Text style={styles.loginLinkTextStrong}>Log in</Text>
+            </Text>
+          </Pressable>
+        </View>
+      </ScrollView>
+    </ImageBackground>
   );
 }
 
@@ -163,31 +180,62 @@ const styles = StyleSheet.create({
   },
   flex: {
     flex: 1,
-    backgroundColor: colors.background.primary,
+    backgroundColor: '#1D6FE0', // the sky's blue, behind the photo while it decodes
+  },
+  scroll: {
+    flex: 1,
   },
   content: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: spacing.xxl,
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.huge,
   },
-  logo: {
-    width: 160,
-    height: 46,
+  mark: {
+    flexDirection: 'row',
+    alignItems: 'center',
     alignSelf: 'center',
+    gap: 6,
     marginBottom: spacing.xxxl,
   },
+  markTile: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  markT: {
+    ...typography.h3,
+    color: colors.brand.accent,
+  },
+  markRest: {
+    ...typography.h2,
+    color: colors.white,
+  },
   heading: {
-    ...typography.h1,
-    color: colors.text.primary,
+    ...typography.display,
+    fontSize: 38,
+    lineHeight: 42,
+    color: colors.white,
     textAlign: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  headingAccent: {
+    color: colors.brand.accent,
   },
   body: {
     ...typography.body,
-    color: colors.text.secondary,
+    color: 'rgba(255,255,255,0.85)',
     textAlign: 'center',
-    marginBottom: spacing.xxxl,
+    marginBottom: spacing.xxl,
+    paddingHorizontal: spacing.lg,
+  },
+  card: {
+    backgroundColor: colors.white,
+    borderRadius: 28,
+    padding: spacing.xxl,
   },
   input: {
     marginBottom: spacing.xl,
@@ -212,7 +260,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
   },
   loginLink: {
-    marginTop: spacing.xxxl,
+    marginTop: spacing.xxl,
     alignItems: 'center',
   },
   loginLinkText: {

@@ -3,7 +3,7 @@ import { Pressable, StyleProp, StyleSheet, Text, ViewStyle } from 'react-native'
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { colors, pressScale, radii, spacing, springs, typography } from '../theme';
 
-type ButtonVariant = 'primary' | 'secondary';
+type ButtonVariant = 'primary' | 'secondary' | 'accent';
 
 interface ButtonProps {
   label: string;
@@ -18,6 +18,13 @@ const VARIANT_STYLES: Record<ButtonVariant, { backgroundColor: string; textColor
   primary: {
     backgroundColor: colors.button.primaryBg,
     textColor: colors.button.primaryText,
+    borderWidth: 0,
+    borderColor: 'transparent',
+  },
+  // The landing's pink call to action.
+  accent: {
+    backgroundColor: colors.brand.accent,
+    textColor: colors.brand.accentForeground,
     borderWidth: 0,
     borderColor: 'transparent',
   },

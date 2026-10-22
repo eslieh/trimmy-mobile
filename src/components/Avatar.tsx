@@ -9,7 +9,7 @@ interface AvatarProps {
 
 // Deterministic per-name color + initials — used wherever a staff/person
 // photo may be missing (most mock staff have no avatarUrl yet).
-const PALETTE = [colors.brand.purple, colors.brand.pink, '#0A8A4B', '#B45309', '#2563EB'];
+const PALETTE = [colors.brand.purple, '#153F63', '#0A8A4B', '#B45309', '#5A62C4'];
 
 function initialsFor(name: string): string {
   const parts = name.trim().split(/\s+/);
