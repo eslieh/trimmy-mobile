@@ -1,3 +1,4 @@
+import { File } from 'expo-file-system';
 import { apiClient, apiRequest } from './client';
 import { mockDelay } from './mock/delay';
 import { USE_MOCK_API } from '../config/env';
@@ -114,9 +115,10 @@ export const authApi = {
   // the server shrinks it to one small JPEG (fast on any connection).
   async uploadAvatar(uri: string): Promise<User> {
     const form = new FormData();
-    const png = uri.toLowerCase().endsWith('.png');
-    // React Native's FormData takes { uri, name, type } for a file part.
-    form.append('photo', { uri, name: png ? 'avatar.png' : 'avatar.jpg', type: png ? 'image/png' : 'image/jpeg' } as unknown as Blob);
+    // An expo-file-system File, not React Native's { uri, name, type }: the
+    // app's fetch is expo/fetch, which rejects uri parts ("Unsupported
+    // FormDataPart implementation") but sends a File's bytes, name and type.
+    form.append('photo', new File(uri) as unknown as Blob);
     return apiRequest<User>('/auth/me/avatar', { method: 'PUT', body: form });
   },
 

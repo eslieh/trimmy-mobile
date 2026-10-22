@@ -55,8 +55,8 @@ export async function uploadPortfolioPhoto(businessId: string, staffId: string, 
   } catch (err) {
     if (err instanceof ApiError && err.status === 501) {
       const form = new FormData();
-      // React Native's FormData takes { uri, name, type } for a file part.
-      form.append('photo', { uri, name: contentType === 'image/png' ? 'photo.png' : 'photo.jpg', type: contentType } as unknown as Blob);
+      // A File (expo/fetch rejects React Native's { uri, name, type } parts).
+      form.append('photo', file as unknown as Blob);
       return apiRequest<PortfolioPhoto>(base(businessId, staffId), { method: 'POST', body: form });
     }
     throw err;
