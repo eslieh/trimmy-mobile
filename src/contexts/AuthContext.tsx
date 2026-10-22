@@ -33,6 +33,8 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<AuthResponse | null>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  // After a change the server answered with (e.g. a new profile picture).
+  replaceUser: (user: User) => void;
   updateProfile: (data: UpdateMeRequest) => Promise<User>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   deleteAccount: (password: string) => Promise<void>;
@@ -236,6 +238,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signInWithGoogle,
         logout,
         refreshUser,
+        replaceUser: setUser,
         updateProfile,
         changePassword,
         deleteAccount,

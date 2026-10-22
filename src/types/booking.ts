@@ -52,6 +52,8 @@ export type Booking = {
   depositAmount: Money | null; // null when the business requires no deposit
   status: BookingStatus;
   source: BookingSource;
+  // Set when this booking is one part of a multi-staff visit (GET /visits/{visitId}).
+  visitId?: string | null;
   paymentStatus: PaymentStatus;
   paymentMethod: PaymentMethod | null; // null until charged
   paymentReference: string | null; // M-Pesa receipt number once paid via mpesa; cash has no reference, stays null
@@ -114,4 +116,22 @@ export type DepositPayment = {
   receipt?: string | null;
   paidAt?: string | null;
   destination?: { type: 'mpesa_till' | 'mpesa_paybill' | 'bank_account'; label: string } | null;
+};
+
+// GET /visits/{visitId}: one customer's visit across several bookings (and
+// staff), checked out and tipped together.
+export type Visit = {
+  visitId: string;
+  businessId: string;
+  customerName: string;
+  customerPhone: string | null;
+  bookings: Booking[]; // soonest first; cancelled / no-show listed but not counted
+  staff: { staffId: string | null; staffName: string; subtotal: Money; balanceDue: Money; bookingIds: string[] }[];
+  total: Money;
+  depositPaid: Money;
+  balanceDue: Money;
+  paymentStatus: 'unpaid' | 'partially_paid' | 'paid';
+  chargeableBookingIds: string[];
+  notReady: { bookingId: string; status: string; staffName: string }[];
+  chargePayment: DepositPayment | null;
 };

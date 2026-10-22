@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { BackButton } from '../../components/BackButton';
 import { CloseIcon } from '../../components/icons/CloseIcon';
+import { ImageGalleryViewer } from '../../components/ImageGalleryViewer';
 import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
 import { colors, radii, spacing, typography } from '../../theme';
 import { showApiError } from '../../utils/showApiError';
@@ -20,6 +22,7 @@ export function ManagePhotosScreen() {
   const removePhotoNow = useBusinessOnboardingStore((s) => s.removePhotoNow);
   const isSubmitting = useBusinessOnboardingStore((s) => s.isSubmitting);
   const error = useBusinessOnboardingStore((s) => s.error);
+  const [viewing, setViewing] = useState<number | null>(null);
 
   if (!business) {
     return (
@@ -62,7 +65,9 @@ export function ManagePhotosScreen() {
         <View style={styles.grid}>
           {photos.map((photo, index) => (
             <View key={photo.photoId} style={styles.thumbWrapper}>
-              <Image source={{ uri: photo.url }} style={styles.thumb} />
+              <Pressable onPress={() => setViewing(index)}>
+                <Image source={{ uri: photo.url }} style={styles.thumb} resizeMethod="resize" />
+              </Pressable>
               {index === 0 ? (
                 <View style={styles.coverBadge}>
                   <Text style={styles.coverBadgeText}>Cover</Text>
@@ -87,6 +92,13 @@ export function ManagePhotosScreen() {
           </Pressable>
         </View>
       </ScrollView>
+
+      <ImageGalleryViewer
+        visible={viewing !== null}
+        images={photos.map((p) => p.url)}
+        initialIndex={viewing ?? 0}
+        onClose={() => setViewing(null)}
+      />
     </SafeAreaView>
   );
 }

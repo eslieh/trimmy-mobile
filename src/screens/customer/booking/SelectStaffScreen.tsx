@@ -106,7 +106,7 @@ export function SelectStaffScreen() {
             <View style={styles.rowInfo}>
               <Text style={styles.rowName}>{member.name}</Text>
               <View style={styles.ratingRow}>
-                <Text style={styles.rowMeta}>{member.role} ·</Text>
+                {member.specialties.length ? <Text style={styles.rowMeta}>{member.specialties.slice(0, 2).join(', ')} ·</Text> : null}
                 <RatingLabel rating={member.rating} textStyle={styles.rowMeta} />
               </View>
             </View>

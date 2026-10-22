@@ -1,4 +1,4 @@
-import { apiClient } from './client';
+import { apiClient, apiRequest } from './client';
 import { mockDelay } from './mock/delay';
 import { USE_MOCK_API } from '../config/env';
 import {
@@ -108,6 +108,24 @@ export const authApi = {
     }
     const response = await apiClient.patch<User>('/auth/me', data);
     return response.data;
+  },
+
+  // Profile picture. The picker crops square and compresses before upload;
+  // the server shrinks it to one small JPEG (fast on any connection).
+  async uploadAvatar(uri: string): Promise<User> {
+    const form = new FormData();
+    const png = uri.toLowerCase().endsWith('.png');
+    // React Native's FormData takes { uri, name, type } for a file part.
+    form.append('photo', { uri, name: png ? 'avatar.png' : 'avatar.jpg', type: png ? 'image/png' : 'image/jpeg' } as unknown as Blob);
+    return apiRequest<User>('/auth/me/avatar', { method: 'PUT', body: form });
+  },
+
+  async useGoogleAvatar(): Promise<User> {
+    return apiRequest<User>('/auth/me/avatar/google', { method: 'POST' });
+  },
+
+  async removeAvatar(): Promise<User> {
+    return apiRequest<User>('/auth/me/avatar', { method: 'DELETE' });
   },
 
   async deleteMe(password: string): Promise<void> {

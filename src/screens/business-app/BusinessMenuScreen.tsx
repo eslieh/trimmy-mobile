@@ -57,6 +57,23 @@ export function BusinessMenuScreen() {
           </View>
         )}
 
+        {/* An owner who takes appointments shows on the profile like any stylist. */}
+        {ownedBusiness?.staffId ? (
+          <View style={styles.group}>
+            <Pressable
+              style={[styles.row, styles.rowLast]}
+              onPress={() =>
+                router.push({
+                  pathname: '/portfolio',
+                  params: { businessId: ownedBusiness.businessId, staffId: ownedBusiness.staffId },
+                })
+              }
+            >
+              <Text style={styles.rowLabel}>My portfolio</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
         <AccountSection />
       </View>
     </SafeAreaView>

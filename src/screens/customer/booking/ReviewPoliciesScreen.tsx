@@ -172,7 +172,9 @@ export function ReviewPoliciesScreen() {
             )}
             <View>
               <Text style={styles.cardValue}>{draft.staffName}</Text>
-              {staffMember ? <Text style={styles.cardMeta}>{staffMember.role}</Text> : null}
+              {staffMember?.specialties.length ? (
+                <Text style={styles.cardMeta}>{staffMember.specialties.slice(0, 2).join(', ')}</Text>
+              ) : null}
             </View>
           </View>
         </View>

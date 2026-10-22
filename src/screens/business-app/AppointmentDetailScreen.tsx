@@ -35,6 +35,9 @@ import { colors, radii, shadows, springs, spacing, typography } from '../../them
 import type { BookingStatus, PaymentMethod } from '../../types/booking';
 import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
+import { getVisit } from '../../api/visits';
+import { AddServiceSheet, VisitCheckoutSheet, VisitPartsCard } from '../../components/visit/VisitSheets';
+import type { Visit } from '../../types/booking';
 
 const DEFAULT_COUNTRY = countries.find((c) => c.iso2 === 'KE') ?? countries[0];
 // Quick picks for a tip at checkout (KSh); "Other amount" covers the rest.
@@ -111,6 +114,19 @@ export function AppointmentDetailScreen() {
   const [assigningStaffId, setAssigningStaffId] = useState<string | null>(null);
   const [assignError, setAssignError] = useState('');
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // A multi-staff visit this booking is part of (hair, then nails with someone else).
+  const [visit, setVisit] = useState<Visit | null>(null);
+  const [addServiceVisible, setAddServiceVisible] = useState(false);
+  const [visitCheckoutVisible, setVisitCheckoutVisible] = useState(false);
+  const visitId = booking?.visitId ?? null;
+  useEffect(() => {
+    if (!visitId) return setVisit(null);
+    getVisit(visitId).then(setVisit).catch(() => {});
+  }, [visitId, booking?.status, booking?.paymentStatus]);
+  const applyVisit = (v: Visit) => {
+    setVisit(v);
+    v.bookings.forEach(upsertBooking);
+  };
 
   useEffect(() => {
     return () => {
@@ -431,6 +447,9 @@ export function AppointmentDetailScreen() {
             />
           ) : null}
         </View>
+        {visit ? (
+          <VisitPartsCard visit={visit} currentBookingId={booking.bookingId} onOpen={(id) => router.push(`/appointment/${id}`)} />
+        ) : null}
       </ScrollView>
 
       <View style={styles.footer}>
@@ -480,8 +499,20 @@ export function AppointmentDetailScreen() {
             <Button label={`Add tip for ${booking.staffName}`} variant="secondary" onPress={() => setTipVisible(true)} />
           )
         ) : null}
+        {/* Something else too, maybe with someone else: same visit, paid together. */}
+        {!isStaffView && ['confirmed', 'in_progress', 'completed'].includes(booking.status) ? (
+          <Button label="Add service" variant="secondary" onPress={() => setAddServiceVisible(true)} />
+        ) : null}
+        {/* In a visit: one checkout for all of it, tips split between the staff. */}
+        {!isStaffView && visit && visit.balanceDue.amount > 0 ? (
+          <Button
+            label={`Check out visit · KSh ${visit.balanceDue.amount.toLocaleString('en-US')}`}
+            variant="accent"
+            onPress={() => setVisitCheckoutVisible(true)}
+          />
+        ) : null}
         {/* In progress, or finished (e.g. by staff) but not yet paid. */}
-        {!isStaffView &&
+        {!isStaffView && !visit &&
         (booking.status === 'in_progress' || (booking.status === 'completed' && booking.paymentStatus !== 'paid')) ? (
           <Button label="Charge customer" onPress={() => setChargeSheetVisible(true)} />
         ) : null}
@@ -524,6 +555,23 @@ export function AppointmentDetailScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      <AddServiceSheet
+        visible={addServiceVisible}
+        booking={booking}
+        business={business}
+        onClose={() => setAddServiceVisible(false)}
+        onDone={applyVisit}
+      />
+      {visit ? (
+        <VisitCheckoutSheet
+          visible={visitCheckoutVisible}
+          visit={visit}
+          defaultPhone={booking.customerPhone ?? ''}
+          onClose={() => setVisitCheckoutVisible(false)}
+          onDone={applyVisit}
+        />
+      ) : null}
 
       <MarkRefundedSheet
         booking={refundSheetVisible ? booking : null}

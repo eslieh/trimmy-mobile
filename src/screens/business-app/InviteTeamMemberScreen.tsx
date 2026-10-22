@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { BackButton } from '../../components/BackButton';
@@ -38,6 +38,7 @@ export function InviteTeamMemberScreen() {
   const [rawPhone, setRawPhone] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<TeamRole>('staff');
+  const [alsoFrontDesk, setAlsoFrontDesk] = useState(false);
   const [commissionPercent, setCommissionPercent] = useState(DEFAULT_COMMISSION_PERCENT);
   const [workingDays, setWorkingDays] = useState<(keyof WeeklyHours)[] | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -53,12 +54,13 @@ export function InviteTeamMemberScreen() {
   const trimmedName = name.trim();
   const hasContact = rawPhone.length >= 4 || email.trim().length > 0;
   const commissionValue = parseInt(commissionPercent, 10);
+  // Front desk performs no services, so has no commission to set.
+  const commissionOk =
+    role === 'front_desk' || (!Number.isNaN(commissionValue) && commissionValue >= 0 && commissionValue <= 100);
   const canSubmit =
     trimmedName.length > 0 &&
     hasContact &&
-    !Number.isNaN(commissionValue) &&
-    commissionValue >= 0 &&
-    commissionValue <= 100 &&
+    commissionOk &&
     !isSubmitting &&
     !isSaving;
 
@@ -71,7 +73,7 @@ export function InviteTeamMemberScreen() {
         phone: rawPhone.length >= 4 ? normalizePhoneNumber(rawPhone, country) : undefined,
         email: email.trim() || undefined,
         role,
-        commissionPercent: commissionValue,
+        ...(role === 'staff' ? { commissionPercent: commissionValue, frontDeskAccess: alsoFrontDesk } : {}),
         workingDays,
       });
       if (isSolo) {
@@ -148,14 +150,27 @@ export function InviteTeamMemberScreen() {
           </View>
         </View>
 
-        <Input
-          label="Commission split (%)"
-          value={commissionPercent}
-          onChangeText={setCommissionPercent}
-          placeholder="40"
-          keyboardType="number-pad"
-          helperText="Share of each completed service's price this member earns."
-        />
+        {role === 'staff' ? (
+          <>
+            <Input
+              label="Commission split (%)"
+              value={commissionPercent}
+              onChangeText={setCommissionPercent}
+              placeholder="40"
+              keyboardType="number-pad"
+              helperText="Share of each completed service's price this member earns."
+            />
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleText}>
+                <Text style={styles.sectionLabel}>Also runs the front desk</Text>
+                <Text style={styles.hint}>They can switch to the front desk to check customers in and out. Commission stays on their own services only.</Text>
+              </View>
+              <Switch value={alsoFrontDesk} onValueChange={setAlsoFrontDesk} trackColor={{ true: colors.brand.pink }} />
+            </View>
+          </>
+        ) : (
+          <Text style={styles.hint}>Front desk checks customers in and takes payments. They don't perform services, so they earn no commission.</Text>
+        )}
 
         <WorkingDaysPicker label="Working days" value={workingDays} onChange={setWorkingDays} />
       </ScrollView>
@@ -202,6 +217,14 @@ const styles = StyleSheet.create({
     ...typography.label,
     color: colors.text.primary,
     marginBottom: spacing.sm,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  toggleText: {
+    flex: 1,
   },
   roleRow: {
     flexDirection: 'row',

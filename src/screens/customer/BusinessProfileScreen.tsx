@@ -233,7 +233,8 @@ export function BusinessProfileScreen() {
               <View style={styles.staffInfo}>
                 <Text style={styles.staffName}>{member.name}</Text>
                 <View style={styles.ratingRow}>
-                  <Text style={styles.staffMeta}>{member.role} ·</Text>
+                  {/* Customers see the person, not their role in the app. */}
+                  {member.specialties.length ? <Text style={styles.staffMeta}>{member.specialties.slice(0, 2).join(', ')} ·</Text> : null}
                   <RatingLabel rating={member.rating} textStyle={styles.staffMeta} />
                 </View>
               </View>

@@ -1,5 +1,9 @@
 import { useState } from 'react';
-import { StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { Avatar } from '../../components/Avatar';
+import { authApi } from '../../api/auth';
+import { showApiError } from '../../utils/showApiError';
 import { useRouter } from 'expo-router';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { AuthScreenLayout } from '../../components/AuthScreenLayout';
@@ -23,7 +27,8 @@ function parseStoredPhone(phone: string | null) {
 
 export function EditProfileScreen() {
   const router = useRouter();
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, replaceUser } = useAuth();
+  const [photoBusy, setPhotoBusy] = useState(false);
   const initialPhone = parseStoredPhone(user?.phone ?? null);
   const [firstName, setFirstName] = useState(user?.first_name ?? '');
   const [lastName, setLastName] = useState(user?.last_name ?? '');
@@ -31,6 +36,33 @@ export function EditProfileScreen() {
   const [rawNumber, setRawNumber] = useState(initialPhone.rawNumber);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Profile picture: saved straight away (not with Save), like the app's other photo pickers.
+  const changePhoto = async (action: () => Promise<typeof user>) => {
+    setPhotoBusy(true);
+    try {
+      const updated = await action();
+      if (updated) replaceUser(updated);
+    } catch (err) {
+      showApiError("Couldn't update your photo", err);
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
+
+  const pickPhoto = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      // Cropped square and re-encoded small before it leaves the phone; the server shrinks it again.
+      quality: 0.7,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    await changePhoto(() => authApi.uploadAvatar(result.assets[0].uri));
+  };
 
   const handleSave = async () => {
     setLoading(true);
@@ -65,6 +97,32 @@ export function EditProfileScreen() {
         </>
       }
     >
+      <View style={styles.photo}>
+        <Pressable onPress={pickPhoto} disabled={photoBusy} accessibilityLabel="Change profile picture">
+          <Avatar name={[firstName, lastName].filter(Boolean).join(' ') || user?.email || '?'} uri={user?.avatar_url} size={96} />
+          {photoBusy ? (
+            <View style={styles.photoBusy}>
+              <ActivityIndicator color={colors.white} />
+            </View>
+          ) : null}
+        </Pressable>
+        <View style={styles.photoActions}>
+          <Pressable onPress={pickPhoto} disabled={photoBusy} hitSlop={8}>
+            <Text style={styles.photoAction}>{user?.avatar_url ? 'Change photo' : 'Choose photo'}</Text>
+          </Pressable>
+          {user?.has_google_picture ? (
+            <Pressable onPress={() => changePhoto(() => authApi.useGoogleAvatar())} disabled={photoBusy} hitSlop={8}>
+              <Text style={styles.photoAction}>Use Google photo</Text>
+            </Pressable>
+          ) : null}
+          {user?.avatar_url ? (
+            <Pressable onPress={() => changePhoto(() => authApi.removeAvatar())} disabled={photoBusy} hitSlop={8}>
+              <Text style={[styles.photoAction, styles.photoRemove]}>Remove</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      </View>
+
       <Input label="First name" value={firstName} onChangeText={setFirstName} placeholder="Jane" autoCapitalize="words" />
       <Input label="Last name" value={lastName} onChangeText={setLastName} placeholder="Doe" autoCapitalize="words" />
       <PhoneInput
@@ -79,6 +137,35 @@ export function EditProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  photo: {
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 8,
+  },
+  photoBusy: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 48,
+    backgroundColor: 'rgba(20,18,26,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 20,
+  },
+  photoAction: {
+    ...typography.label,
+    color: colors.brand.purple,
+  },
+  photoRemove: {
+    color: colors.feedback.danger,
+  },
   error: {
     ...typography.caption,
     color: colors.feedback.danger,

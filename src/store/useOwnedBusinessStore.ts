@@ -27,7 +27,16 @@ export type StaffSession = {
   businessName: string;
   staffId: string;
   role: 'staff' | 'front_desk';
+  // Staff the owner also lets run the front desk: one person, two modes
+  // (my schedule ⇄ front desk). role 'front_desk' is desk only.
+  frontDeskAccess?: boolean;
 };
+
+// Which of the two work modes this session can open.
+export function canUseMode(session: StaffSession | null, mode: 'staff' | 'front_desk'): boolean {
+  if (!session) return false;
+  return mode === 'staff' ? session.role === 'staff' : session.role === 'front_desk' || !!session.frontDeskAccess;
+}
 
 // 'customer' / 'business' / 'staff' — Airbnb's traveling/hosting switch,
 // extended with a third posture for someone working at a business they

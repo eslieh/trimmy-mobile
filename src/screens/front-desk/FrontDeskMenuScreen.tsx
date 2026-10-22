@@ -41,6 +41,16 @@ export function FrontDeskMenuScreen() {
           </Pressable>
         </View>
 
+        {staffSession?.role === 'staff' ? (
+          // They also take appointments: back to their own schedule and earnings.
+          <Pressable
+            style={styles.switchButton}
+            onPress={() => switchMode(router, 'staff', { message: 'Opening your schedule…' })}
+          >
+            <Text style={styles.switchButtonText}>Switch to my schedule</Text>
+          </Pressable>
+        ) : null}
+
         <Pressable style={styles.switchButton} onPress={handleSwitchToBrowsing}>
           <Text style={styles.switchButtonText}>Switch to browsing</Text>
         </Pressable>

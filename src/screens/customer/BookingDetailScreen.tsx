@@ -221,7 +221,9 @@ export function BookingDetailScreen() {
             )}
             <View>
               <Text style={styles.cardValue}>{booking.staffName}</Text>
-              {staffMember ? <Text style={styles.metaLine}>{staffMember.role}</Text> : null}
+              {staffMember?.specialties.length ? (
+                <Text style={styles.metaLine}>{staffMember.specialties.slice(0, 2).join(', ')}</Text>
+              ) : null}
             </View>
           </View>
         </View>

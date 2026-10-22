@@ -58,6 +58,7 @@ export function GetStartedScreen() {
       businessName: workplace.name,
       staffId: workplace.staffId,
       role: workplace.role,
+      frontDeskAccess: workplace.role === 'front_desk' || !!workplace.frontDeskAccess,
     });
     switchMode(router, workplace.role === 'front_desk' ? 'front_desk' : 'staff', {
       message: `Opening ${workplace.name}…`,

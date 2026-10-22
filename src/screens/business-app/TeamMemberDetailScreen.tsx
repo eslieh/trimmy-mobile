@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { BackButton } from '../../components/BackButton';
@@ -85,6 +85,11 @@ export function TeamMemberDetailScreen() {
   const markTeamMemberActiveForTesting = useBusinessOnboardingStore((s) => s.markTeamMemberActiveForTesting);
 
   const [commissionPercent, setCommissionPercent] = useState(() => String(invitation?.commissionPercent ?? 40));
+  // What they do: take appointments, run the front desk, or both (one person, two modes).
+  const [takesAppointments, setTakesAppointments] = useState(() => invitation?.role !== 'front_desk');
+  const [frontDeskAccess, setFrontDeskAccess] = useState(
+    () => invitation?.role === 'front_desk' || !!invitation?.frontDeskAccess,
+  );
   const [workingDays, setWorkingDays] = useState<(keyof WeeklyHours)[] | null>(invitation?.workingDays ?? null);
   // Services they perform — keyed by staffId, so only loadable once the
   // invitation is accepted. savedServices is what the server has.
@@ -192,16 +197,22 @@ export function TeamMemberDetailScreen() {
   }
 
   const commissionValue = parseInt(commissionPercent, 10);
+  const wasTaking = invitation.role !== 'front_desk';
+  const hadDesk = invitation.role === 'front_desk' || !!invitation.frontDeskAccess;
+  const modesChanged = takesAppointments !== wasTaking || frontDeskAccess !== hadDesk;
   const memberChanged =
-    commissionValue !== invitation.commissionPercent ||
+    modesChanged ||
+    (takesAppointments && commissionValue !== invitation.commissionPercent) ||
     JSON.stringify(workingDays) !== JSON.stringify(invitation.workingDays);
   const servicesChanged =
     staffServices !== null &&
     savedServices !== null &&
     (staffServices.allServices !== savedServices.allServices ||
       [...staffServices.serviceIds].sort().join() !== [...savedServices.serviceIds].sort().join());
-  const canSave =
-    (memberChanged || servicesChanged) && !Number.isNaN(commissionValue) && commissionValue >= 0 && commissionValue <= 100;
+  // Front desk only: no commission to validate. At least one mode must stay on.
+  const commissionOk =
+    !takesAppointments || (!Number.isNaN(commissionValue) && commissionValue >= 0 && commissionValue <= 100);
+  const canSave = (memberChanged || servicesChanged) && commissionOk && (takesAppointments || frontDeskAccess);
 
   // Tapping a specific service switches off "All services"; tapping "All
   // services" clears the specific picks.
@@ -221,7 +232,11 @@ export function TeamMemberDetailScreen() {
     setIsSaving(true);
     try {
       if (memberChanged) {
-        await updateTeamMemberNow(business.businessId, invitation, { commissionPercent: commissionValue, workingDays });
+        await updateTeamMemberNow(business.businessId, invitation, {
+          workingDays,
+          ...(modesChanged ? { takesAppointments, frontDeskAccess } : {}),
+          ...(takesAppointments ? { commissionPercent: commissionValue } : {}),
+        });
       }
       if (servicesChanged && staffId && staffServices) {
         const saved = await setStaffServices(business.businessId, staffId, staffServices);
@@ -272,7 +287,10 @@ export function TeamMemberDetailScreen() {
               {INVITATION_STATUS_LABEL[invitation.status]}
             </Text>
           </View>
-          <Text style={styles.contactLine}>{TEAM_ROLE_LABEL[invitation.role]}</Text>
+          <Text style={styles.contactLine}>
+            {TEAM_ROLE_LABEL[invitation.role]}
+            {invitation.role === 'staff' && invitation.frontDeskAccess ? ' · also front desk' : ''}
+          </Text>
           {invitation.phone ? <Text style={styles.contactLine}>{invitation.phone}</Text> : null}
           {invitation.email ? <Text style={styles.contactLine}>{invitation.email}</Text> : null}
         </View>
@@ -310,7 +328,9 @@ export function TeamMemberDetailScreen() {
           <View style={styles.heroStatsRow}>
             <View style={styles.heroStat}>
               <Text style={styles.heroStatValue}>{formatMoney(commissionAmount)}</Text>
-              <Text style={styles.heroStatLabel}>Their commission ({invitation.commissionPercent}%)</Text>
+              <Text style={styles.heroStatLabel}>
+                {invitation.commissionPercent === null ? 'No commission (front desk)' : `Their commission (${invitation.commissionPercent}%)`}
+              </Text>
             </View>
             <View style={styles.heroStat}>
               <Text style={styles.heroStatValue}>{stats.completed}</Text>
@@ -436,13 +456,38 @@ export function TeamMemberDetailScreen() {
           </View>
         ) : null}
 
-        <Input
-          label="Commission split (%)"
-          value={commissionPercent}
-          onChangeText={setCommissionPercent}
-          keyboardType="number-pad"
-          helperText="Share of each completed service's price this member earns."
-        />
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>What they do</Text>
+          <View style={styles.toggleRow}>
+            <View style={styles.toggleText}>
+              <Text style={styles.sectionLabel}>Takes appointments</Text>
+              <Text style={styles.emptyHint}>Bookable for services, earns commission on their own work.</Text>
+            </View>
+            <Switch value={takesAppointments} onValueChange={setTakesAppointments} trackColor={{ true: colors.brand.pink }} />
+          </View>
+          <View style={styles.toggleRow}>
+            <View style={styles.toggleText}>
+              <Text style={styles.sectionLabel}>Runs the front desk</Text>
+              <Text style={styles.emptyHint}>Checks customers in and out and takes payments. With both on, they switch between the two in the app.</Text>
+            </View>
+            <Switch value={frontDeskAccess} onValueChange={setFrontDeskAccess} trackColor={{ true: colors.brand.pink }} />
+          </View>
+          {!takesAppointments && !frontDeskAccess ? (
+            <Text style={styles.warning}>Turn at least one on.</Text>
+          ) : !takesAppointments && wasTaking ? (
+            <Text style={styles.emptyHint}>Front desk only: their commission is removed. Reassign any upcoming appointments first.</Text>
+          ) : null}
+        </View>
+
+        {takesAppointments ? (
+          <Input
+            label="Commission split (%)"
+            value={commissionPercent}
+            onChangeText={setCommissionPercent}
+            keyboardType="number-pad"
+            helperText="Share of each completed service's price this member earns."
+          />
+        ) : null}
 
         <WorkingDaysPicker label="Working days" value={workingDays} onChange={setWorkingDays} />
 
@@ -475,6 +520,27 @@ export function TeamMemberDetailScreen() {
             </View>
           )}
         </View>
+
+        {/* Front desk isn't bookable, so has no customer-facing portfolio. */}
+        {invitation.role !== 'front_desk' ? (
+        <View>
+          <Text style={styles.sectionLabel}>Portfolio</Text>
+          {!staffId ? (
+            <Text style={styles.emptyHint}>They can add photos of their work once they accept the invite.</Text>
+          ) : (
+            <Button
+              label="Manage portfolio photos"
+              variant="secondary"
+              onPress={() =>
+                router.push({
+                  pathname: '/portfolio',
+                  params: { businessId, staffId, name: teamMemberDisplayName(invitation) },
+                })
+              }
+            />
+          )}
+        </View>
+        ) : null}
 
         <Button label={isSaving ? 'Saving…' : 'Save changes'} disabled={!canSave || isSaving} onPress={handleSave} />
 
@@ -674,6 +740,19 @@ const styles = StyleSheet.create({
   cardTitle: {
     ...typography.h3,
     color: colors.text.primary,
+  },
+  warning: {
+    ...typography.caption,
+    color: colors.feedback.danger,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  toggleText: {
+    flex: 1,
+    gap: 2,
   },
   emptyHint: {
     ...typography.caption,

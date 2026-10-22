@@ -722,7 +722,7 @@
       "method": "POST",
       "path": "/businesses/{businessId}/staff/{staffId}/wallet-adjustments",
       "auth": "owner (any kind); front desk (tip only)",
-      "description": "tip / bonus add to the wallet; deduction / advance take from it (an advance = cash handed over ahead of a payout). amount is positive KES; bookingId optional (the visit a tip was for). Tips are recorded by hand, not added to the M-Pesa charge. The staff member gets a push { type: wallet_adjusted, adjustmentId, businessId } (app opens the staff wallet).",
+      "description": "tip / bonus add to the wallet; deduction / advance take from it (an advance = cash handed over ahead of a payout). amount is positive KES; bookingId optional (the visit a tip was for). Tips are usually charged with the balance (charge-booking / charge-visit); this records one by hand. The staff member gets a push { type: wallet_adjusted, adjustmentId, businessId } (app opens the staff wallet).",
       "request": {
         "kind": "tip",
         "amount": 200,
@@ -779,6 +779,309 @@
           "message": "This adjustment was already voided"
         }
       ]
+    },
+    {
+      "id": "add-service",
+      "screen": "Appointment detail → Add service",
+      "story": "F-visit",
+      "method": "POST",
+      "path": "/bookings/{bookingId}/add-service",
+      "description": "The customer wants something else done too, maybe by someone else (hair, now nails). Creates a booking for it with that staff member, in the same visit as this booking (a visit is made the first time). start: now (in progress, alongside), after (when this booking ends), at (time today). No confirmation message to the customer; the staff member gets 'assigned'. Visit bookings are checked out together with charge-visit.",
+      "auth": "owner or anyone with front desk access",
+      "request": {
+        "services": [
+          {
+            "serviceId": "svc_nails",
+            "quantity": 1
+          }
+        ],
+        "staffId": "stf_b",
+        "start": "now|after|at",
+        "time": "14:30 (only for at)",
+        "notes": null
+      },
+      "response": {
+        "visitId": "vis_01ab",
+        "businessId": "biz_01hxyz",
+        "customerName": "Amina",
+        "customerPhone": "+254712345678",
+        "bookings": [
+          "<Booking>, soonest first, each with visitId"
+        ],
+        "staff": [
+          {
+            "staffId": "stf_a",
+            "staffName": "Wanjiku",
+            "subtotal": {
+              "amount": 800,
+              "currency": "KES"
+            },
+            "balanceDue": {
+              "amount": 800,
+              "currency": "KES"
+            },
+            "bookingIds": [
+              "bk_1"
+            ]
+          },
+          {
+            "staffId": "stf_b",
+            "staffName": "Otieno",
+            "subtotal": {
+              "amount": 2500,
+              "currency": "KES"
+            },
+            "balanceDue": {
+              "amount": 2500,
+              "currency": "KES"
+            },
+            "bookingIds": [
+              "bk_2"
+            ]
+          }
+        ],
+        "total": {
+          "amount": 3300,
+          "currency": "KES"
+        },
+        "depositPaid": {
+          "amount": 0,
+          "currency": "KES"
+        },
+        "balanceDue": {
+          "amount": 3300,
+          "currency": "KES"
+        },
+        "paymentStatus": "unpaid",
+        "chargeableBookingIds": [
+          "bk_1",
+          "bk_2"
+        ],
+        "notReady": [],
+        "chargePayment": null
+      },
+      "responseStatus": 201,
+      "errors": [
+        {
+          "status": 409,
+          "error": "slot_unavailable",
+          "when": "that person is busy then; body has nextFreeAt ('HH:MM' or null) to offer instead"
+        },
+        {
+          "status": 409,
+          "error": "invalid_source_status",
+          "when": "the booking is pending payment, cancelled or a no-show"
+        },
+        {
+          "status": 400,
+          "error": "validation_error",
+          "when": "start is at without a time, or outside working hours"
+        },
+        {
+          "status": 403,
+          "error": "forbidden",
+          "when": "staff without front desk access"
+        }
+      ],
+      "status": "live"
+    },
+    {
+      "id": "get-visit",
+      "screen": "Appointment detail (visit section, checkout)",
+      "story": "F-visit",
+      "method": "GET",
+      "path": "/visits/{visitId}",
+      "description": "A visit's bookings, what each staff member's part comes to (for splitting a tip), the visit balance, which parts can be charged now and which haven't started. Poll during an M-Pesa visit checkout. Cancelled / no-show bookings are listed but not counted.",
+      "auth": "owner or anyone with front desk access",
+      "request": null,
+      "response": {
+        "visitId": "vis_01ab",
+        "businessId": "biz_01hxyz",
+        "customerName": "Amina",
+        "customerPhone": "+254712345678",
+        "bookings": [
+          "<Booking>, soonest first, each with visitId"
+        ],
+        "staff": [
+          {
+            "staffId": "stf_a",
+            "staffName": "Wanjiku",
+            "subtotal": {
+              "amount": 800,
+              "currency": "KES"
+            },
+            "balanceDue": {
+              "amount": 800,
+              "currency": "KES"
+            },
+            "bookingIds": [
+              "bk_1"
+            ]
+          },
+          {
+            "staffId": "stf_b",
+            "staffName": "Otieno",
+            "subtotal": {
+              "amount": 2500,
+              "currency": "KES"
+            },
+            "balanceDue": {
+              "amount": 2500,
+              "currency": "KES"
+            },
+            "bookingIds": [
+              "bk_2"
+            ]
+          }
+        ],
+        "total": {
+          "amount": 3300,
+          "currency": "KES"
+        },
+        "depositPaid": {
+          "amount": 0,
+          "currency": "KES"
+        },
+        "balanceDue": {
+          "amount": 3300,
+          "currency": "KES"
+        },
+        "paymentStatus": "unpaid",
+        "chargeableBookingIds": [
+          "bk_1",
+          "bk_2"
+        ],
+        "notReady": [],
+        "chargePayment": null
+      },
+      "errors": [
+        {
+          "status": 404,
+          "error": "not_found",
+          "when": "unknown visit"
+        }
+      ],
+      "status": "live"
+    },
+    {
+      "id": "charge-visit",
+      "screen": "Appointment detail → Check out visit",
+      "story": "F-visit",
+      "method": "POST",
+      "path": "/visits/{visitId}/charge",
+      "description": "One payment for the whole visit (cash, or one M-Pesa prompt): every part's balance plus each person's tip. The app splits the tip (evenly / by service value / custom: utils/tipSplit.ts) and sends final amounts; each lands in that person's wallet. Commission stays per booking. 200 with the Visit for cash or nothing due; 202 with the started payment (visitId set) for M-Pesa, then poll get-visit. bookingIds charges just those parts (the rest later). Single-booking charge-booking still works on a visit's booking.",
+      "auth": "owner or anyone with front desk access",
+      "request": {
+        "method": "mpesa|cash",
+        "phone": "0712345678",
+        "tips": [
+          {
+            "staffId": "stf_a",
+            "amount": 100
+          },
+          {
+            "staffId": "stf_b",
+            "amount": 200
+          }
+        ],
+        "bookingIds": null
+      },
+      "response": {
+        "200": {
+          "visitId": "vis_01ab",
+          "businessId": "biz_01hxyz",
+          "customerName": "Amina",
+          "customerPhone": "+254712345678",
+          "bookings": [
+            "<Booking>, soonest first, each with visitId"
+          ],
+          "staff": [
+            {
+              "staffId": "stf_a",
+              "staffName": "Wanjiku",
+              "subtotal": {
+                "amount": 800,
+                "currency": "KES"
+              },
+              "balanceDue": {
+                "amount": 800,
+                "currency": "KES"
+              },
+              "bookingIds": [
+                "bk_1"
+              ]
+            },
+            {
+              "staffId": "stf_b",
+              "staffName": "Otieno",
+              "subtotal": {
+                "amount": 2500,
+                "currency": "KES"
+              },
+              "balanceDue": {
+                "amount": 2500,
+                "currency": "KES"
+              },
+              "bookingIds": [
+                "bk_2"
+              ]
+            }
+          ],
+          "total": {
+            "amount": 3300,
+            "currency": "KES"
+          },
+          "depositPaid": {
+            "amount": 0,
+            "currency": "KES"
+          },
+          "balanceDue": {
+            "amount": 3300,
+            "currency": "KES"
+          },
+          "paymentStatus": "unpaid",
+          "chargeableBookingIds": [
+            "bk_1",
+            "bk_2"
+          ],
+          "notReady": [],
+          "chargePayment": null
+        },
+        "202": {
+          "paymentId": "pay_01",
+          "bookingId": "bk_1",
+          "visitId": "vis_01ab",
+          "status": "pending",
+          "amount": 3600,
+          "currency": "KES",
+          "phone": "254712345678",
+          "customerMessage": "Success. Request accepted for processing",
+          "expiresAt": null
+        }
+      },
+      "errors": [
+        {
+          "status": 409,
+          "error": "visit_not_ready",
+          "when": "some parts haven't started; body.bookingIds lists them (start, cancel, or pass bookingIds)"
+        },
+        {
+          "status": 409,
+          "error": "already_paid",
+          "when": "nothing left to charge"
+        },
+        {
+          "status": 409,
+          "error": "payment_in_progress",
+          "when": "an M-Pesa prompt for this visit (or one of its parts) is still waiting"
+        },
+        {
+          "status": 400,
+          "error": "tip_staff_not_in_visit",
+          "when": "a tip for someone whose service isn't being charged"
+        }
+      ],
+      "status": "live"
     }
   ],
   "frontDeskNote": "Confirmed by the backend (2026-09-30): the public profile lists every staff record (role, allServices, serviceIds, workingDays), and front desk may call every 'owner or front desk' endpoint (covered by a test). Front desk start with no services, so they're not bookable; the app's assign/walk-in pickers list only staff who perform at least one service. The front desk app (F1–F3) is built at /front-desk/*."

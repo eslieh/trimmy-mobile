@@ -62,7 +62,7 @@
       "story": "O2",
       "method": "POST",
       "path": "/businesses/{businessId}/team/members",
-      "description": "Post-publish equivalent of business-setup.json#invite-team-member (onboarding's Team invite step), but collects the fuller field set that step never asked for: name, commission split, and working days. At least one of email/phone is required. An invitation IS the team roster record — there's no separate 'member' entity — so this returns the same shape list-my-invitations/get-business-profile-style team lists would use.",
+      "description": "Post-publish equivalent of business-setup.json#invite-team-member (onboarding's Team invite step), but collects the fuller field set that step never asked for: name, commission split, and working days. At least one of email/phone is required. An invitation IS the team roster record — there's no separate 'member' entity — so this returns the same shape list-my-invitations/get-business-profile-style team lists would use. Roles (2026-10-22): role 'staff' takes appointments (commission on their own services); 'front_desk' runs the desk only (commissionPercent null, not bookable). frontDeskAccess: staff who also run the desk (one person, two modes in the app). Only the owner changes these.",
       "auth": "owner",
       "request": {
         "name": "Jane Doe",
@@ -70,7 +70,8 @@
         "phone": "+254798765432",
         "role": "staff",
         "commissionPercent": 40,
-        "workingDays": null
+        "workingDays": null,
+        "frontDeskAccess": false
       },
       "response": {
         "invitationId": "inv_01xy",
@@ -110,7 +111,7 @@
       "story": "O2",
       "method": "PATCH",
       "path": "/businesses/{businessId}/team/members/{invitationId}",
-      "description": "Edits a team member's commission split and/or working days. Works the same whether the member's invitation is still pending or already accepted — no separate 'accepted member' record exists to edit instead. Only the fields sent are changed; send workingDays: null to clear it. Returns the full member.",
+      "description": "Edits a team member's commission split and/or working days. Works the same whether the member's invitation is still pending or already accepted — no separate 'accepted member' record exists to edit instead. Only the fields sent are changed; send workingDays: null to clear it. Returns the full member. Roles (2026-10-22): role 'staff' takes appointments (commission on their own services); 'front_desk' runs the desk only (commissionPercent null, not bookable). frontDeskAccess: staff who also run the desk (one person, two modes in the app). Only the owner changes these.",
       "auth": "owner",
       "request": {
         "commissionPercent": 45,
@@ -120,7 +121,9 @@
           "wednesday",
           "thursday",
           "friday"
-        ]
+        ],
+        "takesAppointments": true,
+        "frontDeskAccess": true
       },
       "response": {
         "invitationId": "inv_01xy",
@@ -144,6 +147,16 @@
           "status": 404,
           "code": "not_found",
           "message": "invitationId does not exist for this business"
+        },
+        {
+          "status": 409,
+          "error": "has_upcoming_bookings",
+          "when": "made front desk only while they still have upcoming appointments (body.count)"
+        },
+        {
+          "status": 400,
+          "error": "validation_error",
+          "when": "takesAppointments and frontDeskAccess both false"
         }
       ],
       "status": "live"
@@ -175,7 +188,7 @@
       "method": "GET",
       "path": "/businesses/{businessId}/team/members",
       "auth": "owner",
-      "description": "All invitations/members for the business, with name, role, status, commissionPercent and workingDays. The Team screen currently shows only members added on this device in this session (client memory), so it's empty after a reinstall or on a second device.",
+      "description": "All invitations/members for the business, with name, role, status, commissionPercent and workingDays. The Team screen currently shows only members added on this device in this session (client memory), so it's empty after a reinstall or on a second device. Roles (2026-10-22): role 'staff' takes appointments (commission on their own services); 'front_desk' runs the desk only (commissionPercent null, not bookable). frontDeskAccess: staff who also run the desk (one person, two modes in the app). Only the owner changes these.",
       "request": null,
       "response": {
         "members": [
@@ -387,9 +400,209 @@
       "request": null,
       "response": null,
       "errors": []
+    },
+    {
+      "id": "get-portfolio",
+      "screen": "Portfolio (staff Menu → My portfolio; owner: team member → Manage portfolio photos)",
+      "story": "C1",
+      "method": "GET",
+      "path": "/businesses/{businessId}/staff/{staffId}/portfolio",
+      "description": "A staff member's portfolio photos, newest first. Customers see the same URLs on the business profile (staff[].portfolio). App: screens/staff-app/PortfolioScreen; web: business area team member page.",
+      "auth": "the owner, or the staff member themselves",
+      "request": null,
+      "response": {
+        "staffId": "stf_01cd",
+        "photos": [
+          {
+            "photoId": "pp_01ab",
+            "staffId": "stf_01cd",
+            "url": "https://media.trimmy.co/businesses/biz_01hxyz/staff/stf_01cd/portfolio/pp_01ab.jpg",
+            "createdAt": "2026-10-22T09:00:00Z"
+          }
+        ],
+        "maxPhotos": 30
+      },
+      "errors": [
+        {
+          "status": 404,
+          "error": "not_found",
+          "when": "business or staffId unknown, or the caller doesn't work there"
+        },
+        {
+          "status": 403,
+          "error": "forbidden",
+          "when": "a colleague (works there, but isn't the owner or this staff member)"
+        }
+      ],
+      "status": "live"
+    },
+    {
+      "id": "create-portfolio-upload-url",
+      "screen": "Portfolio",
+      "story": "C1",
+      "method": "POST",
+      "path": "/businesses/{businessId}/staff/{staffId}/portfolio/upload-url",
+      "description": "Step 1 of a direct upload, the same as business photos: PUT the file to uploadUrl with exactly the returned headers, then call complete-portfolio-upload. 501 direct_upload_unavailable on servers with local storage: use upload-portfolio-photo instead.",
+      "auth": "the owner, or the staff member themselves",
+      "request": {
+        "contentType": "image/jpeg",
+        "sizeBytes": 245000
+      },
+      "response": {
+        "uploadUrl": "https://<account>.r2.cloudflarestorage.com/<bucket>/businesses/biz_01hxyz/staff/stf_01cd/portfolio/pp_01ab.jpg?X-Amz-...",
+        "method": "PUT",
+        "headers": {
+          "Content-Type": "image/jpeg"
+        },
+        "key": "businesses/biz_01hxyz/staff/stf_01cd/portfolio/pp_01ab.jpg",
+        "expiresIn": 600
+      },
+      "errors": [
+        {
+          "status": 413,
+          "error": "file_too_large",
+          "when": "sizeBytes over 10 MB"
+        },
+        {
+          "status": 409,
+          "error": "portfolio_full",
+          "when": "already maxPhotos (30) photos"
+        },
+        {
+          "status": 501,
+          "error": "direct_upload_unavailable",
+          "when": "local storage"
+        },
+        {
+          "status": 404,
+          "error": "not_found",
+          "when": "business or staffId unknown, or the caller doesn't work there"
+        },
+        {
+          "status": 403,
+          "error": "forbidden",
+          "when": "a colleague (works there, but isn't the owner or this staff member)"
+        }
+      ],
+      "status": "live"
+    },
+    {
+      "id": "complete-portfolio-upload",
+      "screen": "Portfolio",
+      "story": "C1",
+      "method": "POST",
+      "path": "/businesses/{businessId}/staff/{staffId}/portfolio/complete",
+      "description": "Step 2 of a direct upload: checks the stored file (JPEG/PNG, at most 10 MB) and adds it. Retrying with the same key returns the same photo.",
+      "auth": "the owner, or the staff member themselves",
+      "request": {
+        "key": "businesses/biz_01hxyz/staff/stf_01cd/portfolio/pp_01ab.jpg"
+      },
+      "response": {
+        "photoId": "pp_01ab",
+        "staffId": "stf_01cd",
+        "url": "https://media.trimmy.co/businesses/biz_01hxyz/staff/stf_01cd/portfolio/pp_01ab.jpg",
+        "createdAt": "2026-10-22T09:00:00Z"
+      },
+      "errors": [
+        {
+          "status": 400,
+          "error": "validation_error",
+          "when": "key not issued for this staff member, or the file isn't a JPEG/PNG (it's deleted)"
+        },
+        {
+          "status": 400,
+          "error": "upload_not_found",
+          "when": "nothing uploaded at that key yet"
+        },
+        {
+          "status": 409,
+          "error": "portfolio_full",
+          "when": "already maxPhotos photos"
+        },
+        {
+          "status": 404,
+          "error": "not_found",
+          "when": "business or staffId unknown, or the caller doesn't work there"
+        },
+        {
+          "status": 403,
+          "error": "forbidden",
+          "when": "a colleague (works there, but isn't the owner or this staff member)"
+        }
+      ],
+      "status": "live"
+    },
+    {
+      "id": "upload-portfolio-photo",
+      "screen": "Portfolio",
+      "story": "C1",
+      "method": "POST",
+      "path": "/businesses/{businessId}/staff/{staffId}/portfolio",
+      "description": "Multipart upload through the API (field: photo). The fallback when direct uploads aren't available.",
+      "auth": "the owner, or the staff member themselves",
+      "request": "multipart/form-data: photo=<JPEG or PNG file>",
+      "response": {
+        "photoId": "pp_01ab",
+        "staffId": "stf_01cd",
+        "url": "https://media.trimmy.co/businesses/biz_01hxyz/staff/stf_01cd/portfolio/pp_01ab.jpg",
+        "createdAt": "2026-10-22T09:00:00Z"
+      },
+      "errors": [
+        {
+          "status": 400,
+          "error": "validation_error",
+          "when": "not a JPEG/PNG"
+        },
+        {
+          "status": 413,
+          "error": "file_too_large",
+          "when": "over 10 MB"
+        },
+        {
+          "status": 409,
+          "error": "portfolio_full",
+          "when": "already maxPhotos photos"
+        },
+        {
+          "status": 404,
+          "error": "not_found",
+          "when": "business or staffId unknown, or the caller doesn't work there"
+        },
+        {
+          "status": 403,
+          "error": "forbidden",
+          "when": "a colleague (works there, but isn't the owner or this staff member)"
+        }
+      ],
+      "status": "live"
+    },
+    {
+      "id": "delete-portfolio-photo",
+      "screen": "Portfolio",
+      "story": "C1",
+      "method": "DELETE",
+      "path": "/businesses/{businessId}/staff/{staffId}/portfolio/{photoId}",
+      "description": "Removes the photo and its stored file. 204 No Content. Removing a team member also deletes their portfolio.",
+      "auth": "the owner, or the staff member themselves",
+      "request": null,
+      "response": null,
+      "errors": [
+        {
+          "status": 404,
+          "error": "not_found",
+          "when": "photoId not in this portfolio"
+        },
+        {
+          "status": 403,
+          "error": "forbidden",
+          "when": "a colleague (works there, but isn't the owner or this staff member)"
+        }
+      ],
+      "status": "live"
     }
   ],
   "notes": [
-    "2026-09-26 (BK-02): members carry staffId, which is null while the invitation is pending and set once accepted. It's the same id as the business profile's staff[].staffId, and it's the id bookings, availability and earnings use. Editing commission/working days still goes through PATCH /team/members/{invitationId}; the server keeps the staff record in sync. Only accepted members (non-null staffId) are bookable."
+    "2026-09-26 (BK-02): members carry staffId, which is null while the invitation is pending and set once accepted. It's the same id as the business profile's staff[].staffId, and it's the id bookings, availability and earnings use. Editing commission/working days still goes through PATCH /team/members/{invitationId}; the server keeps the staff record in sync. Only accepted members (non-null staffId) are bookable.",
+    "GET /me/businesses: each workplace also has frontDeskAccess and modes (['staff'] | ['front_desk'] | ['staff','front_desk']) for the app's mode switch."
   ]
 }

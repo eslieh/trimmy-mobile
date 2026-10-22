@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { AuthScreenLayout } from '../../components/AuthScreenLayout';
+import { ImageGalleryViewer } from '../../components/ImageGalleryViewer';
 import { Button } from '../../components/Button';
 import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
 import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
@@ -39,6 +40,7 @@ export function ReviewPublishScreen() {
   const setActiveMode = useOwnedBusinessStore((s) => s.setActiveMode);
 
   const [publish, setPublish] = useState(false);
+  const [viewing, setViewing] = useState<number | null>(null);
 
   if (!business) {
     return null;
@@ -120,8 +122,10 @@ export function ReviewPublishScreen() {
       <View style={styles.card}>
         {business.photos && business.photos.length > 0 ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoRow}>
-            {business.photos.map((photo) => (
-              <Image key={photo.photoId} source={{ uri: photo.url }} style={styles.photoThumb} />
+            {business.photos.map((photo, index) => (
+              <Pressable key={photo.photoId} onPress={() => setViewing(index)}>
+                <Image source={{ uri: photo.url }} style={styles.photoThumb} resizeMethod="resize" />
+              </Pressable>
             ))}
           </ScrollView>
         ) : null}
@@ -190,6 +194,12 @@ export function ReviewPublishScreen() {
           </Text>
         </Pressable>
       </View>
+      <ImageGalleryViewer
+        visible={viewing !== null}
+        images={(business.photos ?? []).map((p) => p.url)}
+        initialIndex={viewing ?? 0}
+        onClose={() => setViewing(null)}
+      />
     </AuthScreenLayout>
   );
 }

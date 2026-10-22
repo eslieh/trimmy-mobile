@@ -3,7 +3,7 @@ import { colors, typography } from '../theme';
 
 interface AvatarProps {
   name: string;
-  uri?: string;
+  uri?: string | null;
   size?: number;
 }
 
@@ -30,7 +30,8 @@ export function Avatar({ name, uri, size = 44 }: AvatarProps) {
   const shapeStyle = { width: size, height: size, borderRadius: size / 2 };
 
   if (uri) {
-    return <Image source={{ uri }} style={[styles.base, shapeStyle]} />;
+    // resizeMethod="resize": Android decodes at display size, not the full image.
+    return <Image source={{ uri }} style={[styles.base, shapeStyle]} resizeMethod="resize" />;
   }
 
   return (

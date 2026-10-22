@@ -1,7 +1,7 @@
 import type { Href, useRouter } from 'expo-router';
 import { restoreOwnedBusiness } from './restoreOwnedBusiness';
 import { useAppTransitionStore } from '../store/useAppTransitionStore';
-import { useOwnedBusinessStore, type AppMode } from '../store/useOwnedBusinessStore';
+import { canUseMode, useOwnedBusinessStore, type AppMode } from '../store/useOwnedBusinessStore';
 import { clearModeState, homeFor } from './switchMode';
 
 type Router = ReturnType<typeof useRouter>;
@@ -36,11 +36,13 @@ export async function routeAfterLogin(router: Router, fallback: Href = '/explore
     // Offline or the lookup failed — still let them into the app.
   }
 
-  const { business, staffSession } = useOwnedBusinessStore.getState();
+  const { business, staffSession, activeMode } = useOwnedBusinessStore.getState();
   let mode: AppMode = 'customer';
   if (business) mode = 'business';
-  else if (staffSession?.role === 'staff') mode = 'staff';
-  else if (staffSession?.role === 'front_desk') mode = 'front_desk';
+  // Someone with both modes goes back to the one they last used.
+  else if (activeMode === 'front_desk' && canUseMode(staffSession, 'front_desk')) mode = 'front_desk';
+  else if (canUseMode(staffSession, 'staff')) mode = 'staff';
+  else if (canUseMode(staffSession, 'front_desk')) mode = 'front_desk';
 
   clearModeState();
   useOwnedBusinessStore.getState().setActiveMode(mode);
@@ -66,7 +68,7 @@ export function resumeSession(router: Router): void {
   const { activeMode, business, staffSession } = useOwnedBusinessStore.getState();
   const usable =
     (activeMode === 'business' && business) ||
-    ((activeMode === 'staff' || activeMode === 'front_desk') && staffSession) ||
+    ((activeMode === 'staff' || activeMode === 'front_desk') && canUseMode(staffSession, activeMode)) ||
     activeMode === 'customer';
   const mode: AppMode = usable ? activeMode : 'customer';
   useOwnedBusinessStore.getState().setActiveMode(mode);

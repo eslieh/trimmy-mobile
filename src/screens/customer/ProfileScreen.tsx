@@ -9,6 +9,7 @@ import { colors, radii, shadows, spacing, typography } from '../../theme';
 import { PendingInvitations } from '../../components/PendingInvitations';
 import { AccountSection } from '../../components/AccountSection';
 import { Button } from '../../components/Button';
+import { Avatar } from '../../components/Avatar';
 import { NotificationBell } from '../../components/NotificationBell';
 import Svg, { Path } from 'react-native-svg';
 import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
@@ -76,8 +77,13 @@ export function ProfileScreen() {
             <Text style={styles.title}>Profile</Text>
             <NotificationBell />
           </View>
-          <Text style={styles.name}>{displayName}</Text>
-          {user?.email ? <Text style={styles.email}>{user.email}</Text> : null}
+          <View style={styles.identity}>
+            {user ? <Avatar name={displayName} uri={user.avatar_url} size={56} /> : null}
+            <View style={styles.identityText}>
+              <Text style={styles.name}>{displayName}</Text>
+              {user?.email ? <Text style={styles.email}>{user.email}</Text> : null}
+            </View>
+          </View>
         </View>
 
         <View style={styles.content}>
@@ -167,6 +173,14 @@ function SwitchIcon() {
 }
 
 const styles = StyleSheet.create({
+  identity: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  identityText: {
+    flex: 1,
+  },
   flex: {
     flex: 1,
     backgroundColor: colors.background.primary,

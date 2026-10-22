@@ -74,6 +74,20 @@ export function StaffMenuScreen() {
 
         {staffSession ? (
           <View style={styles.group}>
+            <Pressable
+              style={styles.row}
+              onPress={() =>
+                router.push({
+                  pathname: '/portfolio',
+                  params: { businessId: staffSession.businessId, staffId: staffSession.staffId },
+                })
+              }
+            >
+              <View style={styles.serviceInfo}>
+                <Text style={styles.rowLabel}>My portfolio</Text>
+                <Text style={styles.serviceMeta}>Photos of your work that customers see on your profile</Text>
+              </View>
+            </Pressable>
             <Pressable style={[styles.row, styles.rowLast]} onPress={() => router.push('/time-off')}>
               <View style={styles.serviceInfo}>
                 <Text style={styles.rowLabel}>Time off</Text>
@@ -81,6 +95,16 @@ export function StaffMenuScreen() {
               </View>
             </Pressable>
           </View>
+        ) : null}
+
+        {staffSession?.frontDeskAccess ? (
+          // Same person, other seat: the whole business's day, check-ins and checkout.
+          <Pressable
+            style={styles.switchButton}
+            onPress={() => switchMode(router, 'front_desk', { message: 'Opening the front desk…' })}
+          >
+            <Text style={styles.switchButtonText}>Switch to front desk</Text>
+          </Pressable>
         ) : null}
 
         <Pressable style={styles.switchButton} onPress={handleSwitchToBrowsing}>

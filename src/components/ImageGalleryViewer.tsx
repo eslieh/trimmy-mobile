@@ -22,12 +22,18 @@ interface ImageGalleryViewerProps {
   onClose: () => void;
 }
 
-// Full-screen horizontal pager over a set of photos — opened from
-// MasonryPhotoGrid (or directly) at whichever image was tapped. Shared by
-// Business Profile's photo grid and Staff Profile's portfolio.
+// Full-screen horizontal pager over a set of photos — opened at whichever
+// image was tapped. Used by every photo list: Business Profile, Staff
+// Profile's portfolio, the portfolio and business-photo editors.
 export function ImageGalleryViewer({ visible, images, initialIndex, onClose }: ImageGalleryViewerProps) {
   const { width } = useWindowDimensions();
   const [index, setIndex] = useState(initialIndex);
+  // Each opening starts the counter at the tapped photo (the viewer stays mounted between openings).
+  const [opened, setOpened] = useState({ visible, initialIndex });
+  if (opened.visible !== visible || opened.initialIndex !== initialIndex) {
+    setOpened({ visible, initialIndex });
+    if (visible) setIndex(initialIndex);
+  }
 
   const handleScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     setIndex(Math.round(event.nativeEvent.contentOffset.x / width));
@@ -53,7 +59,9 @@ export function ImageGalleryViewer({ visible, images, initialIndex, onClose }: I
               // Pressable's bounds cover both the visible photo and the
               // empty space around it — tapping either closes the viewer.
               <Pressable key={`${url}_${i}`} style={[styles.slide, { width }]} onPress={onClose}>
-                <Image source={{ uri: url }} style={styles.image} resizeMode="contain" />
+                {/* Only the photo in view and its neighbours are decoded: a 30-photo
+                    portfolio would otherwise hold 30 full-size bitmaps in memory. */}
+                {Math.abs(i - index) <= 1 ? <Image source={{ uri: url }} style={styles.image} resizeMode="contain" /> : null}
               </Pressable>
             ))}
           </ScrollView>

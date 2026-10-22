@@ -102,7 +102,7 @@ export function StaffProfileScreen() {
         <View style={styles.identity}>
           <Avatar name={member.name} uri={member.avatarUrl} size={88} />
           <Text style={styles.name}>{member.name}</Text>
-          <Text style={styles.role}>{member.role}</Text>
+          {member.specialties.length ? <Text style={styles.role}>{member.specialties.slice(0, 3).join(' · ')}</Text> : null}
           <RatingLabel rating={member.rating} reviewCount={profile.reviewCount} size={13} />
         </View>
 

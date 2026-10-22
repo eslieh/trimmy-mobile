@@ -49,7 +49,10 @@ export type AddTeamMemberInput = {
   email?: string;
   phone?: string;
   role: TeamRole;
-  commissionPercent: number;
+  // Staff only; left out for front desk (no commission).
+  commissionPercent?: number;
+  // Staff who also run the front desk.
+  frontDeskAccess?: boolean;
   workingDays: (keyof WeeklyHours)[] | null;
 };
 
@@ -67,7 +70,8 @@ export function addTeamMember(businessId: string, input: AddTeamMemberInput): Pr
       role: input.role,
       staffId: null,
       status: 'pending',
-      commissionPercent: input.commissionPercent,
+      commissionPercent: input.role === 'front_desk' ? null : input.commissionPercent ?? 40,
+      frontDeskAccess: input.role === 'front_desk' || !!input.frontDeskAccess,
       workingDays: input.workingDays,
       sentAt: new Date().toISOString(),
     });
@@ -87,6 +91,10 @@ export function addTeamMember(businessId: string, input: AddTeamMemberInput): Pr
 export type UpdateTeamMemberInput = {
   commissionPercent?: number;
   workingDays?: (keyof WeeklyHours)[] | null;
+  // What they do: both on = staff who also run the desk; desk only = front desk
+  // (the server clears their commission). At least one must stay on.
+  takesAppointments?: boolean;
+  frontDeskAccess?: boolean;
 };
 
 export function updateTeamMember(
@@ -95,7 +103,14 @@ export function updateTeamMember(
   input: UpdateTeamMemberInput,
 ): Promise<TeamInvitation> {
   if (USE_MOCK_API) {
-    return mockDelay<TeamInvitation>({ ...invitation, ...input });
+    const { takesAppointments, ...rest } = input;
+    const role = takesAppointments === undefined ? invitation.role : takesAppointments ? 'staff' : 'front_desk';
+    return mockDelay<TeamInvitation>({
+      ...invitation,
+      ...rest,
+      role,
+      commissionPercent: role === 'front_desk' ? null : rest.commissionPercent ?? invitation.commissionPercent ?? 40,
+    });
   }
 
   return apiRequest<TeamInvitation>(`/businesses/${businessId}/team/members/${invitation.invitationId}`, {

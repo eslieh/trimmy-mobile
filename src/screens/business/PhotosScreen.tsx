@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { AuthScreenLayout } from '../../components/AuthScreenLayout';
 import { Button } from '../../components/Button';
 import { CloseIcon } from '../../components/icons/CloseIcon';
+import { ImageGalleryViewer } from '../../components/ImageGalleryViewer';
 import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
 import { colors, radii, spacing, typography } from '../../theme';
 
@@ -18,6 +20,7 @@ export function PhotosScreen() {
   const submitPhotos = useBusinessOnboardingStore((s) => s.submitPhotos);
   const isSubmitting = useBusinessOnboardingStore((s) => s.isSubmitting);
   const error = useBusinessOnboardingStore((s) => s.error);
+  const [viewing, setViewing] = useState<number | null>(null);
 
   const handlePickPhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -65,7 +68,9 @@ export function PhotosScreen() {
       <View style={styles.grid}>
         {photoDrafts.map((photo, index) => (
           <View key={photo.localId} style={styles.thumbWrapper}>
-            <Image source={{ uri: photo.uri }} style={styles.thumb} />
+            <Pressable onPress={() => setViewing(index)}>
+              <Image source={{ uri: photo.uri }} style={styles.thumb} resizeMethod="resize" />
+            </Pressable>
             {index === 0 ? (
               <View style={styles.coverBadge}>
                 <Text style={styles.coverBadgeText}>Cover</Text>
@@ -81,6 +86,12 @@ export function PhotosScreen() {
           <Text style={styles.addTileText}>+ Add</Text>
         </Pressable>
       </View>
+      <ImageGalleryViewer
+        visible={viewing !== null}
+        images={photoDrafts.map((p) => p.uri)}
+        initialIndex={viewing ?? 0}
+        onClose={() => setViewing(null)}
+      />
     </AuthScreenLayout>
   );
 }

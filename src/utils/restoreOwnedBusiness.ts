@@ -29,6 +29,7 @@ export async function restoreOwnedBusiness(): Promise<void> {
       businessName: membership.name,
       staffId: membership.staffId,
       role: membership.role as 'staff' | 'front_desk',
+      frontDeskAccess: membership.role === 'front_desk' || !!membership.frontDeskAccess,
     });
   } else {
     useOwnedBusinessStore.setState({ staffSession: null }); // removed from the team since

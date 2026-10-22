@@ -5,7 +5,7 @@ import type { Href } from 'expo-router';
 import { registerPushToken, unregisterPushToken } from '../api/notifications';
 import { PUSH_NOTIFICATIONS_ENABLED } from '../config/env';
 import { isRealtimeConnected } from '../realtime/status';
-import { useOwnedBusinessStore } from '../store/useOwnedBusinessStore';
+import { canUseMode, useOwnedBusinessStore } from '../store/useOwnedBusinessStore';
 
 // Push notifications (BK-41). Registration runs after login for every role
 // (AuthContext) and is undone on logout — only while PUSH_NOTIFICATIONS_ENABLED
@@ -111,7 +111,8 @@ export function applyModeForNotification(type: unknown): void {
     case 'booking_cancelled_for_staff':
     case 'payout_responded':
     case 'wallet_adjusted':
-      if (store.staffSession) store.setActiveMode(store.staffSession.role === 'front_desk' ? 'front_desk' : 'staff');
+      // Their own work: the staff view if they take appointments, else the desk.
+      if (store.staffSession) store.setActiveMode(canUseMode(store.staffSession, 'staff') ? 'staff' : 'front_desk');
       break;
     case 'booking_created':
     case 'booking_cancelled_by_customer':
@@ -119,7 +120,7 @@ export function applyModeForNotification(type: unknown): void {
     case 'booking_refund_owed':
       // Owner first; a front desk member gets these for the business they work at.
       if (store.business) store.setActiveMode('business');
-      else if (store.staffSession?.role === 'front_desk') store.setActiveMode('front_desk');
+      else if (canUseMode(store.staffSession, 'front_desk')) store.setActiveMode('front_desk');
       break;
     case 'payout_requested':
     case 'day_summary_submitted':
