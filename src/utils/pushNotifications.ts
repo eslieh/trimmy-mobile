@@ -1,9 +1,8 @@
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
-import * as Notifications from 'expo-notifications';
 import type { Href } from 'expo-router';
 import { registerPushToken, unregisterPushToken } from '../api/notifications';
-import { PUSH_NOTIFICATIONS_ENABLED } from '../config/env';
+import { getNotifications } from './notificationsModule';
 import { isRealtimeConnected } from '../realtime/status';
 import { canUseMode, useOwnedBusinessStore } from '../store/useOwnedBusinessStore';
 
@@ -16,7 +15,7 @@ import { canUseMode, useOwnedBusinessStore } from '../store/useOwnedBusinessStor
 // While the app is open the live stream already shows an in-app toast for
 // the same notification, so the system banner only appears when the stream
 // is down.
-Notifications.setNotificationHandler({
+getNotifications()?.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowBanner: !isRealtimeConnected(),
     shouldShowList: true,
@@ -28,7 +27,9 @@ Notifications.setNotificationHandler({
 let registeredToken: string | null = null;
 
 export async function registerForPushNotifications(): Promise<void> {
-  if (!PUSH_NOTIFICATIONS_ENABLED) return;
+  // Null while push is off or in Expo Go (see utils/notificationsModule.ts).
+  const Notifications = getNotifications();
+  if (!Notifications) return;
   try {
     const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
     if (!projectId) return;

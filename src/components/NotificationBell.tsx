@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import * as Notifications from 'expo-notifications';
+import { getNotifications } from '../utils/notificationsModule';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { BellIcon } from './icons/BellIcon';
 import { useAuth } from '../contexts/AuthContext';
@@ -25,8 +25,8 @@ export function NotificationBell() {
 
   useEffect(() => {
     if (!user) return;
-    const subscription = Notifications.addNotificationReceivedListener(() => refreshUnreadCount());
-    return () => subscription.remove();
+    const subscription = getNotifications()?.addNotificationReceivedListener(() => refreshUnreadCount());
+    return () => subscription?.remove();
   }, [user, refreshUnreadCount]);
 
   if (!user) return null;
