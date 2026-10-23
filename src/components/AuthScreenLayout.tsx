@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BackButton } from './BackButton';
 import { StepProgressBar } from './StepProgressBar';
@@ -19,7 +19,9 @@ interface AuthScreenLayoutProps {
 export function AuthScreenLayout({ title, subtitle, progress, onBack, children, footer }: AuthScreenLayoutProps) {
   return (
     <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      {/* Padding on Android too: it's edge-to-edge, so the window never resizes for the
+          keyboard and the footer button would sit behind it. */}
+      <KeyboardAvoidingView style={styles.flex} behavior="padding">
         <View style={styles.header}>
           <BackButton onPress={onBack} />
           {progress !== undefined ? <StepProgressBar progress={progress} style={styles.progress} /> : null}

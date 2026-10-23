@@ -1,0 +1,260 @@
+import { useState } from 'react';
+import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { BackButton } from '../../components/BackButton';
+import { Button } from '../../components/Button';
+import { Input } from '../../components/Input';
+import { PhoneInput } from '../../components/PhoneInput';
+import { WorkingDaysPicker } from '../../components/WorkingDaysPicker';
+import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
+import { countries } from '../../data/countries';
+import { normalizePhoneNumber } from '../../utils/phone';
+import { TEAM_ROLE_LABEL } from '../../utils/team';
+import { colors, radii, spacing, typography } from '../../theme';
+import type { TeamRole } from '../../types/team';
+import type { WeeklyHours } from '../../types/business';
+import { showApiError } from '../../utils/showApiError';
+import { useBusinessContext } from '../../hooks/useBusinessContext';
+
+const DEFAULT_COUNTRY = countries.find((c) => c.iso2 === 'KE') ?? countries[0];
+const DEFAULT_COMMISSION_PERCENT = '40';
+
+// Reached from the Team screen's "+". Post-publish equivalent of
+// onboarding's Team invite step, but collects the fuller field set (name,
+// commission split, working days) that step never asked for.
+export function InviteTeamMemberScreen() {
+  const router = useRouter();
+  const ownedBusiness = useBusinessContext();
+  const switchToTeam = useBusinessOnboardingStore((s) => s.switchToTeam);
+  // A solo business can invite too (Manage Business / Menu → Invite team
+  // member); the first invite turns it into a team business.
+  const isSolo = ownedBusiness?.teamMode !== 'team';
+  const addTeamMemberNow = useBusinessOnboardingStore((s) => s.addTeamMemberNow);
+  const isSubmitting = useBusinessOnboardingStore((s) => s.isSubmitting);
+
+  const [name, setName] = useState('');
+  const [country, setCountry] = useState(DEFAULT_COUNTRY);
+  const [rawPhone, setRawPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState<TeamRole>('staff');
+  const [alsoFrontDesk, setAlsoFrontDesk] = useState(false);
+  const [commissionPercent, setCommissionPercent] = useState(DEFAULT_COMMISSION_PERCENT);
+  const [workingDays, setWorkingDays] = useState<(keyof WeeklyHours)[] | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  if (!ownedBusiness) {
+    return (
+      <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
+        <BackButton onPress={() => router.back()} />
+      </SafeAreaView>
+    );
+  }
+
+  const trimmedName = name.trim();
+  const hasContact = rawPhone.length >= 4 || email.trim().length > 0;
+  const commissionValue = parseInt(commissionPercent, 10);
+  // Front desk performs no services, so has no commission to set.
+  const commissionOk =
+    role === 'front_desk' || (!Number.isNaN(commissionValue) && commissionValue >= 0 && commissionValue <= 100);
+  const canSubmit =
+    trimmedName.length > 0 &&
+    hasContact &&
+    commissionOk &&
+    !isSubmitting &&
+    !isSaving;
+
+  const handleSubmit = async () => {
+    if (!canSubmit) return;
+    setIsSaving(true);
+    try {
+      await addTeamMemberNow(ownedBusiness.businessId, {
+        name: trimmedName,
+        phone: rawPhone.length >= 4 ? normalizePhoneNumber(rawPhone, country) : undefined,
+        email: email.trim() || undefined,
+        role,
+        ...(role === 'staff' ? { commissionPercent: commissionValue, frontDeskAccess: alsoFrontDesk } : {}),
+        workingDays,
+      });
+      if (isSolo) {
+        // Now a team: the Team tab appears (with this invite pending there).
+        try {
+          await switchToTeam(ownedBusiness.businessId);
+        } catch (err) {
+          showApiError('Invite sent, but team mode is still off', err);
+          router.back();
+          return;
+        }
+        router.dismissAll();
+        router.replace('/team');
+        return;
+      }
+      router.back();
+    } catch (err) {
+      showApiError("Couldn't send invite", err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
+      <View style={styles.header}>
+        <BackButton onPress={() => router.back()} />
+        <Text style={styles.headerTitle}>Invite team member</Text>
+      </View>
+
+      {/* Fields and the button below stay above the keyboard (Android is edge-to-edge). */}
+      <KeyboardAvoidingView behavior="padding" style={styles.flex}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          {isSolo ? (
+            <Text style={styles.soloHint}>
+              Adding someone makes this a team business: you'll get a Team tab to manage invites, staff and front
+              desk.
+            </Text>
+          ) : null}
+          <Input label="Name" value={name} onChangeText={setName} placeholder="Jane Doe" />
+          <PhoneInput
+            label="Phone"
+            helperText="They'll see the invite when they sign in with this phone or email."
+            country={country}
+            onCountryChange={setCountry}
+            value={rawPhone}
+            onChangeText={setRawPhone}
+          />
+          <Input
+            label="Email"
+            value={email}
+            onChangeText={setEmail}
+            placeholder="jane@example.com"
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+          <Text style={styles.hint}>At least one of phone or email is required.</Text>
+
+          <View>
+            <Text style={styles.sectionLabel}>Role</Text>
+            <View style={styles.roleRow}>
+              {(['staff', 'front_desk'] as const).map((option) => {
+                const selected = role === option;
+                return (
+                  <Pressable
+                    key={option}
+                    style={[styles.rolePill, selected && styles.rolePillSelected]}
+                    onPress={() => setRole(option)}
+                  >
+                    <Text style={[styles.rolePillText, selected && styles.rolePillTextSelected]}>
+                      {TEAM_ROLE_LABEL[option]}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          {role === 'staff' ? (
+            <>
+              <Input
+                label="Commission split (%)"
+                value={commissionPercent}
+                onChangeText={setCommissionPercent}
+                placeholder="40"
+                keyboardType="number-pad"
+                helperText="Share of each completed service's price this member earns."
+              />
+              <View style={styles.toggleRow}>
+                <View style={styles.toggleText}>
+                  <Text style={styles.sectionLabel}>Also runs the front desk</Text>
+                  <Text style={styles.hint}>They can switch to the front desk to check customers in and out. Commission stays on their own services only.</Text>
+                </View>
+                <Switch value={alsoFrontDesk} onValueChange={setAlsoFrontDesk} trackColor={{ true: colors.brand.pink }} />
+              </View>
+            </>
+          ) : (
+            <Text style={styles.hint}>Front desk checks customers in and takes payments. They don't perform services, so they earn no commission.</Text>
+          )}
+
+          <WorkingDaysPicker label="Working days" value={workingDays} onChange={setWorkingDays} />
+        </ScrollView>
+
+        <View style={styles.footer}>
+          <Button label={isSaving ? 'Sending…' : 'Send invite'} disabled={!canSubmit} onPress={handleSubmit} />
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  soloHint: {
+    ...typography.body,
+    color: colors.text.secondary,
+  },
+  flex: {
+    flex: 1,
+    backgroundColor: colors.background.primary,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.xxl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+  },
+  headerTitle: {
+    ...typography.h2,
+    color: colors.text.primary,
+  },
+  content: {
+    paddingHorizontal: spacing.xxl,
+    paddingBottom: spacing.xxl,
+    gap: spacing.lg,
+  },
+  hint: {
+    ...typography.caption,
+    color: colors.text.tertiary,
+    marginTop: -spacing.sm,
+  },
+  sectionLabel: {
+    ...typography.label,
+    color: colors.text.primary,
+    marginBottom: spacing.sm,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  toggleText: {
+    flex: 1,
+  },
+  roleRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  rolePill: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    borderRadius: radii.pill,
+    backgroundColor: colors.pill.unselectedBg,
+  },
+  rolePillSelected: {
+    backgroundColor: colors.pill.selectedBg,
+  },
+  rolePillText: {
+    ...typography.bodyMedium,
+    color: colors.pill.unselectedText,
+  },
+  rolePillTextSelected: {
+    color: colors.pill.selectedText,
+  },
+  footer: {
+    paddingHorizontal: spacing.xxl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border.subtle,
+  },
+});

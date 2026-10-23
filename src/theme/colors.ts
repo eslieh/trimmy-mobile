@@ -1,19 +1,25 @@
-// Sampled from the Trimlyy wordmark (assets/icon.png) and the Airbnb-style
-// reference screens: near-black text, warm greys, white surfaces, and a
-// single saturated accent used sparingly (badges, active tab, links).
+// The trimmy-landing design language (web uses the same values): plum-tinted
+// near-black text, white surfaces, and one pink accent.
+// brand.purple keeps its name for the many call sites but is now the deep
+// pink, dark enough to pass AA as text on white (5.4:1); brand.pink is the
+// landing's accent-strong; accent / accentSoft are fills only, never text on
+// white.
 export const colors = {
   brand: {
-    purple: '#771EE2',
-    pink: '#E03AB3',
-    gradient: ['#771EE2', '#E03AB3'] as const,
+    purple: '#B83A6E',
+    pink: '#D1477E',
+    gradient: ['#9C2F66', '#B83A6E'] as const,
+    accent: '#F6B9D6',
+    accentSoft: '#FDE3EF',
+    accentForeground: '#3A1424',
   },
 
   text: {
-    primary: '#222222',
-    secondary: '#6A6A6A',
-    tertiary: '#9A9A9A',
+    primary: '#14121A',
+    secondary: '#4A4654',
+    tertiary: '#8A8594',
     inverse: '#FFFFFF',
-    link: '#771EE2',
+    link: '#B83A6E',
   },
 
   background: {
@@ -29,30 +35,30 @@ export const colors = {
   },
 
   button: {
-    primaryBg: '#222222',
+    primaryBg: '#14121A',
     primaryText: '#FFFFFF',
     secondaryBg: '#FFFFFF',
     secondaryBorder: '#DDDDDD',
-    secondaryText: '#222222',
+    secondaryText: '#14121A',
     disabledBg: '#F0F0F0',
     disabledText: '#B0B0B0',
   },
 
   tab: {
-    active: '#E03AB3',
-    inactive: '#9A9A9A',
+    active: '#D1477E',
+    inactive: '#8A8594',
   },
 
   pill: {
-    selectedBg: '#222222',
+    selectedBg: '#14121A',
     selectedText: '#FFFFFF',
     unselectedBg: '#F0F0F0',
-    unselectedText: '#222222',
+    unselectedText: '#14121A',
   },
 
   badge: {
-    verified: '#E03AB3',
-    newBg: '#222222',
+    verified: '#D1477E',
+    newBg: '#14121A',
     newText: '#FFFFFF',
   },
 
@@ -62,9 +68,9 @@ export const colors = {
     danger: '#D0323C',
   },
 
-  overlay: 'rgba(0,0,0,0.4)',
+  overlay: 'rgba(20,18,26,0.4)',
   white: '#FFFFFF',
-  black: '#222222',
+  black: '#14121A',
 };
 
 export type Colors = typeof colors;

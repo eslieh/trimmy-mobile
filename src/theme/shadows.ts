@@ -6,11 +6,12 @@ export const shadows = {
   card: Platform.select({
     ios: {
       shadowColor: '#000000',
-      shadowOpacity: 0.08,
-      shadowRadius: 16,
-      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.16,
+      shadowRadius: 14,
+      shadowOffset: { width: 0, height: 5 },
     },
-    android: { elevation: 3 },
+    // Android elevation draws a hard grey shadow: keep it light.
+    android: { elevation: 2 },
     default: {},
   }),
   raised: Platform.select({
@@ -20,7 +21,7 @@ export const shadows = {
       shadowRadius: 24,
       shadowOffset: { width: 0, height: 10 },
     },
-    android: { elevation: 6 },
+    android: { elevation: 4 },
     default: {},
   }),
 };

@@ -1,0 +1,831 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { BackButton } from '../../components/BackButton';
+import { Button } from '../../components/Button';
+import { DatePickerField } from '../../components/DatePickerField';
+import { Input } from '../../components/Input';
+import { WorkingDaysPicker } from '../../components/WorkingDaysPicker';
+import { TransactionList } from '../../components/TransactionList';
+import { BarChart } from '../../components/charts/BarChart';
+import { DonutChart } from '../../components/charts/DonutChart';
+import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
+import { getStaffServices, setStaffServices, type StaffServices } from '../../api/team';
+import {
+  addWalletAdjustment,
+  getStaffPayoutBalance,
+  getStaffWalletStatement,
+  voidWalletAdjustment,
+} from '../../api/payouts';
+import { getApiErrorMessage } from '../../api/client';
+import { WalletStatementList } from '../../components/WalletStatementList';
+import { useWalletStatement } from '../../hooks/useWalletStatement';
+import type { AdjustmentKind, PayoutBalance, WalletEntry } from '../../types/payout';
+import {
+  INVITATION_STATUS_COLOR,
+  INVITATION_STATUS_LABEL,
+  TEAM_ROLE_LABEL,
+  teamMemberDisplayName,
+} from '../../utils/team';
+import { buildCustomDateRange, getPresetDateRange, type EarningsRange } from '../../utils/earnings';
+import { earningsViews, useEarningsSummary } from '../../hooks/useEarningsSummary';
+import { colors, radii, shadows, spacing, typography } from '../../theme';
+import type { WeeklyHours } from '../../types/business';
+import { showApiError } from '../../utils/showApiError';
+import { SheetModal } from '../../components/ui/SheetModal';
+
+const RANGE_OPTIONS: { value: EarningsRange; label: string }[] = [
+  { value: 'today', label: 'Today' },
+  { value: 'week', label: 'Week' },
+  { value: 'month', label: 'Month' },
+  { value: 'year', label: 'Year' },
+  { value: 'custom', label: 'Custom' },
+];
+
+const PAYMENT_METHOD_COLOR = {
+  mpesa: colors.brand.purple,
+  cash: colors.brand.pink,
+} as const;
+
+const PAYMENT_METHOD_LABEL = {
+  mpesa: 'M-Pesa',
+  cash: 'Cash',
+} as const;
+
+function todayKey(): string {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function formatMoney(amount: number): string {
+  return `KSh ${amount.toLocaleString('en-US')}`;
+}
+
+// Reached from the Team screen. Contact info is read-only here (set at
+// invite time); commission split and working days are editable, since
+// those are the two things an owner actually adjusts after someone's
+// already on the team. "Mark as joined" is a testing convenience, not real
+// auth — see useBusinessOnboardingStore's markTeamMemberActiveForTesting.
+// Earnings section deliberately mirrors EarningsScreen (same range toggle,
+// same charts, same aggregation functions from utils/earnings.ts) just
+// pre-filtered to this member's assigned bookings — see StartWalkInScreen/
+// ScheduleAppointmentScreen's "Assign to" picker for how a booking ends up
+// tied to a specific member (booking.staffId === invitation.staffId — null until they accept).
+export function TeamMemberDetailScreen() {
+  const router = useRouter();
+  const { invitationId } = useLocalSearchParams<{ invitationId: string }>();
+  const business = useBusinessOnboardingStore((s) => s.business);
+  const allServices = useBusinessOnboardingStore((s) => s.services);
+  const invitation = useBusinessOnboardingStore((s) => s.invitations.find((i) => i.invitationId === invitationId));
+  const updateTeamMemberNow = useBusinessOnboardingStore((s) => s.updateTeamMemberNow);
+  const removeTeamMemberNow = useBusinessOnboardingStore((s) => s.removeTeamMemberNow);
+  const markTeamMemberActiveForTesting = useBusinessOnboardingStore((s) => s.markTeamMemberActiveForTesting);
+
+  const [commissionPercent, setCommissionPercent] = useState(() => String(invitation?.commissionPercent ?? 40));
+  // What they do: take appointments, run the front desk, or both (one person, two modes).
+  const [takesAppointments, setTakesAppointments] = useState(() => invitation?.role !== 'front_desk');
+  const [frontDeskAccess, setFrontDeskAccess] = useState(
+    () => invitation?.role === 'front_desk' || !!invitation?.frontDeskAccess,
+  );
+  const [workingDays, setWorkingDays] = useState<(keyof WeeklyHours)[] | null>(invitation?.workingDays ?? null);
+  // Services they perform — keyed by staffId, so only loadable once the
+  // invitation is accepted. savedServices is what the server has.
+  const [savedServices, setSavedServices] = useState<StaffServices | null>(null);
+  const [staffServices, setStaffServicesDraft] = useState<StaffServices | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
+  const [range, setRange] = useState<EarningsRange>('today');
+  const [customStart, setCustomStart] = useState(todayKey);
+  const [customEnd, setCustomEnd] = useState(todayKey);
+
+  const staffId = invitation?.staffId ?? null;
+  const businessId = business?.businessId;
+  // Their wallet at this business (commission, tips, bonuses, deductions,
+  // advances, payouts) and its statement, from the server.
+  const [wallet, setWallet] = useState<PayoutBalance | null>(null);
+  const loadWallet = useCallback(() => {
+    if (!businessId || !staffId) return;
+    getStaffPayoutBalance(businessId, staffId).then(setWallet).catch(() => {});
+  }, [businessId, staffId]);
+  useEffect(loadWallet, [loadWallet]);
+  const fetchStatement = useMemo(
+    () => (businessId && staffId ? (offset: number) => getStaffWalletStatement(businessId, staffId, { offset }) : null),
+    [businessId, staffId],
+  );
+  const statement = useWalletStatement(fetchStatement);
+
+  // Adjust wallet: tip / bonus add, deduction / advance take away.
+  const [adjustVisible, setAdjustVisible] = useState(false);
+  const [adjustKind, setAdjustKind] = useState<AdjustmentKind>('tip');
+  const [adjustAmount, setAdjustAmount] = useState('');
+  const [adjustNote, setAdjustNote] = useState('');
+  const [adjusting, setAdjusting] = useState(false);
+  const [adjustError, setAdjustError] = useState('');
+
+  const refreshWalletAndStatement = () => {
+    loadWallet();
+    statement.reload();
+  };
+
+  const handleAddAdjustment = async () => {
+    const amount = parseInt(adjustAmount, 10);
+    if (!businessId || !staffId || !(amount > 0)) return;
+    setAdjusting(true);
+    setAdjustError('');
+    try {
+      await addWalletAdjustment(businessId, staffId, { kind: adjustKind, amount, note: adjustNote });
+      setAdjustVisible(false);
+      setAdjustAmount('');
+      setAdjustNote('');
+      refreshWalletAndStatement();
+    } catch (err) {
+      setAdjustError(getApiErrorMessage(err, "Couldn't adjust the wallet."));
+    } finally {
+      setAdjusting(false);
+    }
+  };
+
+  // Long-press an adjustment in the statement to undo a mistake.
+  const confirmVoid = (entry: WalletEntry) => {
+    if (!entry.adjustmentId) return;
+    const adjustmentId = entry.adjustmentId;
+    Alert.alert('Void this adjustment?', `${entry.description} will no longer count towards their wallet.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Void',
+        style: 'destructive',
+        onPress: () =>
+          voidWalletAdjustment(adjustmentId)
+            .then(refreshWalletAndStatement)
+            .catch((err) => showApiError("Couldn't void it", err)),
+      },
+    ]);
+  };
+
+  useEffect(() => {
+    if (!businessId || !staffId) return;
+    getStaffServices(businessId, staffId)
+      .then((loaded) => {
+        setSavedServices(loaded);
+        setStaffServicesDraft(loaded);
+      })
+      .catch((err) => showApiError("Couldn't load their services", err));
+  }, [businessId, staffId]);
+
+  const dateRange = useMemo(
+    () => (range === 'custom' ? buildCustomDateRange(customStart, customEnd) : getPresetDateRange(range)),
+    [range, customStart, customEnd],
+  );
+  // Scoped to this person on the server. Without a staffId (invite still
+  // pending) there's nothing of theirs to show — and omitting staffId would
+  // return the whole business's numbers — so don't ask.
+  const { summary } = useEarningsSummary(staffId ? business?.businessId : undefined, dateRange, {
+    staffId: staffId ?? undefined,
+    allTransactions: range === 'custom',
+  });
+  const { buckets, paymentBreakdown, servicesBreakdown, stats, transactions } = earningsViews(summary);
+
+  if (!business || !invitation) {
+    return (
+      <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
+        <BackButton onPress={() => router.back()} />
+      </SafeAreaView>
+    );
+  }
+
+  const commissionValue = parseInt(commissionPercent, 10);
+  const wasTaking = invitation.role !== 'front_desk';
+  const hadDesk = invitation.role === 'front_desk' || !!invitation.frontDeskAccess;
+  const modesChanged = takesAppointments !== wasTaking || frontDeskAccess !== hadDesk;
+  const memberChanged =
+    modesChanged ||
+    (takesAppointments && commissionValue !== invitation.commissionPercent) ||
+    JSON.stringify(workingDays) !== JSON.stringify(invitation.workingDays);
+  const servicesChanged =
+    staffServices !== null &&
+    savedServices !== null &&
+    (staffServices.allServices !== savedServices.allServices ||
+      [...staffServices.serviceIds].sort().join() !== [...savedServices.serviceIds].sort().join());
+  // Front desk only: no commission to validate. At least one mode must stay on.
+  const commissionOk =
+    !takesAppointments || (!Number.isNaN(commissionValue) && commissionValue >= 0 && commissionValue <= 100);
+  const canSave = (memberChanged || servicesChanged) && commissionOk && (takesAppointments || frontDeskAccess);
+
+  // Tapping a specific service switches off "All services"; tapping "All
+  // services" clears the specific picks.
+  const toggleService = (serviceId: string) => {
+    setStaffServicesDraft((current) => {
+      if (!current) return current;
+      const base = current.allServices ? [] : current.serviceIds;
+      const serviceIds = base.includes(serviceId) ? base.filter((id) => id !== serviceId) : [...base, serviceId];
+      return { allServices: false, serviceIds };
+    });
+  };
+  // Fixed on each booking when it was paid, at that moment's rate (server-side).
+  const commissionAmount = summary?.commission ?? 0;
+
+  const handleSave = async () => {
+    if (!canSave || isSaving) return;
+    setIsSaving(true);
+    try {
+      if (memberChanged) {
+        await updateTeamMemberNow(business.businessId, invitation, {
+          workingDays,
+          ...(modesChanged ? { takesAppointments, frontDeskAccess } : {}),
+          ...(takesAppointments ? { commissionPercent: commissionValue } : {}),
+        });
+      }
+      if (servicesChanged && staffId && staffServices) {
+        const saved = await setStaffServices(business.businessId, staffId, staffServices);
+        setSavedServices(saved);
+        setStaffServicesDraft(saved);
+      }
+    } catch (err) {
+      showApiError("Couldn't save changes", err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleRemove = async () => {
+    if (isRemoving) return;
+    setIsRemoving(true);
+    try {
+      await removeTeamMemberNow(business.businessId, invitation.invitationId);
+      router.back();
+    } catch (err) {
+      showApiError("Couldn't remove team member", err);
+      setIsRemoving(false);
+    }
+  };
+
+  const donutSegments = paymentBreakdown.map((slice) => ({
+    label: PAYMENT_METHOD_LABEL[slice.method],
+    value: slice.amount,
+    color: PAYMENT_METHOD_COLOR[slice.method],
+  }));
+  const bookedServices = servicesBreakdown.filter((s) => s.bookingsCount > 0);
+  const maxServiceAmount = Math.max(...servicesBreakdown.map((s) => s.amount), 1);
+
+  return (
+    <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
+      <View style={styles.header}>
+        <BackButton onPress={() => router.back()} />
+        <Text style={styles.headerTitle}>Team member</Text>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.card}>
+          <View style={styles.contactHeader}>
+            <Text style={styles.memberName}>
+              {teamMemberDisplayName(invitation)}
+            </Text>
+            <Text style={[styles.statusBadge, { color: INVITATION_STATUS_COLOR[invitation.status] }]}>
+              {INVITATION_STATUS_LABEL[invitation.status]}
+            </Text>
+          </View>
+          <Text style={styles.contactLine}>
+            {TEAM_ROLE_LABEL[invitation.role]}
+            {invitation.role === 'staff' && invitation.frontDeskAccess ? ' · also front desk' : ''}
+          </Text>
+          {invitation.phone ? <Text style={styles.contactLine}>{invitation.phone}</Text> : null}
+          {invitation.email ? <Text style={styles.contactLine}>{invitation.email}</Text> : null}
+        </View>
+
+        <View>
+          <Text style={styles.sectionLabel}>Earnings</Text>
+          <View style={styles.rangeRow}>
+            {RANGE_OPTIONS.map((option) => {
+              const selected = option.value === range;
+              return (
+                <Pressable
+                  key={option.value}
+                  style={[styles.rangePill, selected && styles.rangePillSelected]}
+                  onPress={() => setRange(option.value)}
+                >
+                  <Text style={[styles.rangePillText, selected && styles.rangePillTextSelected]}>
+                    {option.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {range === 'custom' ? (
+            <View style={styles.customRow}>
+              <DatePickerField grow label="From" value={customStart} onChange={setCustomStart} maximumDate={new Date()} />
+              <DatePickerField grow label="To" value={customEnd} onChange={setCustomEnd} maximumDate={new Date()} />
+            </View>
+          ) : null}
+        </View>
+
+        <View style={styles.heroCard}>
+          <Text style={styles.heroLabel}>Revenue from this member</Text>
+          <Text style={styles.heroValue}>{formatMoney(stats.totalRevenue)}</Text>
+          <View style={styles.heroStatsRow}>
+            <View style={styles.heroStat}>
+              <Text style={styles.heroStatValue}>{formatMoney(commissionAmount)}</Text>
+              <Text style={styles.heroStatLabel}>
+                {invitation.commissionPercent === null ? 'No commission (front desk)' : `Their commission (${invitation.commissionPercent}%)`}
+              </Text>
+            </View>
+            <View style={styles.heroStat}>
+              <Text style={styles.heroStatValue}>{stats.completed}</Text>
+              <Text style={styles.heroStatLabel}>Completed</Text>
+            </View>
+            <View style={styles.heroStat}>
+              <Text style={styles.heroStatValue}>{formatMoney(stats.avgTicket)}</Text>
+              <Text style={styles.heroStatLabel}>Avg ticket</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Revenue trend</Text>
+          {stats.totalRevenue === 0 ? (
+            <Text style={styles.emptyHint}>No paid appointments assigned to them yet in this range.</Text>
+          ) : (
+            <BarChart data={buckets} />
+          )}
+        </View>
+
+        {donutSegments.length > 0 ? (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Payment methods</Text>
+            <View style={styles.donutRow}>
+              <DonutChart
+                segments={donutSegments}
+                centerValue={formatMoney(stats.totalRevenue)}
+                centerLabel="total"
+              />
+              <View style={styles.legend}>
+                {paymentBreakdown.map((slice) => (
+                  <View key={slice.method} style={styles.legendRow}>
+                    <View style={[styles.legendDot, { backgroundColor: PAYMENT_METHOD_COLOR[slice.method] }]} />
+                    <View style={styles.legendTextGroup}>
+                      <Text style={styles.legendLabel}>{PAYMENT_METHOD_LABEL[slice.method]}</Text>
+                      <Text style={styles.legendValue}>
+                        {formatMoney(slice.amount)} · {slice.count} paid
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </View>
+          </View>
+        ) : null}
+
+        {bookedServices.length > 0 ? (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Services performed</Text>
+            <View style={styles.serviceList}>
+              {bookedServices.map((service) => {
+                const widthPercent = (service.amount / maxServiceAmount) * 100;
+                return (
+                  <View key={service.serviceId} style={styles.serviceRow}>
+                    <View style={styles.serviceRowHeader}>
+                      <Text style={styles.serviceName} numberOfLines={1}>
+                        {service.name}
+                      </Text>
+                      <Text style={styles.serviceAmount}>{formatMoney(service.amount)}</Text>
+                    </View>
+                    <View style={styles.serviceBarTrack}>
+                      <View style={[styles.serviceBarFill, { width: `${widthPercent}%` }]} />
+                    </View>
+                    <Text style={styles.serviceMeta}>
+                      {service.bookingsCount} booking{service.bookingsCount === 1 ? '' : 's'}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        ) : null}
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Transactions</Text>
+          <TransactionList
+            transactions={transactions}
+            isCustomRange={range === 'custom'}
+            onPressTransaction={(bookingId) => router.push(`/appointment/${bookingId}`)}
+          />
+        </View>
+
+        {wallet ? (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Wallet</Text>
+            <Text style={styles.serviceName}>
+              {wallet.available < 0 ? '−' : ''}KSh {Math.abs(wallet.available).toLocaleString('en-US')} available
+            </Text>
+            <Text style={styles.emptyHint}>
+              KSh {wallet.earned.toLocaleString('en-US')} earned
+              {wallet.tips + wallet.bonuses > 0
+                ? ` · KSh ${(wallet.tips + wallet.bonuses).toLocaleString('en-US')} tips & bonuses`
+                : ''}
+              {wallet.deductions + wallet.advances > 0
+                ? ` · KSh ${(wallet.deductions + wallet.advances).toLocaleString('en-US')} deductions & advances`
+                : ''}
+              {` · KSh ${wallet.paid.toLocaleString('en-US')} paid out`}
+              {wallet.pending > 0 ? ` · KSh ${wallet.pending.toLocaleString('en-US')} requested` : ''}
+            </Text>
+            <Button label="Adjust wallet" variant="secondary" onPress={() => setAdjustVisible(true)} />
+            {businessId && staffId ? (
+              <Button
+                label="Time off"
+                variant="secondary"
+                onPress={() =>
+                  router.push({
+                    pathname: '/time-off',
+                    params: { businessId, staffId, name: teamMemberDisplayName(invitation) },
+                  })
+                }
+              />
+            ) : null}
+            <Text style={styles.sectionLabel}>Statement</Text>
+            <Text style={styles.emptyHint}>Long-press a tip, bonus, deduction or advance to void it.</Text>
+            <WalletStatementList
+              entries={statement.entries}
+              hasMore={statement.hasMore}
+              loading={statement.loading}
+              onLoadMore={statement.loadMore}
+              onLongPressAdjustment={confirmVoid}
+            />
+          </View>
+        ) : null}
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>What they do</Text>
+          <View style={styles.toggleRow}>
+            <View style={styles.toggleText}>
+              <Text style={styles.sectionLabel}>Takes appointments</Text>
+              <Text style={styles.emptyHint}>Bookable for services, earns commission on their own work.</Text>
+            </View>
+            <Switch value={takesAppointments} onValueChange={setTakesAppointments} trackColor={{ true: colors.brand.pink }} />
+          </View>
+          <View style={styles.toggleRow}>
+            <View style={styles.toggleText}>
+              <Text style={styles.sectionLabel}>Runs the front desk</Text>
+              <Text style={styles.emptyHint}>Checks customers in and out and takes payments. With both on, they switch between the two in the app.</Text>
+            </View>
+            <Switch value={frontDeskAccess} onValueChange={setFrontDeskAccess} trackColor={{ true: colors.brand.pink }} />
+          </View>
+          {!takesAppointments && !frontDeskAccess ? (
+            <Text style={styles.warning}>Turn at least one on.</Text>
+          ) : !takesAppointments && wasTaking ? (
+            <Text style={styles.emptyHint}>Front desk only: their commission is removed. Reassign any upcoming appointments first.</Text>
+          ) : null}
+        </View>
+
+        {takesAppointments ? (
+          <Input
+            label="Commission split (%)"
+            value={commissionPercent}
+            onChangeText={setCommissionPercent}
+            keyboardType="number-pad"
+            helperText="Share of each completed service's price this member earns."
+          />
+        ) : null}
+
+        <WorkingDaysPicker label="Working days" value={workingDays} onChange={setWorkingDays} />
+
+        <View>
+          <Text style={styles.sectionLabel}>Services they perform</Text>
+          {!staffId ? (
+            <Text style={styles.emptyHint}>You can choose their services once they accept the invite.</Text>
+          ) : !staffServices ? null : (
+            <View style={styles.servicePills}>
+              <Pressable
+                style={[styles.rangePill, staffServices.allServices && styles.rangePillSelected]}
+                onPress={() => setStaffServicesDraft({ allServices: true, serviceIds: [] })}
+              >
+                <Text style={[styles.rangePillText, staffServices.allServices && styles.rangePillTextSelected]}>
+                  All services
+                </Text>
+              </Pressable>
+              {allServices.map((service) => {
+                const selected = !staffServices.allServices && staffServices.serviceIds.includes(service.serviceId);
+                return (
+                  <Pressable
+                    key={service.serviceId}
+                    style={[styles.rangePill, selected && styles.rangePillSelected]}
+                    onPress={() => toggleService(service.serviceId)}
+                  >
+                    <Text style={[styles.rangePillText, selected && styles.rangePillTextSelected]}>{service.name}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
+        </View>
+
+        {/* Front desk isn't bookable, so has no customer-facing portfolio. */}
+        {invitation.role !== 'front_desk' ? (
+        <View>
+          <Text style={styles.sectionLabel}>Portfolio</Text>
+          {!staffId ? (
+            <Text style={styles.emptyHint}>They can add photos of their work once they accept the invite.</Text>
+          ) : (
+            <Button
+              label="Manage portfolio photos"
+              variant="secondary"
+              onPress={() =>
+                router.push({
+                  pathname: '/portfolio',
+                  params: { businessId, staffId, name: teamMemberDisplayName(invitation) },
+                })
+              }
+            />
+          )}
+        </View>
+        ) : null}
+
+        <Button label={isSaving ? 'Saving…' : 'Save changes'} disabled={!canSave || isSaving} onPress={handleSave} />
+
+        {__DEV__ && invitation.status === 'pending' ? (
+          <Button
+            label="Mark as joined (testing)"
+            variant="secondary"
+            onPress={() => markTeamMemberActiveForTesting(invitation.invitationId)}
+          />
+        ) : null}
+
+        <Button
+          label={invitation.status === 'pending' ? 'Cancel invite' : 'Remove from team'}
+          variant="secondary"
+          disabled={isRemoving}
+          onPress={handleRemove}
+          style={styles.removeButton}
+        />
+      </ScrollView>
+      <SheetModal visible={adjustVisible} onRequestClose={() => setAdjustVisible(false)} onBackdropPress={() => setAdjustVisible(false)} overlayStyle={styles.overlay} sheetStyle={styles.sheet}>
+        <Text style={styles.cardTitle}>Adjust wallet</Text>
+        <View style={styles.servicePills}>
+          {(
+            [
+              { kind: 'tip', label: 'Tip' },
+              { kind: 'bonus', label: 'Bonus' },
+              { kind: 'deduction', label: 'Deduction' },
+              { kind: 'advance', label: 'Advance' },
+            ] as const
+          ).map((option) => {
+            const selected = option.kind === adjustKind;
+            return (
+              <Pressable
+                key={option.kind}
+                style={[styles.rangePill, selected && styles.rangePillSelected]}
+                onPress={() => setAdjustKind(option.kind)}
+              >
+                <Text style={[styles.rangePillText, selected && styles.rangePillTextSelected]}>{option.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Text style={styles.emptyHint}>
+          {adjustKind === 'tip' || adjustKind === 'bonus'
+            ? 'Adds to their wallet.'
+            : adjustKind === 'advance'
+              ? 'Cash you handed over ahead of a payout — taken from their wallet.'
+              : 'Taken from their wallet.'}
+        </Text>
+        <Input label="Amount (KSh)" value={adjustAmount} onChangeText={setAdjustAmount} keyboardType="number-pad" />
+        <Input label="Note (optional)" value={adjustNote} onChangeText={setAdjustNote} placeholder="e.g. From Amina" />
+        {adjustError ? <Text style={styles.adjustError}>{adjustError}</Text> : null}
+        <Button
+          label={adjusting ? 'Saving…' : 'Save'}
+          disabled={adjusting || !(parseInt(adjustAmount, 10) > 0)}
+          onPress={handleAddAdjustment}
+        />
+      </SheetModal>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: colors.overlay,
+  },
+  sheet: {
+    backgroundColor: colors.background.primary,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    paddingHorizontal: spacing.xxl,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.xxxl,
+    gap: spacing.md,
+  },
+  adjustError: {
+    ...typography.caption,
+    color: colors.feedback.danger,
+  },
+  flex: {
+    flex: 1,
+    backgroundColor: colors.background.primary,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.xxl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+  },
+  headerTitle: {
+    ...typography.h2,
+    color: colors.text.primary,
+  },
+  content: {
+    paddingHorizontal: spacing.xxl,
+    paddingBottom: spacing.xxl,
+    gap: spacing.lg,
+  },
+  card: {
+    borderRadius: radii.lg,
+    backgroundColor: colors.background.secondary,
+    padding: spacing.lg,
+    gap: spacing.lg,
+    ...shadows.card,
+  },
+  contactHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  memberName: {
+    ...typography.h3,
+    color: colors.text.primary,
+  },
+  statusBadge: {
+    ...typography.bodyMedium,
+  },
+  contactLine: {
+    ...typography.body,
+    color: colors.text.secondary,
+  },
+  sectionLabel: {
+    ...typography.label,
+    color: colors.text.primary,
+    marginBottom: spacing.sm,
+  },
+  rangeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  rangePill: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.pill,
+    backgroundColor: colors.pill.unselectedBg,
+  },
+  rangePillSelected: {
+    backgroundColor: colors.pill.selectedBg,
+  },
+  rangePillText: {
+    ...typography.bodyMedium,
+    color: colors.pill.unselectedText,
+  },
+  rangePillTextSelected: {
+    color: colors.pill.selectedText,
+  },
+  customRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginTop: spacing.md,
+  },
+  heroCard: {
+    borderRadius: radii.lg,
+    backgroundColor: colors.text.primary,
+    padding: spacing.xl,
+    gap: spacing.xs,
+    ...shadows.card,
+  },
+  heroLabel: {
+    ...typography.body,
+    color: 'rgba(255,255,255,0.7)',
+  },
+  heroValue: {
+    ...typography.h1,
+    color: colors.white,
+  },
+  heroStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.lg,
+    paddingTop: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.15)',
+  },
+  heroStat: {
+    gap: 2,
+    flex: 1,
+  },
+  heroStatValue: {
+    ...typography.bodyMedium,
+    color: colors.white,
+  },
+  heroStatLabel: {
+    ...typography.caption,
+    color: 'rgba(255,255,255,0.6)',
+  },
+  cardTitle: {
+    ...typography.h3,
+    color: colors.text.primary,
+  },
+  warning: {
+    ...typography.caption,
+    color: colors.feedback.danger,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  toggleText: {
+    flex: 1,
+    gap: 2,
+  },
+  emptyHint: {
+    ...typography.caption,
+    color: colors.text.tertiary,
+  },
+  donutRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xl,
+  },
+  legend: {
+    flex: 1,
+    gap: spacing.md,
+  },
+  legendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  legendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  legendTextGroup: {
+    gap: 2,
+  },
+  legendLabel: {
+    ...typography.bodyMedium,
+    color: colors.text.primary,
+  },
+  legendValue: {
+    ...typography.caption,
+    color: colors.text.secondary,
+  },
+  serviceList: {
+    gap: spacing.md,
+  },
+  serviceRow: {
+    gap: spacing.xs,
+  },
+  serviceRowHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  serviceName: {
+    ...typography.bodyMedium,
+    color: colors.text.primary,
+    flex: 1,
+  },
+  serviceAmount: {
+    ...typography.bodyMedium,
+    color: colors.text.primary,
+  },
+  serviceBarTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.background.tertiary,
+    overflow: 'hidden',
+  },
+  serviceBarFill: {
+    height: '100%',
+    borderRadius: 3,
+    backgroundColor: colors.brand.purple,
+  },
+  serviceMeta: {
+    ...typography.caption,
+    color: colors.text.tertiary,
+  },
+  servicePills: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  removeButton: {
+    marginTop: spacing.sm,
+  },
+});

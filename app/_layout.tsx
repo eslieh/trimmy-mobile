@@ -1,0 +1,85 @@
+import { useEffect } from 'react';
+import { StyleSheet } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import * as SplashScreen from 'expo-splash-screen';
+import {
+  useFonts,
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
+} from '@expo-google-fonts/plus-jakarta-sans';
+import { AuthProvider } from '../src/contexts/AuthContext';
+import { NotificationTapRouter } from '../src/components/NotificationTapRouter';
+import { InAppToastHost } from '../src/components/InAppToastHost';
+import { AppTransitionOverlay } from '../src/components/AppTransitionOverlay';
+import { InvitationSheet } from '../src/components/InvitationSheet';
+import { OfflineBanner } from '../src/components/OfflineBanner';
+import { SessionGuard } from '../src/components/SessionGuard';
+import { RealtimeConnector } from '../src/realtime/RealtimeConnector';
+import { colors } from '../src/theme';
+
+SplashScreen.preventAutoHideAsync();
+
+export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) {
+    return null;
+  }
+
+  return (
+    <GestureHandlerRootView style={styles.root}>
+      <SafeAreaProvider>
+        <StatusBar style="dark" />
+        <AuthProvider>
+          <NotificationTapRouter />
+          <RealtimeConnector />
+          <SessionGuard />
+          {/* The black "offline" band; the app slides down under it. */}
+          <OfflineBanner>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                animation: 'slide_from_right',
+                contentStyle: { backgroundColor: colors.background.primary },
+              }}
+            />
+            {/* After the Stack so they draw above every screen. */}
+            <InAppToastHost />
+            <InvitationSheet />
+          </OfflineBanner>
+          {/* Above everything, the banner included. */}
+          <AppTransitionOverlay />
+        </AuthProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    // The true outermost container — without this, any area the content
+    // doesn't perfectly cover (behind the status bar/home indicator, or a
+    // brief layout gap) falls back to the system default background instead
+    // of matching the app, showing as a black/mismatched bar at the edges.
+    backgroundColor: colors.background.primary,
+  },
+});

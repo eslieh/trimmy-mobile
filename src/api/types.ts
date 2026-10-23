@@ -7,6 +7,10 @@ export interface User {
   auth_type: string;
   verified: boolean;
   created_at: string;
+  // Profile picture (a small square JPEG), or null: initials show instead.
+  avatar_url?: string | null;
+  // Their Google account has a picture they can use instead.
+  has_google_picture?: boolean;
 }
 
 export interface Tokens {
@@ -40,4 +44,34 @@ export interface LoginRequest {
 
 export interface RefreshRequest {
   refresh_token: string;
+}
+
+export interface UpdateMeRequest {
+  first_name?: string;
+  last_name?: string;
+  phone?: string | null;
+}
+
+export interface MessageResponse {
+  message: string;
+}
+
+export interface ChangePasswordResponse {
+  message: string;
+  tokens: Tokens;
+}
+
+export interface MyBusiness {
+  businessId: string;
+  name: string;
+  status: string;
+  role: 'owner' | 'staff' | 'front_desk';
+  // The person's Staff.id there. Always set for staff / front_desk; for an
+  // owner only when they take appointments themselves (a published solo
+  // business), else null.
+  staffId: string | null;
+  // Staff who also run the front desk (role stays 'staff'); always true for 'front_desk'.
+  frontDeskAccess?: boolean;
+  // The app modes open to them there: 'staff' (my schedule) and/or 'front_desk'.
+  modes?: ('staff' | 'front_desk')[];
 }

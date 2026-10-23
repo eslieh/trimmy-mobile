@@ -1,0 +1,71 @@
+# API Contracts
+
+Machine-readable request/response contracts for the backend (one JSON file per MVP phase,
+matching [../TASKS.md](../TASKS.md)). They started as the app's *requirements* before the backend
+existed; `trimmy-server` now implements every domain below, and entries are marked `live` as they
+ship. Anything the app still needs is an entry with `"status": "requested"`, listed next.
+
+## Open backend requests
+
+What the app needs next from the backend, most urgent first. Each one has a full entry
+(`"status": "requested"`) in the file named, with request/response examples and errors.
+
+1. **In-app notification inbox + live stream** — [auth.json](auth.json) `list-notifications`, `get-unread-notification-count`, `mark-notification-read`, `mark-all-notifications-read`, `send-test-notification`, `event-stream`. **Built** in trimmy-server (migration 025), `"status": "built"`; flip `USE_MOCK_NOTIFICATIONS` to false and mark these `live` once deployed. Also lists five new push types the inbox and pushes need (`booking_created`, `booking_cancelled_by_customer`, `booking_rescheduled_by_customer`, `payout_requested`, `team_invitation`).
+
+## Why JSON, not prose
+
+Each file is a flat contract the backend team can read without cross-referencing the user-story
+docs: for every screen, what request goes out and what response is expected back, with a
+realistic example payload. Update these as decisions firm up (auth scheme, pagination, error
+shape) — they should stay accurate enough to hand to a backend engineer as-is.
+
+## File-per-phase
+
+| File | Phase | Status |
+|---|---|---|
+| [auth.json](auth.json) | Auth | live (register, login, refresh, logout, verify-email, check-email, me + update/delete, change-password, forgot/verify-reset-otp/reset password, resend-otp, me/businesses, Google sign-in) |
+| [business-setup.json](business-setup.json) | Phase 1 — Business setup | live on staging/prod (create/read/wizard writes + post-publish management: update-business, photos, services, categories, policies, payment, publish) |
+| [discovery.json](discovery.json) | Phase 2 — Discovery | live on staging/prod (search — including all current filter params — + business profile, which embeds staff/reviews/policies; favorites for businesses and staff) |
+| [booking.json](booking.json) | Phase 3 — Booking flow | live: availability, create/get/list bookings, M-Pesa deposit payment, cancel with manual refunds, reschedule |
+| [fulfillment.json](fulfillment.json) | Phase 4 — Fulfillment view | live: business bookings, walk-in, scheduled, status, assign staff, checkout charge, customers, payouts + wallet (one wallet across businesses, statement, owner adjustments: tips, bonuses, deductions, advances), earnings summary, day summary |
+| [team.json](team.json) | Phase 5 — Team management | live (my-invitations, respond, and list/add/update/remove team members) |
+
+A "stub" file just holds the `domain` and an empty `endpoints` array — fill it in when that
+phase actually starts, using `business-setup.json` as the template.
+
+## Schema shape
+
+Every file is:
+
+```jsonc
+{
+  "domain": "business-setup",
+  "baseUrl": "/api/v1",
+  "auth": "All endpoints require a Bearer token for a user with role `owner` unless noted.",
+  "endpoints": [
+    {
+      "id": "kebab-case-unique-id",
+      "screen": "Screen name from the reference/*.md candidate screens list",
+      "story": "O1",                 // story id from reference/*.md
+      "method": "POST",
+      "path": "/businesses",
+      "description": "One line: what this call does and why the screen needs it",
+      "auth": "owner",               // or "public", "customer", "front_desk", "staff"
+      "request": { "...": "example request body, or null if none (e.g. GET)" },
+      "response": { "...": "example success response body" },
+      "errors": [
+        { "status": 400, "code": "validation_error", "message": "..." }
+      ]
+    }
+  ]
+}
+```
+
+Notes for whoever fills these in:
+- `request`/`response` are **example payloads**, not JSON Schema — keep them realistic (real
+  field names, plausible dummy values) so they double as fixtures for mocking the API in-app
+  before the backend exists.
+- Reuse field names/casing consistently across files (e.g. always `businessId`, not sometimes
+  `business_id`) — pick a convention now and note it here once decided.
+- Every endpoint should trace back to a story id in `reference/{customer,business-owner,
+  front-desk,staff}.md` so it's obvious why it's needed.
