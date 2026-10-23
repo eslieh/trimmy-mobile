@@ -9,6 +9,7 @@ import { PhoneIcon } from '../../components/icons/PhoneIcon';
 import { useCustomersStore } from '../../store/useCustomersStore';
 import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
+import { Avatar } from '../../components/Avatar';
 import { toQueryString } from '../../api/client';
 import { listBusinessBookings } from '../../api/booking';
 import type { Booking } from '../../types/booking';
@@ -65,7 +66,8 @@ export function CustomerDetailScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.card}>
           <View style={styles.contactHeader}>
-            <Text style={styles.customerName}>{customer.name}</Text>
+            <Avatar name={customer.name} uri={customer.avatarUrl} size={48} />
+            <Text style={[styles.customerName, styles.customerNameFlex]}>{customer.name}</Text>
             {customer.phone ? (
               <View style={styles.callButtonWrapper}>
                 <Button
@@ -111,6 +113,9 @@ export function CustomerDetailScreen() {
 }
 
 const styles = StyleSheet.create({
+  customerNameFlex: {
+    flex: 1,
+  },
   flex: {
     flex: 1,
     backgroundColor: colors.background.primary,

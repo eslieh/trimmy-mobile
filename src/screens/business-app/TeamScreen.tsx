@@ -136,7 +136,7 @@ export function TeamScreen() {
                   style={styles.card}
                   onPress={() => router.push(`/team/${invitation.invitationId}`)}
                 >
-                  <Avatar name={displayName} size={56} />
+                  <Avatar name={displayName} uri={invitation.avatarUrl} size={56} />
                   <Text style={styles.memberName} numberOfLines={1}>
                     {displayName}
                   </Text>

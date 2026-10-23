@@ -115,7 +115,7 @@ export function PayoutDetailScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.card}>
           <View style={styles.memberRow}>
-            <Avatar name={displayName} size={44} />
+            <Avatar name={displayName} uri={payout?.staffAvatarUrl} size={44} />
             <View style={styles.memberInfo}>
               <Text style={styles.memberName}>{displayName}</Text>
               <Text style={styles.requestedAt}>Requested {formatDateTime(payout.requestedAt)}</Text>

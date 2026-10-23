@@ -10,6 +10,7 @@ import { useCustomersStore } from '../../store/useCustomersStore';
 import { getApiErrorMessage } from '../../api/client';
 import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
+import { Avatar } from '../../components/Avatar';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 
 // Reached from Manage Business's "Customers" row. Browse/search the
@@ -103,6 +104,7 @@ export function CustomersScreen() {
               style={styles.row}
               onPress={() => router.push(`/customers/${customer.customerId}`)}
             >
+              <Avatar name={customer.name} uri={customer.avatarUrl} size={40} />
               <View style={styles.rowInfo}>
                 <Text style={styles.customerName}>{customer.name}</Text>
                 <Text style={styles.customerMeta} numberOfLines={1}>

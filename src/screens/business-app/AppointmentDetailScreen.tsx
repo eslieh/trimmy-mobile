@@ -32,6 +32,7 @@ import { formatBookingDateLong } from '../../utils/date';
 import { countries } from '../../data/countries';
 import { normalizePhoneNumber } from '../../utils/phone';
 import { colors, radii, shadows, springs, spacing, typography } from '../../theme';
+import { Avatar } from '../../components/Avatar';
 import type { BookingStatus, PaymentMethod } from '../../types/booking';
 import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
@@ -300,7 +301,10 @@ export function AppointmentDetailScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.summaryCard}>
-          <Text style={styles.customerName}>{booking.customerName}</Text>
+          <View style={styles.customerHeader}>
+            <Avatar name={booking.customerName} uri={booking.customerAvatarUrl} size={44} />
+            <Text style={[styles.customerName, styles.customerNameFlex]}>{booking.customerName}</Text>
+          </View>
           <View style={styles.summaryBadges}>
             {booking.paymentStatus === 'paid' ? (
               <View style={styles.paidBadge}>
@@ -737,6 +741,14 @@ function ChargeSuccessState({ method, amount }: ChargeSuccessStateProps) {
 }
 
 const styles = StyleSheet.create({
+  customerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  customerNameFlex: {
+    flex: 1,
+  },
   flex: {
     flex: 1,
     backgroundColor: colors.background.primary,

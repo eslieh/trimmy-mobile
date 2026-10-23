@@ -87,7 +87,7 @@ export function FrontDeskDayScreen() {
   );
 
   const columns = useMemo<GridColumn[]>(() => {
-    const staff: GridColumn[] = (business?.staff ?? []).map((m) => ({ staffId: m.staffId, name: m.name }));
+    const staff: GridColumn[] = (business?.staff ?? []).map((m) => ({ staffId: m.staffId, name: m.name, avatarUrl: m.avatarUrl }));
     // Bookings with someone not in the list (e.g. removed since) still need a column.
     for (const b of dayBookings) {
       if (b.staffId && !staff.some((c) => c.staffId === b.staffId)) staff.push({ staffId: b.staffId, name: b.staffName });

@@ -70,7 +70,7 @@ export function PayoutHistoryScreen() {
                 style={styles.row}
                 onPress={() => router.push(`/payouts/${payout.payoutId}`)}
               >
-                <Avatar name={displayName} size={40} />
+                <Avatar name={displayName} uri={payout.staffAvatarUrl} size={40} />
                 <View style={styles.rowInfo}>
                   <Text style={styles.rowName} numberOfLines={1}>
                     {displayName}

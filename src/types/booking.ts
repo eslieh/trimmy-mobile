@@ -44,6 +44,9 @@ export type Booking = {
   customerHasAccount?: boolean;
   staffId: string | null;
   staffName: string;
+  staffAvatarUrl?: string | null;
+  // The customer's profile picture, when the booking is linked to their account.
+  customerAvatarUrl?: string | null;
   services: BookingServiceLine[];
   date: string; // 'YYYY-MM-DD'
   time: string; // 'HH:mm'
@@ -126,7 +129,7 @@ export type Visit = {
   customerName: string;
   customerPhone: string | null;
   bookings: Booking[]; // soonest first; cancelled / no-show listed but not counted
-  staff: { staffId: string | null; staffName: string; subtotal: Money; balanceDue: Money; bookingIds: string[] }[];
+  staff: { staffId: string | null; staffName: string; staffAvatarUrl?: string | null; subtotal: Money; balanceDue: Money; bookingIds: string[] }[];
   total: Money;
   depositPaid: Money;
   balanceDue: Money;

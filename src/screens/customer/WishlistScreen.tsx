@@ -6,6 +6,7 @@ import { BusinessResultCard } from '../../components/BusinessResultCard';
 import { searchBusinesses } from '../../api/discovery';
 import { useFavoritesStore } from '../../store/useFavoritesStore';
 import { colors, spacing, typography } from '../../theme';
+import { Avatar } from '../../components/Avatar';
 import type { BusinessSummary } from '../../types/discovery';
 
 export function WishlistScreen() {
@@ -59,10 +60,13 @@ export function WishlistScreen() {
                     style={styles.staffRow}
                     onPress={() => router.push(`/business/${member.businessId}/staff/${member.staffId}`)}
                   >
-                    <Text style={styles.staffName}>{member.name}</Text>
-                    <Text style={styles.staffMeta}>
-                      {member.businessName} · ★ {member.rating.toFixed(1)}
-                    </Text>
+                    <Avatar name={member.name} uri={member.avatarUrl} size={44} />
+                    <View style={styles.staffText}>
+                      <Text style={styles.staffName}>{member.name}</Text>
+                      <Text style={styles.staffMeta}>
+                        {member.businessName} · ★ {member.rating.toFixed(1)}
+                      </Text>
+                    </View>
                   </Pressable>
                 ))}
               </View>
@@ -84,9 +88,15 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
   },
   staffRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
     paddingVertical: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.border.subtle,
+  },
+  staffText: {
+    flex: 1,
     gap: 2,
   },
   staffName: {

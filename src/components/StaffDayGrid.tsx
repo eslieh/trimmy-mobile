@@ -13,7 +13,7 @@ import type { Booking } from '../types/booking';
 // cheap to draw on low-end phones. Tap a booking to open it, an empty spot to
 // book that person at that time.
 
-export type GridColumn = { staffId: string | null; name: string }; // null = unassigned ("Any available")
+export type GridColumn = { staffId: string | null; name: string; avatarUrl?: string | null }; // null = unassigned ("Any available")
 export type BlockedTime = { staffId: string; start: string; end: string; label: string }; // 'HH:mm'
 
 const HOUR_HEIGHT = 64;
@@ -164,7 +164,7 @@ export function StaffDayGrid({
                 disabled={!onPressStaff || !column.staffId}
                 accessibilityRole={onPressStaff && column.staffId ? 'button' : undefined}
               >
-                {column.staffId ? <Avatar name={column.name} size={28} /> : <View style={styles.anyDot} />}
+                {column.staffId ? <Avatar name={column.name} uri={column.avatarUrl} size={28} /> : <View style={styles.anyDot} />}
                 <Text style={styles.headerName} numberOfLines={1}>
                   {column.name}
                 </Text>

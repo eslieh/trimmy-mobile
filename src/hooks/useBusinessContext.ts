@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { useBusinessOnboardingStore } from '../store/useBusinessOnboardingStore';
 import { useFrontDeskStore } from '../store/useFrontDeskStore';
 import { useOwnedBusinessStore } from '../store/useOwnedBusinessStore';
@@ -28,13 +29,14 @@ export type BusinessContext = {
   workingHours: WeeklyHours;
   serviceCategories: { categoryId: string; name: string }[];
   services: ContextService[];
-  staff: { staffId: string; name: string }[]; // who bookings can be assigned to
+  staff: { staffId: string; name: string; avatarUrl?: string | null }[]; // who bookings can be assigned to
 };
 
 export function useBusinessContext(): BusinessContext | null {
   const activeMode = useOwnedBusinessStore((s) => s.activeMode);
   const owned = useOwnedBusinessStore((s) => s.business);
   const staffSession = useOwnedBusinessStore((s) => s.staffSession);
+  const myAvatar = useAuth().user?.avatar_url ?? null;
   const categories = useBusinessOnboardingStore((s) => s.serviceCategories);
   const services = useBusinessOnboardingStore((s) => s.services);
   const invitations = useBusinessOnboardingStore((s) => s.invitations);
@@ -63,7 +65,7 @@ export function useBusinessContext(): BusinessContext | null {
         // none, so they drop out unless the owner gives them some).
         staff: profile.staff
           .filter((member) => member.allServices || member.serviceIds.length > 0)
-          .map((member) => ({ staffId: member.staffId, name: member.name })),
+          .map((member) => ({ staffId: member.staffId, name: member.name, avatarUrl: member.avatarUrl ?? null })),
       };
     }
 
@@ -79,12 +81,13 @@ export function useBusinessContext(): BusinessContext | null {
       staff: [
         // The owner themselves, when they take appointments (solo, or a team
         // owner who kept their staff record).
-        ...(owned.staffId ? [{ staffId: owned.staffId, name: 'You' }] : []),
+        ...(owned.staffId ? [{ staffId: owned.staffId, name: 'You', avatarUrl: myAvatar }] : []),
         ...bookableStaff(invitations).map((member) => ({
           staffId: member.staffId,
           name: teamMemberDisplayName(member),
+          avatarUrl: member.avatarUrl ?? null,
         })),
       ],
     };
-  }, [activeMode, owned, staffSession, profile, categories, services, invitations]);
+  }, [activeMode, owned, staffSession, profile, categories, services, invitations, myAvatar]);
 }
