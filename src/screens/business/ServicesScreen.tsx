@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { AuthScreenLayout } from '../../components/AuthScreenLayout';
 import { Input } from '../../components/Input';
@@ -11,6 +11,7 @@ import {
   useBusinessOnboardingStore,
 } from '../../store/useBusinessOnboardingStore';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
+import { SheetModal } from '../../components/ui/SheetModal';
 
 const TOTAL_STEPS = 11;
 
@@ -128,23 +129,19 @@ function AddCategorySheet({ visible, onClose, onSubmit }: AddCategorySheetProps)
   const [name, setName] = useState('');
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-          <Text style={styles.sheetTitle}>New category</Text>
-          <Input label="Category name" value={name} onChangeText={setName} placeholder="e.g. Haircuts" autoFocus />
-          <Button
-            label="Add category"
-            disabled={!name.trim()}
-            onPress={() => {
-              onSubmit(name.trim());
-              setName('');
-            }}
-            style={styles.sheetButton}
-          />
-        </Pressable>
-      </Pressable>
-    </Modal>
+    <SheetModal visible={visible} onRequestClose={onClose} onBackdropPress={onClose} overlayStyle={styles.overlay} sheetStyle={styles.sheet}>
+      <Text style={styles.sheetTitle}>New category</Text>
+      <Input label="Category name" value={name} onChangeText={setName} placeholder="e.g. Haircuts" autoFocus />
+      <Button
+        label="Add category"
+        disabled={!name.trim()}
+        onPress={() => {
+          onSubmit(name.trim());
+          setName('');
+        }}
+        style={styles.sheetButton}
+      />
+    </SheetModal>
   );
 }
 
@@ -170,41 +167,37 @@ function AddServiceSheet({ visible, onClose, onSubmit }: AddServiceSheetProps) {
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-          <Text style={styles.sheetTitle}>New service</Text>
-          <Input label="Service name" value={name} onChangeText={setName} placeholder="e.g. Classic Haircut" autoFocus />
-          <View style={styles.sheetRow}>
-            <Input
-              label="Duration (min)"
-              value={duration}
-              onChangeText={setDuration}
-              placeholder="45"
-              keyboardType="number-pad"
-              style={styles.sheetRowField}
-            />
-            <Input
-              label="Price (KSh)"
-              value={price}
-              onChangeText={setPrice}
-              placeholder="800"
-              keyboardType="number-pad"
-              style={styles.sheetRowField}
-            />
-          </View>
-          <Button
-            label="Add service"
-            disabled={!canSubmit}
-            onPress={() => {
-              onSubmit({ name: name.trim(), durationMinutes, price: { amount, currency: 'KES' } });
-              reset();
-            }}
-            style={styles.sheetButton}
-          />
-        </Pressable>
-      </Pressable>
-    </Modal>
+    <SheetModal visible={visible} onRequestClose={onClose} onBackdropPress={onClose} overlayStyle={styles.overlay} sheetStyle={styles.sheet}>
+      <Text style={styles.sheetTitle}>New service</Text>
+      <Input label="Service name" value={name} onChangeText={setName} placeholder="e.g. Classic Haircut" autoFocus />
+      <View style={styles.sheetRow}>
+        <Input
+          label="Duration (min)"
+          value={duration}
+          onChangeText={setDuration}
+          placeholder="45"
+          keyboardType="number-pad"
+          style={styles.sheetRowField}
+        />
+        <Input
+          label="Price (KSh)"
+          value={price}
+          onChangeText={setPrice}
+          placeholder="800"
+          keyboardType="number-pad"
+          style={styles.sheetRowField}
+        />
+      </View>
+      <Button
+        label="Add service"
+        disabled={!canSubmit}
+        onPress={() => {
+          onSubmit({ name: name.trim(), durationMinutes, price: { amount, currency: 'KES' } });
+          reset();
+        }}
+        style={styles.sheetButton}
+      />
+    </SheetModal>
   );
 }
 

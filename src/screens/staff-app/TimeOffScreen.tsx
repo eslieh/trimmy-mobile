@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { BackButton } from '../../components/BackButton';
@@ -13,6 +13,7 @@ import { getApiErrorMessage } from '../../api/client';
 import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { showApiError } from '../../utils/showApiError';
 import { colors, radii, spacing, typography } from '../../theme';
+import { SheetModal } from '../../components/ui/SheetModal';
 
 const LOOK_AHEAD_DAYS = 60; // the API allows 62 per call
 
@@ -166,41 +167,37 @@ export function TimeOffScreen() {
         )}
       </ScrollView>
 
-      <Modal visible={sheetVisible} transparent animationType="slide" onRequestClose={() => setSheetVisible(false)}>
-        <Pressable style={styles.overlay} onPress={() => !saving && setSheetVisible(false)}>
-          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.sheetTitle}>Add time off</Text>
-            <View style={styles.switchRow}>
-              <Text style={styles.rowLabel}>Whole day</Text>
-              <Switch value={allDay} onValueChange={setAllDay} />
+      <SheetModal visible={sheetVisible} onRequestClose={() => setSheetVisible(false)} onBackdropPress={() => !saving && setSheetVisible(false)} overlayStyle={styles.overlay} sheetStyle={styles.sheet}>
+        <Text style={styles.sheetTitle}>Add time off</Text>
+        <View style={styles.switchRow}>
+          <Text style={styles.rowLabel}>Whole day</Text>
+          <Switch value={allDay} onValueChange={setAllDay} />
+        </View>
+        <DatePickerField
+          label={allDay ? 'From' : 'Date'}
+          value={date}
+          minimumDate={new Date()}
+          onChange={(value) => {
+            setDate(value);
+            if (until < value) setUntil(value);
+          }}
+        />
+        {allDay ? (
+          <DatePickerField label="Until" value={until} onChange={setUntil} />
+        ) : (
+          <View style={styles.timeRow}>
+            <View style={styles.timeField}>
+              <TimePickerField label="From" value={start} onChange={setStart} />
             </View>
-            <DatePickerField
-              label={allDay ? 'From' : 'Date'}
-              value={date}
-              minimumDate={new Date()}
-              onChange={(value) => {
-                setDate(value);
-                if (until < value) setUntil(value);
-              }}
-            />
-            {allDay ? (
-              <DatePickerField label="Until" value={until} onChange={setUntil} />
-            ) : (
-              <View style={styles.timeRow}>
-                <View style={styles.timeField}>
-                  <TimePickerField label="From" value={start} onChange={setStart} />
-                </View>
-                <View style={styles.timeField}>
-                  <TimePickerField label="To" value={end} onChange={setEnd} />
-                </View>
-              </View>
-            )}
-            <Input label="Reason (optional)" value={reason} onChangeText={setReason} placeholder="e.g. Doctor" />
-            {formError ? <Text style={styles.error}>{formError}</Text> : null}
-            <Button label={saving ? 'Saving…' : 'Save'} disabled={saving} onPress={handleSave} />
-          </Pressable>
-        </Pressable>
-      </Modal>
+            <View style={styles.timeField}>
+              <TimePickerField label="To" value={end} onChange={setEnd} />
+            </View>
+          </View>
+        )}
+        <Input label="Reason (optional)" value={reason} onChangeText={setReason} placeholder="e.g. Doctor" />
+        {formError ? <Text style={styles.error}>{formError}</Text> : null}
+        <Button label={saving ? 'Saving…' : 'Save'} disabled={saving} onPress={handleSave} />
+      </SheetModal>
     </SafeAreaView>
   );
 }

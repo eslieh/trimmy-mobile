@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Avatar } from '../../components/Avatar';
@@ -11,6 +11,7 @@ import { PAYOUT_STATUS_COLOR, PAYOUT_STATUS_LABEL } from '../../utils/payout';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import { showApiError } from '../../utils/showApiError';
 import { getApiErrorMessage } from '../../api/client';
+import { SheetModal } from '../../components/ui/SheetModal';
 
 function formatMoney(amount: number): string {
   return `KSh ${amount.toLocaleString('en-US')}`;
@@ -153,47 +154,43 @@ export function PayoutDetailScreen() {
         ) : null}
       </ScrollView>
 
-      <Modal visible={sheetMode !== 'none'} transparent animationType="slide" onRequestClose={closeSheet}>
-        <Pressable style={styles.overlay} onPress={closeSheet}>
-          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-            {sheetMode === 'accept' ? (
-              <>
-                <Text style={styles.sheetTitle}>Send {formatMoney(payout.amount)}?</Text>
-                <Text style={styles.sheetBody}>
-                  This confirms you've already sent {formatMoney(payout.amount)} to {displayName} yourself — via
-                  M-Pesa or cash. Trimyy doesn't move money automatically. Their wallet balance has already
-                  reserved this amount since they requested it.
-                </Text>
-                <Button
-                  label={isSubmitting ? 'Confirming…' : "I've sent it — mark as paid"}
-                  disabled={isSubmitting}
-                  onPress={handleAccept}
-                  style={styles.sheetButton}
-                />
-              </>
-            ) : (
-              <>
-                <Text style={styles.sheetTitle}>Reject this request?</Text>
-                <Input
-                  label="Reason (optional)"
-                  value={rejectionReason}
-                  onChangeText={setRejectionReason}
-                  placeholder="Let them know why"
-                  multiline
-                  numberOfLines={3}
-                />
-                <Button
-                  label={isSubmitting ? 'Rejecting…' : 'Confirm rejection'}
-                  variant="secondary"
-                  disabled={isSubmitting}
-                  onPress={handleReject}
-                  style={styles.sheetButton}
-                />
-              </>
-            )}
-          </Pressable>
-        </Pressable>
-      </Modal>
+      <SheetModal visible={sheetMode !== 'none'} onRequestClose={closeSheet} onBackdropPress={closeSheet} overlayStyle={styles.overlay} sheetStyle={styles.sheet}>
+        {sheetMode === 'accept' ? (
+          <>
+            <Text style={styles.sheetTitle}>Send {formatMoney(payout.amount)}?</Text>
+            <Text style={styles.sheetBody}>
+              This confirms you've already sent {formatMoney(payout.amount)} to {displayName} yourself — via
+              M-Pesa or cash. Trimyy doesn't move money automatically. Their wallet balance has already
+              reserved this amount since they requested it.
+            </Text>
+            <Button
+              label={isSubmitting ? 'Confirming…' : "I've sent it — mark as paid"}
+              disabled={isSubmitting}
+              onPress={handleAccept}
+              style={styles.sheetButton}
+            />
+          </>
+        ) : (
+          <>
+            <Text style={styles.sheetTitle}>Reject this request?</Text>
+            <Input
+              label="Reason (optional)"
+              value={rejectionReason}
+              onChangeText={setRejectionReason}
+              placeholder="Let them know why"
+              multiline
+              numberOfLines={3}
+            />
+            <Button
+              label={isSubmitting ? 'Rejecting…' : 'Confirm rejection'}
+              variant="secondary"
+              disabled={isSubmitting}
+              onPress={handleReject}
+              style={styles.sheetButton}
+            />
+          </>
+        )}
+      </SheetModal>
     </SafeAreaView>
   );
 }

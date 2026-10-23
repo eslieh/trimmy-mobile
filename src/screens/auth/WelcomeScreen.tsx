@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Image, ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, ImageBackground, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { Button } from '../../components/Button';
@@ -86,83 +86,86 @@ export function WelcomeScreen() {
   return (
     <ImageBackground source={require('../../../assets/sky.jpg')} style={styles.flex} resizeMode="cover">
       <StatusBar style="light" />
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <View style={styles.mark}>
-          <View style={styles.markTile}>
-            <Text style={styles.markT}>T</Text>
+      {/* The email field and Continue rise above the keyboard on both platforms. */}
+      <KeyboardAvoidingView behavior="padding" style={styles.scroll}>
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <View style={styles.mark}>
+            <View style={styles.markTile}>
+              <Text style={styles.markT}>T</Text>
+            </View>
+            <Text style={styles.markRest}>rimmy</Text>
           </View>
-          <Text style={styles.markRest}>rimmy</Text>
-        </View>
 
-        <Text style={styles.heading}>
-          Welcome to{'\n'}
-          <Text style={styles.headingAccent}>Trimmy</Text>
-        </Text>
-        <Text style={styles.body}>
-          Create an account or log in to book and manage your appointments
-        </Text>
+          <Text style={styles.heading}>
+            Welcome to{'\n'}
+            <Text style={styles.headingAccent}>Trimmy</Text>
+          </Text>
+          <Text style={styles.body}>
+            Create an account or log in to book and manage your appointments
+          </Text>
 
-        <View style={styles.card}>
-          <Input
-            label="Email"
-            helperText="We'll send you a verification code"
-            value={email}
-            onChangeText={setEmail}
-            placeholder="you@example.com"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            style={styles.input}
-          />
-
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          <Button
-            label={checking ? 'Checking...' : 'Continue'}
-            onPress={handleContinue}
-            variant="accent"
-            disabled={!email.trim() || checking}
-            style={styles.continueButton}
-          />
-
-          <Divider label="OR" />
-
-          <View style={styles.buttonGroup}>
-            {/* Phone sign-in doesn't exist yet — development-only shortcut. */}
-            {__DEV__ ? (
-              <Button
-                label="Continue with mobile"
-                onPress={() => enterAsBusiness('team')}
-                variant="secondary"
-                icon={<PhoneIcon size={20} />}
-              />
-            ) : null}
-            <Button
-              label={google.loading ? 'Connecting to Google...' : 'Continue with Google'}
-              onPress={google.start}
-              disabled={google.loading}
-              variant="secondary"
-              icon={<GoogleIcon size={20} />}
+          <View style={styles.card}>
+            <Input
+              label="Email"
+              helperText="We'll send you a verification code"
+              value={email}
+              onChangeText={setEmail}
+              placeholder="you@example.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={styles.input}
             />
-            {/* Apple sign-in doesn't exist yet — development-only shortcut. */}
-            {__DEV__ ? (
+
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+            <Button
+              label={checking ? 'Checking...' : 'Continue'}
+              onPress={handleContinue}
+              variant="accent"
+              disabled={!email.trim() || checking}
+              style={styles.continueButton}
+            />
+
+            <Divider label="OR" />
+
+            <View style={styles.buttonGroup}>
+              {/* Phone sign-in doesn't exist yet — development-only shortcut. */}
+              {__DEV__ ? (
+                <Button
+                  label="Continue with mobile"
+                  onPress={() => enterAsBusiness('team')}
+                  variant="secondary"
+                  icon={<PhoneIcon size={20} />}
+                />
+              ) : null}
               <Button
-                label="Continue with Apple"
-                onPress={() => enterAsBusiness('solo')}
+                label={google.loading ? 'Connecting to Google...' : 'Continue with Google'}
+                onPress={google.start}
+                disabled={google.loading}
                 variant="secondary"
-                icon={<AppleIcon size={20} />}
+                icon={<GoogleIcon size={20} />}
               />
-            ) : null}
+              {/* Apple sign-in doesn't exist yet — development-only shortcut. */}
+              {__DEV__ ? (
+                <Button
+                  label="Continue with Apple"
+                  onPress={() => enterAsBusiness('solo')}
+                  variant="secondary"
+                  icon={<AppleIcon size={20} />}
+                />
+              ) : null}
+            </View>
+
+            {google.error ? <Text style={styles.googleError}>{google.error}</Text> : null}
+
+            <Pressable style={styles.loginLink} onPress={() => router.push('/login')} hitSlop={8}>
+              <Text style={styles.loginLinkText}>
+                Already have an account? <Text style={styles.loginLinkTextStrong}>Log in</Text>
+              </Text>
+            </Pressable>
           </View>
-
-          {google.error ? <Text style={styles.googleError}>{google.error}</Text> : null}
-
-          <Pressable style={styles.loginLink} onPress={() => router.push('/login')} hitSlop={8}>
-            <Text style={styles.loginLinkText}>
-              Already have an account? <Text style={styles.loginLinkTextStrong}>Log in</Text>
-            </Text>
-          </Pressable>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </ImageBackground>
   );
 }

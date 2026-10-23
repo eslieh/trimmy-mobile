@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { BackButton } from '../../components/BackButton';
@@ -135,83 +135,86 @@ export function StartWalkInScreen() {
         <Text style={styles.headerTitle}>New walk-in</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        <View>
-          <Text style={styles.sectionLabel}>Customer</Text>
-          <Text style={styles.sectionHint}>Saved to your customer list for next time.</Text>
-        </View>
-        <Input
-          label="Name (optional)"
-          value={customerName}
-          onChangeText={setCustomerName}
-          placeholder="Walk-in customer"
-        />
-        <PhoneInput
-          label="Phone (optional)"
-          country={country}
-          onCountryChange={setCountry}
-          value={rawPhone}
-          onChangeText={setRawPhone}
-        />
-        <Input
-          label="Email (optional)"
-          value={email}
-          onChangeText={setEmail}
-          placeholder="jane@example.com"
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-
-        {staffMembers.length > 0 ? (
-          <StaffPicker label="Assign to" staffMembers={staffMembers} value={assignedStaffId} onChange={setAssignedStaffId} />
-        ) : null}
-
-        <Text style={styles.sectionLabel}>Select services</Text>
-
-        {serviceCategories.length === 0 ? (
-          <Text style={styles.emptyHint}>No services yet — add some from the Business tab first.</Text>
-        ) : (
-          serviceCategories.map((category) => {
-            const categoryServices = services.filter((s) => s.categoryId === category.categoryId);
-            if (categoryServices.length === 0) return null;
-            return (
-              <View key={category.categoryId} style={styles.categoryCard}>
-                <Text style={styles.categoryName}>{category.name}</Text>
-                {categoryServices.map((service) => {
-                  const selected = selectedIds.includes(service.serviceId);
-                  return (
-                    <Pressable
-                      key={service.serviceId}
-                      style={styles.serviceRow}
-                      onPress={() => toggleService(service.serviceId)}
-                    >
-                      <View style={styles.serviceInfo}>
-                        <Text style={styles.serviceName}>{service.name}</Text>
-                        <Text style={styles.serviceMeta}>
-                          {service.durationMinutes} min · {service.price.currency} {service.price.amount}
-                        </Text>
-                      </View>
-                      {selected ? <CheckmarkIcon size={18} /> : null}
-                    </Pressable>
-                  );
-                })}
-              </View>
-            );
-          })
-        )}
-      </ScrollView>
-
-      <View style={styles.footer}>
-        {selectedServices.length > 0 ? (
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>
-              {currency} {totalAmount}
-            </Text>
+      {/* Fields and the button below stay above the keyboard (Android is edge-to-edge). */}
+      <KeyboardAvoidingView behavior="padding" style={styles.flex}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <View>
+            <Text style={styles.sectionLabel}>Customer</Text>
+            <Text style={styles.sectionHint}>Saved to your customer list for next time.</Text>
           </View>
-        ) : null}
-        <Button label={isSubmitting ? 'Starting…' : 'Start service'} disabled={!canSubmit} onPress={handleSubmit} />
-      </View>
+          <Input
+            label="Name (optional)"
+            value={customerName}
+            onChangeText={setCustomerName}
+            placeholder="Walk-in customer"
+          />
+          <PhoneInput
+            label="Phone (optional)"
+            country={country}
+            onCountryChange={setCountry}
+            value={rawPhone}
+            onChangeText={setRawPhone}
+          />
+          <Input
+            label="Email (optional)"
+            value={email}
+            onChangeText={setEmail}
+            placeholder="jane@example.com"
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+
+          {staffMembers.length > 0 ? (
+            <StaffPicker label="Assign to" staffMembers={staffMembers} value={assignedStaffId} onChange={setAssignedStaffId} />
+          ) : null}
+
+          <Text style={styles.sectionLabel}>Select services</Text>
+
+          {serviceCategories.length === 0 ? (
+            <Text style={styles.emptyHint}>No services yet — add some from the Business tab first.</Text>
+          ) : (
+            serviceCategories.map((category) => {
+              const categoryServices = services.filter((s) => s.categoryId === category.categoryId);
+              if (categoryServices.length === 0) return null;
+              return (
+                <View key={category.categoryId} style={styles.categoryCard}>
+                  <Text style={styles.categoryName}>{category.name}</Text>
+                  {categoryServices.map((service) => {
+                    const selected = selectedIds.includes(service.serviceId);
+                    return (
+                      <Pressable
+                        key={service.serviceId}
+                        style={styles.serviceRow}
+                        onPress={() => toggleService(service.serviceId)}
+                      >
+                        <View style={styles.serviceInfo}>
+                          <Text style={styles.serviceName}>{service.name}</Text>
+                          <Text style={styles.serviceMeta}>
+                            {service.durationMinutes} min · {service.price.currency} {service.price.amount}
+                          </Text>
+                        </View>
+                        {selected ? <CheckmarkIcon size={18} /> : null}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              );
+            })
+          )}
+        </ScrollView>
+
+        <View style={styles.footer}>
+          {selectedServices.length > 0 ? (
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Total</Text>
+              <Text style={styles.totalValue}>
+                {currency} {totalAmount}
+              </Text>
+            </View>
+          ) : null}
+          <Button label={isSubmitting ? 'Starting…' : 'Start service'} disabled={!canSubmit} onPress={handleSubmit} />
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

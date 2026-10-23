@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { BackButton } from '../../components/BackButton';
@@ -33,6 +33,7 @@ import { earningsViews, useEarningsSummary } from '../../hooks/useEarningsSummar
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import type { WeeklyHours } from '../../types/business';
 import { showApiError } from '../../utils/showApiError';
+import { SheetModal } from '../../components/ui/SheetModal';
 
 const RANGE_OPTIONS: { value: EarningsRange; label: string }[] = [
   { value: 'today', label: 'Today' },
@@ -560,49 +561,45 @@ export function TeamMemberDetailScreen() {
           style={styles.removeButton}
         />
       </ScrollView>
-      <Modal visible={adjustVisible} transparent animationType="slide" onRequestClose={() => setAdjustVisible(false)}>
-        <Pressable style={styles.overlay} onPress={() => setAdjustVisible(false)}>
-          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.cardTitle}>Adjust wallet</Text>
-            <View style={styles.servicePills}>
-              {(
-                [
-                  { kind: 'tip', label: 'Tip' },
-                  { kind: 'bonus', label: 'Bonus' },
-                  { kind: 'deduction', label: 'Deduction' },
-                  { kind: 'advance', label: 'Advance' },
-                ] as const
-              ).map((option) => {
-                const selected = option.kind === adjustKind;
-                return (
-                  <Pressable
-                    key={option.kind}
-                    style={[styles.rangePill, selected && styles.rangePillSelected]}
-                    onPress={() => setAdjustKind(option.kind)}
-                  >
-                    <Text style={[styles.rangePillText, selected && styles.rangePillTextSelected]}>{option.label}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            <Text style={styles.emptyHint}>
-              {adjustKind === 'tip' || adjustKind === 'bonus'
-                ? 'Adds to their wallet.'
-                : adjustKind === 'advance'
-                  ? 'Cash you handed over ahead of a payout — taken from their wallet.'
-                  : 'Taken from their wallet.'}
-            </Text>
-            <Input label="Amount (KSh)" value={adjustAmount} onChangeText={setAdjustAmount} keyboardType="number-pad" />
-            <Input label="Note (optional)" value={adjustNote} onChangeText={setAdjustNote} placeholder="e.g. From Amina" />
-            {adjustError ? <Text style={styles.adjustError}>{adjustError}</Text> : null}
-            <Button
-              label={adjusting ? 'Saving…' : 'Save'}
-              disabled={adjusting || !(parseInt(adjustAmount, 10) > 0)}
-              onPress={handleAddAdjustment}
-            />
-          </Pressable>
-        </Pressable>
-      </Modal>
+      <SheetModal visible={adjustVisible} onRequestClose={() => setAdjustVisible(false)} onBackdropPress={() => setAdjustVisible(false)} overlayStyle={styles.overlay} sheetStyle={styles.sheet}>
+        <Text style={styles.cardTitle}>Adjust wallet</Text>
+        <View style={styles.servicePills}>
+          {(
+            [
+              { kind: 'tip', label: 'Tip' },
+              { kind: 'bonus', label: 'Bonus' },
+              { kind: 'deduction', label: 'Deduction' },
+              { kind: 'advance', label: 'Advance' },
+            ] as const
+          ).map((option) => {
+            const selected = option.kind === adjustKind;
+            return (
+              <Pressable
+                key={option.kind}
+                style={[styles.rangePill, selected && styles.rangePillSelected]}
+                onPress={() => setAdjustKind(option.kind)}
+              >
+                <Text style={[styles.rangePillText, selected && styles.rangePillTextSelected]}>{option.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Text style={styles.emptyHint}>
+          {adjustKind === 'tip' || adjustKind === 'bonus'
+            ? 'Adds to their wallet.'
+            : adjustKind === 'advance'
+              ? 'Cash you handed over ahead of a payout — taken from their wallet.'
+              : 'Taken from their wallet.'}
+        </Text>
+        <Input label="Amount (KSh)" value={adjustAmount} onChangeText={setAdjustAmount} keyboardType="number-pad" />
+        <Input label="Note (optional)" value={adjustNote} onChangeText={setAdjustNote} placeholder="e.g. From Amina" />
+        {adjustError ? <Text style={styles.adjustError}>{adjustError}</Text> : null}
+        <Button
+          label={adjusting ? 'Saving…' : 'Save'}
+          disabled={adjusting || !(parseInt(adjustAmount, 10) > 0)}
+          onPress={handleAddAdjustment}
+        />
+      </SheetModal>
     </SafeAreaView>
   );
 }

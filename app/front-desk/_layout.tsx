@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Tabs } from 'expo-router';
-import { BlurView } from 'expo-blur';
 import { CalendarIcon } from '../../src/components/icons/CalendarIcon';
 import { ListIcon } from '../../src/components/icons/ListIcon';
 import { UserIcon } from '../../src/components/icons/UserIcon';
@@ -10,6 +9,7 @@ import { Button } from '../../src/components/Button';
 import { getApiErrorMessage } from '../../src/api/client';
 import { useFrontDeskStore } from '../../src/store/useFrontDeskStore';
 import { useOwnedBusinessStore } from '../../src/store/useOwnedBusinessStore';
+import { tabBarChrome } from '../../src/components/tabBarChrome';
 import { colors, spacing, typography } from '../../src/theme';
 
 // Front desk's tab shell (F1–F3): the whole business's day and calendar,
@@ -60,9 +60,7 @@ export default function FrontDeskLayout() {
         tabBarActiveTintColor: colors.tab.active,
         tabBarInactiveTintColor: colors.tab.inactive,
         tabBarShowLabel: true,
-        tabBarStyle: styles.tabBar,
-        tabBarItemStyle: styles.tabBarItem,
-        tabBarBackground: () => <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />,
+        ...tabBarChrome, // solid on Android, frosted on iOS
       }}
     >
       <Tabs.Screen
@@ -98,13 +96,5 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.text.secondary,
     textAlign: 'center',
-  },
-  tabBar: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(0,0,0,0.08)',
-    backgroundColor: 'transparent',
-  },
-  tabBarItem: {
-    paddingTop: spacing.sm,
   },
 });

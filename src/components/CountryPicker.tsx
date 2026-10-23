@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, KeyboardAvoidingView, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Country, countries } from '../data/countries';
 import { CheckmarkIcon } from './icons/CheckmarkIcon';
@@ -25,49 +25,52 @@ export function CountryPicker({ visible, selected, onSelect, onClose }: CountryP
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose} presentationStyle="pageSheet">
-      <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Country</Text>
-          <Pressable onPress={onClose} hitSlop={8}>
-            <Text style={styles.closeText}>Close</Text>
-          </Pressable>
-        </View>
+      {/* Footer buttons rise with the keyboard (Android too: it's edge-to-edge). */}
+      <KeyboardAvoidingView behavior="padding" style={styles.flex}>
+        <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
+          <View style={styles.header}>
+            <Text style={styles.title}>Country</Text>
+            <Pressable onPress={onClose} hitSlop={8}>
+              <Text style={styles.closeText}>Close</Text>
+            </Pressable>
+          </View>
 
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search country or code"
-          placeholderTextColor={colors.text.tertiary}
-          style={styles.search}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search country or code"
+            placeholderTextColor={colors.text.tertiary}
+            style={styles.search}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
 
-        <FlatList
-          data={filtered}
-          keyExtractor={(item) => item.iso2}
-          keyboardShouldPersistTaps="handled"
-          renderItem={({ item }) => {
-            const isSelected = item.iso2 === selected.iso2;
-            return (
-              <Pressable
-                style={styles.row}
-                onPress={() => {
-                  onSelect(item);
-                  onClose();
-                }}
-              >
-                <Text style={styles.flag}>{item.flag}</Text>
-                <Text style={styles.countryName} numberOfLines={1}>
-                  {item.name}
-                </Text>
-                <Text style={styles.dialCode}>+{item.dialCode}</Text>
-                {isSelected ? <CheckmarkIcon size={18} /> : null}
-              </Pressable>
-            );
-          }}
-        />
-      </SafeAreaView>
+          <FlatList
+            data={filtered}
+            keyExtractor={(item) => item.iso2}
+            keyboardShouldPersistTaps="handled"
+            renderItem={({ item }) => {
+              const isSelected = item.iso2 === selected.iso2;
+              return (
+                <Pressable
+                  style={styles.row}
+                  onPress={() => {
+                    onSelect(item);
+                    onClose();
+                  }}
+                >
+                  <Text style={styles.flag}>{item.flag}</Text>
+                  <Text style={styles.countryName} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  <Text style={styles.dialCode}>+{item.dialCode}</Text>
+                  {isSelected ? <CheckmarkIcon size={18} /> : null}
+                </Pressable>
+              );
+            }}
+          />
+        </SafeAreaView>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

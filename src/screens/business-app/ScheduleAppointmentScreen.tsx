@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
@@ -176,167 +176,170 @@ export function ScheduleAppointmentScreen() {
         <Text style={styles.headerTitle}>Schedule appointment</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        <View>
-          <Text style={styles.sectionLabel}>Customer</Text>
-          <Text style={styles.sectionHint}>Saved to your customer list for next time.</Text>
-        </View>
-        <Input label="Name" value={customerName} onChangeText={setCustomerName} placeholder="Jane Doe" />
-        <PhoneInput
-          label="Phone (optional)"
-          country={country}
-          onCountryChange={setCountry}
-          value={rawPhone}
-          onChangeText={setRawPhone}
-        />
-        <Input
-          label="Email (optional)"
-          value={email}
-          onChangeText={setEmail}
-          placeholder="jane@example.com"
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-
-        <View>
-          <Text style={styles.sectionLabel}>Date & time</Text>
-
-          {pickerLocked && selectedDate && selectedTime ? (
-            <View style={styles.lockedRow}>
-              <Text style={styles.lockedText}>
-                {formatBookingDate(selectedDate)} · {selectedTime}
-              </Text>
-              <Pressable onPress={() => setPickerLocked(false)} hitSlop={8}>
-                <Text style={styles.changeLink}>Change</Text>
-              </Pressable>
-            </View>
-          ) : (
-            <>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dayScroll}>
-                {days.map((day) => {
-                  const selected = day.date === selectedDate;
-                  return (
-                    <Pressable
-                      key={day.date}
-                      disabled={!day.isOpen}
-                      style={[
-                        styles.dayPill,
-                        selected && styles.dayPillSelected,
-                        !day.isOpen && styles.dayPillDisabled,
-                      ]}
-                      onPress={() => {
-                        setSelectedDate(day.date);
-                        setSelectedTime(null);
-                      }}
-                    >
-                      <Text
-                        style={[
-                          styles.dayWeekday,
-                          selected && styles.dayTextSelected,
-                          !day.isOpen && styles.dayTextDisabled,
-                        ]}
-                      >
-                        {day.weekdayLabel}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.dayNumber,
-                          selected && styles.dayTextSelected,
-                          !day.isOpen && styles.dayTextDisabled,
-                        ]}
-                      >
-                        {day.dayNumber}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-
-              {selectedDate ? (
-                timeSlots.length === 0 ? (
-                  <Text style={styles.emptyHint}>
-                    {selectedServices.length === 0
-                      ? 'Select services first to see available times.'
-                      : 'No time slots left on this day — try another date.'}
-                  </Text>
-                ) : (
-                  <View style={styles.timeGrid}>
-                    {timeSlots.map((slot) => {
-                      const selected = slot === selectedTime;
-                      return (
-                        <Pressable
-                          key={slot}
-                          style={[styles.timeSlot, selected && styles.timeSlotSelected]}
-                          onPress={() => {
-                            setSelectedTime(slot);
-                            setPickerLocked(true);
-                          }}
-                        >
-                          <Text style={[styles.timeSlotText, selected && styles.timeSlotTextSelected]}>{slot}</Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                )
-              ) : null}
-            </>
-          )}
-        </View>
-
-        {staffMembers.length > 0 ? (
-          <StaffPicker label="Assign to" staffMembers={staffMembers} value={assignedStaffId} onChange={setAssignedStaffId} />
-        ) : null}
-
-        <Text style={styles.sectionLabel}>Select services</Text>
-
-        {serviceCategories.length === 0 ? (
-          <Text style={styles.emptyHint}>No services yet — add some from the Business tab first.</Text>
-        ) : (
-          serviceCategories.map((category) => {
-            const categoryServices = services.filter((s) => s.categoryId === category.categoryId);
-            if (categoryServices.length === 0) return null;
-            return (
-              <View key={category.categoryId} style={styles.categoryCard}>
-                <Text style={styles.categoryName}>{category.name}</Text>
-                {categoryServices.map((service) => {
-                  const selected = selectedIds.includes(service.serviceId);
-                  return (
-                    <Pressable
-                      key={service.serviceId}
-                      style={styles.serviceRow}
-                      onPress={() => toggleService(service.serviceId)}
-                    >
-                      <View style={styles.serviceInfo}>
-                        <Text style={styles.serviceName}>{service.name}</Text>
-                        <Text style={styles.serviceMeta}>
-                          {service.durationMinutes} min · {service.price.currency} {service.price.amount}
-                        </Text>
-                      </View>
-                      {selected ? <CheckmarkIcon size={18} /> : null}
-                    </Pressable>
-                  );
-                })}
-              </View>
-            );
-          })
-        )}
-      </ScrollView>
-
-      <View style={styles.footer}>
-        {selectedServices.length > 0 ? (
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>
-              {currency} {totalAmount}
-            </Text>
+      {/* Fields and the button below stay above the keyboard (Android is edge-to-edge). */}
+      <KeyboardAvoidingView behavior="padding" style={styles.flex}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <View>
+            <Text style={styles.sectionLabel}>Customer</Text>
+            <Text style={styles.sectionHint}>Saved to your customer list for next time.</Text>
           </View>
-        ) : null}
-        <Button
-          label={isSubmitting ? 'Saving…' : 'Schedule appointment'}
-          disabled={!canSubmit}
-          onPress={handleSubmit}
-        />
-      </View>
+          <Input label="Name" value={customerName} onChangeText={setCustomerName} placeholder="Jane Doe" />
+          <PhoneInput
+            label="Phone (optional)"
+            country={country}
+            onCountryChange={setCountry}
+            value={rawPhone}
+            onChangeText={setRawPhone}
+          />
+          <Input
+            label="Email (optional)"
+            value={email}
+            onChangeText={setEmail}
+            placeholder="jane@example.com"
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+
+          <View>
+            <Text style={styles.sectionLabel}>Date & time</Text>
+
+            {pickerLocked && selectedDate && selectedTime ? (
+              <View style={styles.lockedRow}>
+                <Text style={styles.lockedText}>
+                  {formatBookingDate(selectedDate)} · {selectedTime}
+                </Text>
+                <Pressable onPress={() => setPickerLocked(false)} hitSlop={8}>
+                  <Text style={styles.changeLink}>Change</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dayScroll}>
+                  {days.map((day) => {
+                    const selected = day.date === selectedDate;
+                    return (
+                      <Pressable
+                        key={day.date}
+                        disabled={!day.isOpen}
+                        style={[
+                          styles.dayPill,
+                          selected && styles.dayPillSelected,
+                          !day.isOpen && styles.dayPillDisabled,
+                        ]}
+                        onPress={() => {
+                          setSelectedDate(day.date);
+                          setSelectedTime(null);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.dayWeekday,
+                            selected && styles.dayTextSelected,
+                            !day.isOpen && styles.dayTextDisabled,
+                          ]}
+                        >
+                          {day.weekdayLabel}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.dayNumber,
+                            selected && styles.dayTextSelected,
+                            !day.isOpen && styles.dayTextDisabled,
+                          ]}
+                        >
+                          {day.dayNumber}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+
+                {selectedDate ? (
+                  timeSlots.length === 0 ? (
+                    <Text style={styles.emptyHint}>
+                      {selectedServices.length === 0
+                        ? 'Select services first to see available times.'
+                        : 'No time slots left on this day — try another date.'}
+                    </Text>
+                  ) : (
+                    <View style={styles.timeGrid}>
+                      {timeSlots.map((slot) => {
+                        const selected = slot === selectedTime;
+                        return (
+                          <Pressable
+                            key={slot}
+                            style={[styles.timeSlot, selected && styles.timeSlotSelected]}
+                            onPress={() => {
+                              setSelectedTime(slot);
+                              setPickerLocked(true);
+                            }}
+                          >
+                            <Text style={[styles.timeSlotText, selected && styles.timeSlotTextSelected]}>{slot}</Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  )
+                ) : null}
+              </>
+            )}
+          </View>
+
+          {staffMembers.length > 0 ? (
+            <StaffPicker label="Assign to" staffMembers={staffMembers} value={assignedStaffId} onChange={setAssignedStaffId} />
+          ) : null}
+
+          <Text style={styles.sectionLabel}>Select services</Text>
+
+          {serviceCategories.length === 0 ? (
+            <Text style={styles.emptyHint}>No services yet — add some from the Business tab first.</Text>
+          ) : (
+            serviceCategories.map((category) => {
+              const categoryServices = services.filter((s) => s.categoryId === category.categoryId);
+              if (categoryServices.length === 0) return null;
+              return (
+                <View key={category.categoryId} style={styles.categoryCard}>
+                  <Text style={styles.categoryName}>{category.name}</Text>
+                  {categoryServices.map((service) => {
+                    const selected = selectedIds.includes(service.serviceId);
+                    return (
+                      <Pressable
+                        key={service.serviceId}
+                        style={styles.serviceRow}
+                        onPress={() => toggleService(service.serviceId)}
+                      >
+                        <View style={styles.serviceInfo}>
+                          <Text style={styles.serviceName}>{service.name}</Text>
+                          <Text style={styles.serviceMeta}>
+                            {service.durationMinutes} min · {service.price.currency} {service.price.amount}
+                          </Text>
+                        </View>
+                        {selected ? <CheckmarkIcon size={18} /> : null}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              );
+            })
+          )}
+        </ScrollView>
+
+        <View style={styles.footer}>
+          {selectedServices.length > 0 ? (
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Total</Text>
+              <Text style={styles.totalValue}>
+                {currency} {totalAmount}
+              </Text>
+            </View>
+          ) : null}
+          <Button
+            label={isSubmitting ? 'Saving…' : 'Schedule appointment'}
+            disabled={!canSubmit}
+            onPress={handleSubmit}
+          />
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

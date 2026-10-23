@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
@@ -92,89 +92,92 @@ export function EditBusinessInfoScreen() {
         <Text style={styles.headerTitle}>Business info</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        <Input label="Business name" value={name} onChangeText={setName} placeholder="Glow Beauty Lounge" />
-        <Input
-          label="Description"
-          value={description}
-          onChangeText={setDescription}
-          placeholder="Tell customers what makes your business special…"
-          multiline
-          numberOfLines={4}
-        />
-
-        <View>
-          <Text style={styles.fieldLabel}>Categories</Text>
-          <View style={styles.pillRow}>
-            {BUSINESS_CATEGORIES.map((option) => {
-              const selected = categories.includes(option.value);
-              return (
-                <Pressable
-                  key={option.value}
-                  onPress={() => toggleCategory(option.value)}
-                  style={[styles.pill, selected && styles.pillSelected]}
-                >
-                  <Text style={[styles.pillText, selected && styles.pillTextSelected]}>{option.label}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-
-        <View>
-          <Text style={styles.fieldLabel}>Amenities</Text>
-          <View style={styles.pillRow}>
-            {BUSINESS_AMENITIES.map((amenity) => {
-              const selected = amenities.includes(amenity);
-              return (
-                <Pressable
-                  key={amenity}
-                  onPress={() => toggleAmenity(amenity)}
-                  style={[styles.pill, selected && styles.pillSelected]}
-                >
-                  <Text style={[styles.pillText, selected && styles.pillTextSelected]}>{amenity}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-
-        <PhoneInput
-          label="Business phone"
-          country={country}
-          onCountryChange={setCountry}
-          value={rawPhone}
-          onChangeText={setRawPhone}
-        />
-
-        <LocationPicker label="Business location" value={location} onChange={setLocation} />
-
-        <View style={styles.addressDetailsRow}>
+      {/* Fields and the button below stay above the keyboard (Android is edge-to-edge). */}
+      <KeyboardAvoidingView behavior="padding" style={styles.flex}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <Input label="Business name" value={name} onChangeText={setName} placeholder="Glow Beauty Lounge" />
           <Input
-            label="Building / mall"
-            value={location?.building ?? ''}
-            onChangeText={(text) => setLocation((current) => (current ? { ...current, building: text } : current))}
-            placeholder="e.g. Yaya Centre"
-            style={styles.addressDetailsField}
+            label="Description"
+            value={description}
+            onChangeText={setDescription}
+            placeholder="Tell customers what makes your business special…"
+            multiline
+            numberOfLines={4}
           />
-          <Input
-            label="Floor"
-            value={location?.floor ?? ''}
-            onChangeText={(text) => setLocation((current) => (current ? { ...current, floor: text } : current))}
-            placeholder="e.g. 2nd Floor"
-            style={styles.addressDetailsField}
-          />
-        </View>
-        <Input
-          label="Shop / office number"
-          value={location?.unit ?? ''}
-          onChangeText={(text) => setLocation((current) => (current ? { ...current, unit: text } : current))}
-          placeholder="e.g. Shop 14"
-        />
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        <Button label={isSubmitting ? 'Saving…' : 'Save'} disabled={!canSave || isSubmitting} onPress={handleSave} />
-      </ScrollView>
+          <View>
+            <Text style={styles.fieldLabel}>Categories</Text>
+            <View style={styles.pillRow}>
+              {BUSINESS_CATEGORIES.map((option) => {
+                const selected = categories.includes(option.value);
+                return (
+                  <Pressable
+                    key={option.value}
+                    onPress={() => toggleCategory(option.value)}
+                    style={[styles.pill, selected && styles.pillSelected]}
+                  >
+                    <Text style={[styles.pillText, selected && styles.pillTextSelected]}>{option.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          <View>
+            <Text style={styles.fieldLabel}>Amenities</Text>
+            <View style={styles.pillRow}>
+              {BUSINESS_AMENITIES.map((amenity) => {
+                const selected = amenities.includes(amenity);
+                return (
+                  <Pressable
+                    key={amenity}
+                    onPress={() => toggleAmenity(amenity)}
+                    style={[styles.pill, selected && styles.pillSelected]}
+                  >
+                    <Text style={[styles.pillText, selected && styles.pillTextSelected]}>{amenity}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          <PhoneInput
+            label="Business phone"
+            country={country}
+            onCountryChange={setCountry}
+            value={rawPhone}
+            onChangeText={setRawPhone}
+          />
+
+          <LocationPicker label="Business location" value={location} onChange={setLocation} />
+
+          <View style={styles.addressDetailsRow}>
+            <Input
+              label="Building / mall"
+              value={location?.building ?? ''}
+              onChangeText={(text) => setLocation((current) => (current ? { ...current, building: text } : current))}
+              placeholder="e.g. Yaya Centre"
+              style={styles.addressDetailsField}
+            />
+            <Input
+              label="Floor"
+              value={location?.floor ?? ''}
+              onChangeText={(text) => setLocation((current) => (current ? { ...current, floor: text } : current))}
+              placeholder="e.g. 2nd Floor"
+              style={styles.addressDetailsField}
+            />
+          </View>
+          <Input
+            label="Shop / office number"
+            value={location?.unit ?? ''}
+            onChangeText={(text) => setLocation((current) => (current ? { ...current, unit: text } : current))}
+            placeholder="e.g. Shop 14"
+          />
+
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          <Button label={isSubmitting ? 'Saving…' : 'Save'} disabled={!canSave || isSubmitting} onPress={handleSave} />
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

@@ -10,7 +10,8 @@ export const shadows = {
       shadowRadius: 14,
       shadowOffset: { width: 0, height: 5 },
     },
-    android: { elevation: 5 },
+    // Android elevation draws a hard grey shadow: keep it light.
+    android: { elevation: 2 },
     default: {},
   }),
   raised: Platform.select({
@@ -20,7 +21,7 @@ export const shadows = {
       shadowRadius: 24,
       shadowOffset: { width: 0, height: 10 },
     },
-    android: { elevation: 6 },
+    android: { elevation: 4 },
     default: {},
   }),
 };

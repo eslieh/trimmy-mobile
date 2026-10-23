@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { BarChart } from '../../components/charts/BarChart';
@@ -19,6 +19,7 @@ import { WalletStatementList } from '../../components/WalletStatementList';
 import { useWalletStatement } from '../../hooks/useWalletStatement';
 import { showApiError } from '../../utils/showApiError';
 import type { Wallet } from '../../types/payout';
+import { SheetModal } from '../../components/ui/SheetModal';
 
 const RANGE_OPTIONS: { value: EarningsRange; label: string }[] = [
   { value: 'today', label: 'Today' },
@@ -359,56 +360,47 @@ export function StaffEarningsScreen() {
         </View>
       </ScrollView>
 
-      <Modal
-        visible={requestSheetVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setRequestSheetVisible(false)}
-      >
-        <Pressable style={styles.overlay} onPress={() => setRequestSheetVisible(false)}>
-          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.sheetTitle}>Request payout</Text>
-            {multiBusiness ? (
-              <View style={styles.businessPills}>
-                {wallet!.businesses.map((b) => {
-                  const selected = b.businessId === payoutBusiness?.businessId;
-                  return (
-                    <Pressable
-                      key={b.businessId}
-                      style={[styles.businessPill, selected && styles.businessPillSelected]}
-                      onPress={() => {
-                        setPayoutBusinessId(b.businessId);
-                        setRequestAmount(b.available > 0 ? String(b.available) : '');
-                      }}
-                    >
-                      <Text style={[styles.businessPillText, selected && styles.businessPillTextSelected]}>
-                        {b.businessName}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ) : null}
-            <Text style={styles.sheetSubtitle}>
-              Available{multiBusiness && payoutBusiness ? ` at ${payoutBusiness.businessName}` : ''}:{' '}
-              {formatMoney(Math.max(0, availableBalance))}
-            </Text>
-            <Input
-              label="Amount (KSh)"
-              value={requestAmount}
-              onChangeText={setRequestAmount}
-              keyboardType="number-pad"
-              autoFocus
-            />
-            <Button
-              label={isRequesting ? 'Requesting…' : 'Request payout'}
-              disabled={!canRequest || isRequesting}
-              onPress={handleRequestPayout}
-              style={styles.sheetButton}
-            />
-          </Pressable>
-        </Pressable>
-      </Modal>
+      <SheetModal visible={requestSheetVisible} onRequestClose={() => setRequestSheetVisible(false)} onBackdropPress={() => setRequestSheetVisible(false)} overlayStyle={styles.overlay} sheetStyle={styles.sheet}>
+        <Text style={styles.sheetTitle}>Request payout</Text>
+        {multiBusiness ? (
+          <View style={styles.businessPills}>
+            {wallet!.businesses.map((b) => {
+              const selected = b.businessId === payoutBusiness?.businessId;
+              return (
+                <Pressable
+                  key={b.businessId}
+                  style={[styles.businessPill, selected && styles.businessPillSelected]}
+                  onPress={() => {
+                    setPayoutBusinessId(b.businessId);
+                    setRequestAmount(b.available > 0 ? String(b.available) : '');
+                  }}
+                >
+                  <Text style={[styles.businessPillText, selected && styles.businessPillTextSelected]}>
+                    {b.businessName}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : null}
+        <Text style={styles.sheetSubtitle}>
+          Available{multiBusiness && payoutBusiness ? ` at ${payoutBusiness.businessName}` : ''}:{' '}
+          {formatMoney(Math.max(0, availableBalance))}
+        </Text>
+        <Input
+          label="Amount (KSh)"
+          value={requestAmount}
+          onChangeText={setRequestAmount}
+          keyboardType="number-pad"
+          autoFocus
+        />
+        <Button
+          label={isRequesting ? 'Requesting…' : 'Request payout'}
+          disabled={!canRequest || isRequesting}
+          onPress={handleRequestPayout}
+          style={styles.sheetButton}
+        />
+      </SheetModal>
     </SafeAreaView>
   );
 }

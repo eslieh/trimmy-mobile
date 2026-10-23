@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Avatar } from '../../components/Avatar';
@@ -313,40 +313,43 @@ export function BookingDetailScreen() {
       </ScrollView>
 
       <Modal visible={reviewVisible} animationType="slide" onRequestClose={() => setReviewVisible(false)} presentationStyle="pageSheet">
-        <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
-          <View style={styles.content}>
-            <Text style={styles.sheetTitle}>How was your visit?</Text>
-            <View style={styles.starRow}>
-              {[1, 2, 3, 4, 5].map((value) => (
-                <Pressable key={value} onPress={() => setRating(value)} hitSlop={6}>
-                  <Text style={[styles.starPick, value <= rating && styles.starPickOn]}>★</Text>
-                </Pressable>
-              ))}
+        {/* Footer buttons rise with the keyboard (Android too: it's edge-to-edge). */}
+        <KeyboardAvoidingView behavior="padding" style={styles.flex}>
+          <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
+            <View style={styles.content}>
+              <Text style={styles.sheetTitle}>How was your visit?</Text>
+              <View style={styles.starRow}>
+                {[1, 2, 3, 4, 5].map((value) => (
+                  <Pressable key={value} onPress={() => setRating(value)} hitSlop={6}>
+                    <Text style={[styles.starPick, value <= rating && styles.starPickOn]}>★</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Input
+                label="Tell others about it (optional)"
+                value={reviewText}
+                onChangeText={setReviewText}
+                placeholder="e.g. Great fade, on time"
+                multiline
+                maxLength={1000}
+              />
+              {reviewError ? <Text style={styles.feeTextWarning}>{reviewError}</Text> : null}
             </View>
-            <Input
-              label="Tell others about it (optional)"
-              value={reviewText}
-              onChangeText={setReviewText}
-              placeholder="e.g. Great fade, on time"
-              multiline
-              maxLength={1000}
-            />
-            {reviewError ? <Text style={styles.feeTextWarning}>{reviewError}</Text> : null}
-          </View>
-          <View style={styles.sheetFooter}>
-            <Button
-              label={postingReview ? 'Posting…' : 'Post review'}
-              disabled={rating === 0 || postingReview}
-              onPress={handlePostReview}
-            />
-            <Button
-              label="Not now"
-              variant="secondary"
-              onPress={() => setReviewVisible(false)}
-              style={styles.keepButton}
-            />
-          </View>
-        </SafeAreaView>
+            <View style={styles.sheetFooter}>
+              <Button
+                label={postingReview ? 'Posting…' : 'Post review'}
+                disabled={rating === 0 || postingReview}
+                onPress={handlePostReview}
+              />
+              <Button
+                label="Not now"
+                variant="secondary"
+                onPress={() => setReviewVisible(false)}
+                style={styles.keepButton}
+              />
+            </View>
+          </SafeAreaView>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal

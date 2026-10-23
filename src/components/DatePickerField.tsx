@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Modal, Platform, Pressable, StyleSheet, Text } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Button } from './Button';
 import { colors, radii, spacing, typography } from '../theme';
+import { SheetModal } from './ui/SheetModal';
 
 interface DatePickerFieldProps {
   label: string;
@@ -73,32 +74,28 @@ export function DatePickerField({ label, value, onChange, maximumDate, minimumDa
       )}
 
       {Platform.OS === 'ios' && (
-        <Modal visible={visible} transparent animationType="slide" onRequestClose={() => setVisible(false)}>
-          <Pressable style={styles.overlay} onPress={() => setVisible(false)}>
-            <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-              <Text style={styles.sheetTitle}>{label}</Text>
-              <DateTimePicker
-                value={draft}
-                mode="date"
-                display="spinner"
-                // Light, dark text: readable whatever the phone's theme (Expo Go ignores the app's).
-                themeVariant="light"
-                textColor={colors.text.primary}
-                maximumDate={maximumDate}
-                minimumDate={minimumDate}
-                onChange={handleIosChange}
-              />
-              <Button
-                label="Done"
-                onPress={() => {
-                  onChange(formatDateKey(draft));
-                  setVisible(false);
-                }}
-                style={styles.doneButton}
-              />
-            </Pressable>
-          </Pressable>
-        </Modal>
+        <SheetModal visible={visible} onRequestClose={() => setVisible(false)} onBackdropPress={() => setVisible(false)} overlayStyle={styles.overlay} sheetStyle={styles.sheet}>
+          <Text style={styles.sheetTitle}>{label}</Text>
+          <DateTimePicker
+            value={draft}
+            mode="date"
+            display="spinner"
+            // Light, dark text: readable whatever the phone's theme (Expo Go ignores the app's).
+            themeVariant="light"
+            textColor={colors.text.primary}
+            maximumDate={maximumDate}
+            minimumDate={minimumDate}
+            onChange={handleIosChange}
+          />
+          <Button
+            label="Done"
+            onPress={() => {
+              onChange(formatDateKey(draft));
+              setVisible(false);
+            }}
+            style={styles.doneButton}
+          />
+        </SheetModal>
       )}
     </>
   );

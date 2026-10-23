@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { BackButton } from '../../components/BackButton';
@@ -104,80 +104,83 @@ export function InviteTeamMemberScreen() {
         <Text style={styles.headerTitle}>Invite team member</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {isSolo ? (
-          <Text style={styles.soloHint}>
-            Adding someone makes this a team business: you'll get a Team tab to manage invites, staff and front
-            desk.
-          </Text>
-        ) : null}
-        <Input label="Name" value={name} onChangeText={setName} placeholder="Jane Doe" />
-        <PhoneInput
-          label="Phone"
-          helperText="They'll see the invite when they sign in with this phone or email."
-          country={country}
-          onCountryChange={setCountry}
-          value={rawPhone}
-          onChangeText={setRawPhone}
-        />
-        <Input
-          label="Email"
-          value={email}
-          onChangeText={setEmail}
-          placeholder="jane@example.com"
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-        <Text style={styles.hint}>At least one of phone or email is required.</Text>
+      {/* Fields and the button below stay above the keyboard (Android is edge-to-edge). */}
+      <KeyboardAvoidingView behavior="padding" style={styles.flex}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          {isSolo ? (
+            <Text style={styles.soloHint}>
+              Adding someone makes this a team business: you'll get a Team tab to manage invites, staff and front
+              desk.
+            </Text>
+          ) : null}
+          <Input label="Name" value={name} onChangeText={setName} placeholder="Jane Doe" />
+          <PhoneInput
+            label="Phone"
+            helperText="They'll see the invite when they sign in with this phone or email."
+            country={country}
+            onCountryChange={setCountry}
+            value={rawPhone}
+            onChangeText={setRawPhone}
+          />
+          <Input
+            label="Email"
+            value={email}
+            onChangeText={setEmail}
+            placeholder="jane@example.com"
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+          <Text style={styles.hint}>At least one of phone or email is required.</Text>
 
-        <View>
-          <Text style={styles.sectionLabel}>Role</Text>
-          <View style={styles.roleRow}>
-            {(['staff', 'front_desk'] as const).map((option) => {
-              const selected = role === option;
-              return (
-                <Pressable
-                  key={option}
-                  style={[styles.rolePill, selected && styles.rolePillSelected]}
-                  onPress={() => setRole(option)}
-                >
-                  <Text style={[styles.rolePillText, selected && styles.rolePillTextSelected]}>
-                    {TEAM_ROLE_LABEL[option]}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-
-        {role === 'staff' ? (
-          <>
-            <Input
-              label="Commission split (%)"
-              value={commissionPercent}
-              onChangeText={setCommissionPercent}
-              placeholder="40"
-              keyboardType="number-pad"
-              helperText="Share of each completed service's price this member earns."
-            />
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleText}>
-                <Text style={styles.sectionLabel}>Also runs the front desk</Text>
-                <Text style={styles.hint}>They can switch to the front desk to check customers in and out. Commission stays on their own services only.</Text>
-              </View>
-              <Switch value={alsoFrontDesk} onValueChange={setAlsoFrontDesk} trackColor={{ true: colors.brand.pink }} />
+          <View>
+            <Text style={styles.sectionLabel}>Role</Text>
+            <View style={styles.roleRow}>
+              {(['staff', 'front_desk'] as const).map((option) => {
+                const selected = role === option;
+                return (
+                  <Pressable
+                    key={option}
+                    style={[styles.rolePill, selected && styles.rolePillSelected]}
+                    onPress={() => setRole(option)}
+                  >
+                    <Text style={[styles.rolePillText, selected && styles.rolePillTextSelected]}>
+                      {TEAM_ROLE_LABEL[option]}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
-          </>
-        ) : (
-          <Text style={styles.hint}>Front desk checks customers in and takes payments. They don't perform services, so they earn no commission.</Text>
-        )}
+          </View>
 
-        <WorkingDaysPicker label="Working days" value={workingDays} onChange={setWorkingDays} />
-      </ScrollView>
+          {role === 'staff' ? (
+            <>
+              <Input
+                label="Commission split (%)"
+                value={commissionPercent}
+                onChangeText={setCommissionPercent}
+                placeholder="40"
+                keyboardType="number-pad"
+                helperText="Share of each completed service's price this member earns."
+              />
+              <View style={styles.toggleRow}>
+                <View style={styles.toggleText}>
+                  <Text style={styles.sectionLabel}>Also runs the front desk</Text>
+                  <Text style={styles.hint}>They can switch to the front desk to check customers in and out. Commission stays on their own services only.</Text>
+                </View>
+                <Switch value={alsoFrontDesk} onValueChange={setAlsoFrontDesk} trackColor={{ true: colors.brand.pink }} />
+              </View>
+            </>
+          ) : (
+            <Text style={styles.hint}>Front desk checks customers in and takes payments. They don't perform services, so they earn no commission.</Text>
+          )}
 
-      <View style={styles.footer}>
-        <Button label={isSaving ? 'Sending…' : 'Send invite'} disabled={!canSubmit} onPress={handleSubmit} />
-      </View>
+          <WorkingDaysPicker label="Working days" value={workingDays} onChange={setWorkingDays} />
+        </ScrollView>
+
+        <View style={styles.footer}>
+          <Button label={isSaving ? 'Sending…' : 'Send invite'} disabled={!canSubmit} onPress={handleSubmit} />
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

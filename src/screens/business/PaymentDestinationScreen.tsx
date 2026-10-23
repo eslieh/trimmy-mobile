@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { AuthScreenLayout } from '../../components/AuthScreenLayout';
 import { Input } from '../../components/Input';
@@ -15,6 +15,7 @@ import type {
   PaymentDestinationOptions,
   PaymentFieldOption,
 } from '../../types/business';
+import { SheetModal } from '../../components/ui/SheetModal';
 
 const TOTAL_STEPS = 11;
 
@@ -195,21 +196,17 @@ interface BankPickerSheetProps {
 // editable in case the listed code is wrong for this account.
 function BankPickerSheet({ visible, banks, selectedName, onSelect, onClose }: BankPickerSheetProps) {
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-          <Text style={styles.sheetTitle}>Select your bank</Text>
-          <ScrollView style={styles.bankList}>
-            {banks.map((bank) => (
-              <Pressable key={bank.name} style={styles.bankRow} onPress={() => onSelect(bank)}>
-                <Text style={styles.bankRowText}>{bank.name}</Text>
-                {selectedName === bank.name ? <CheckmarkIcon size={18} /> : null}
-              </Pressable>
-            ))}
-          </ScrollView>
-        </Pressable>
-      </Pressable>
-    </Modal>
+    <SheetModal visible={visible} onRequestClose={onClose} onBackdropPress={onClose} overlayStyle={styles.overlay} sheetStyle={styles.sheet}>
+      <Text style={styles.sheetTitle}>Select your bank</Text>
+      <ScrollView style={styles.bankList}>
+        {banks.map((bank) => (
+          <Pressable key={bank.name} style={styles.bankRow} onPress={() => onSelect(bank)}>
+            <Text style={styles.bankRowText}>{bank.name}</Text>
+            {selectedName === bank.name ? <CheckmarkIcon size={18} /> : null}
+          </Pressable>
+        ))}
+      </ScrollView>
+    </SheetModal>
   );
 }
 

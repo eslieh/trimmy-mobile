@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SearchIcon } from '../../components/icons/SearchIcon';
 import { LocationPinIcon } from '../../components/icons/LocationPinIcon';
@@ -66,76 +66,79 @@ export function SearchSheet({
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose} presentationStyle="pageSheet">
-      <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Search</Text>
-          <Pressable onPress={onClose} hitSlop={8} style={styles.closeButton}>
-            <CloseIcon size={16} />
-          </Pressable>
-        </View>
-
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <View style={styles.field}>
-            <SearchIcon size={18} color={colors.text.tertiary} />
-            <TextInput
-              style={styles.fieldInput}
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Any treatments, venues or professionals"
-              placeholderTextColor={colors.text.tertiary}
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoFocus
-            />
+      {/* Footer buttons rise with the keyboard (Android too: it's edge-to-edge). */}
+      <KeyboardAvoidingView behavior="padding" style={styles.flex}>
+        <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
+          <View style={styles.header}>
+            <Text style={styles.title}>Search</Text>
+            <Pressable onPress={onClose} hitSlop={8} style={styles.closeButton}>
+              <CloseIcon size={16} />
+            </Pressable>
           </View>
 
-          <Pressable style={styles.field} onPress={onUseCurrentLocation}>
-            <LocationPinIcon size={18} color={colors.text.tertiary} />
-            <Text style={styles.fieldText}>{locationLabel}</Text>
-          </Pressable>
-
-          {recentSearches.length > 0 ? (
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Recents</Text>
-                <Pressable onPress={clearSearches} hitSlop={8}>
-                  <Text style={styles.clearText}>Clear</Text>
-                </Pressable>
-              </View>
-              {recentSearches.map((recent) => (
-                <Pressable key={recent} style={styles.recentRow} onPress={() => handleSelectRecent(recent)}>
-                  <SearchIcon size={16} color={colors.text.secondary} />
-                  <Text style={styles.recentText}>{recent}</Text>
-                </Pressable>
-              ))}
+          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+            <View style={styles.field}>
+              <SearchIcon size={18} color={colors.text.tertiary} />
+              <TextInput
+                style={styles.fieldInput}
+                value={query}
+                onChangeText={setQuery}
+                placeholder="Any treatments, venues or professionals"
+                placeholderTextColor={colors.text.tertiary}
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoFocus
+              />
             </View>
-          ) : null}
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Categories</Text>
-            <View style={styles.categoryGrid}>
-              {BUSINESS_CATEGORIES.map((option) => {
-                const selected = category === option.value;
-                return (
-                  <Pressable
-                    key={option.value}
-                    style={[styles.categoryCard, selected && styles.categoryCardSelected]}
-                    onPress={() => handleSelectCategory(option.value)}
-                  >
-                    <Text style={[styles.categoryCardText, selected && styles.categoryCardTextSelected]}>
-                      {option.label}
-                    </Text>
+            <Pressable style={styles.field} onPress={onUseCurrentLocation}>
+              <LocationPinIcon size={18} color={colors.text.tertiary} />
+              <Text style={styles.fieldText}>{locationLabel}</Text>
+            </Pressable>
+
+            {recentSearches.length > 0 ? (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Recents</Text>
+                  <Pressable onPress={clearSearches} hitSlop={8}>
+                    <Text style={styles.clearText}>Clear</Text>
                   </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        </ScrollView>
+                </View>
+                {recentSearches.map((recent) => (
+                  <Pressable key={recent} style={styles.recentRow} onPress={() => handleSelectRecent(recent)}>
+                    <SearchIcon size={16} color={colors.text.secondary} />
+                    <Text style={styles.recentText}>{recent}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
 
-        <View style={styles.footer}>
-          <Button label="Search" onPress={handleSubmit} />
-        </View>
-      </SafeAreaView>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Categories</Text>
+              <View style={styles.categoryGrid}>
+                {BUSINESS_CATEGORIES.map((option) => {
+                  const selected = category === option.value;
+                  return (
+                    <Pressable
+                      key={option.value}
+                      style={[styles.categoryCard, selected && styles.categoryCardSelected]}
+                      onPress={() => handleSelectCategory(option.value)}
+                    >
+                      <Text style={[styles.categoryCardText, selected && styles.categoryCardTextSelected]}>
+                        {option.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          </ScrollView>
+
+          <View style={styles.footer}>
+            <Button label="Search" onPress={handleSubmit} />
+          </View>
+        </SafeAreaView>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

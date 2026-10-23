@@ -1,11 +1,10 @@
-import { StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
-import { BlurView } from 'expo-blur';
 import { SearchIcon } from '../../src/components/icons/SearchIcon';
 import { HeartIcon } from '../../src/components/icons/HeartIcon';
 import { CalendarIcon } from '../../src/components/icons/CalendarIcon';
 import { UserIcon } from '../../src/components/icons/UserIcon';
-import { colors, spacing } from '../../src/theme';
+import { tabBarChrome } from '../../src/components/tabBarChrome';
+import { colors } from '../../src/theme';
 
 // Customer session's tab shell: Explore (unified browse + search) / Wishlist
 // (favorites) / Activity / Profile. Activity and Profile are light for now
@@ -24,9 +23,7 @@ export default function TabsLayout() {
         tabBarActiveTintColor: colors.tab.active,
         tabBarInactiveTintColor: colors.tab.inactive,
         tabBarShowLabel: true,
-        tabBarStyle: styles.tabBar,
-        tabBarItemStyle: styles.tabBarItem,
-        tabBarBackground: () => <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />,
+        ...tabBarChrome, // solid on Android, frosted on iOS
       }}
     >
       <Tabs.Screen
@@ -63,13 +60,3 @@ export default function TabsLayout() {
   );
 }
 
-const styles = StyleSheet.create({
-  tabBar: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(0,0,0,0.08)',
-    backgroundColor: 'transparent',
-  },
-  tabBarItem: {
-    paddingTop: spacing.sm,
-  },
-});

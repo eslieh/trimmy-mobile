@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Button } from '../Button';
 import { addServiceToVisit, chargeVisit } from '../../api/visits';
 import { ApiError, getApiErrorCode, getApiErrorMessage } from '../../api/client';
@@ -9,6 +9,7 @@ import { splitTip, type TipMode } from '../../utils/tipSplit';
 import { colors, radii, spacing, typography } from '../../theme';
 import type { Booking, Visit } from '../../types/booking';
 import type { BusinessContext } from '../../hooks/useBusinessContext';
+import { SheetModal } from '../ui/SheetModal';
 
 // Visits on the business side: a customer having hair done wants nails too,
 // maybe by someone else. Add the service, see the visit's parts, and check it
@@ -88,36 +89,32 @@ export function AddServiceSheet({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={() => {}}>
-          <Text style={styles.sheetTitle}>Add a service</Text>
-          <Text style={styles.hint}>For {booking.customerName}, on the same visit: paid together at checkout.</Text>
-          <ScrollView style={styles.sheetScroll} contentContainerStyle={styles.sheetBody}>
-            <Text style={styles.label}>Service</Text>
-            <View style={styles.pills}>
-              {(business?.services ?? []).map((s) => (
-                <Pill key={s.serviceId} label={`${s.name} · ${money(s.price.amount)}`} selected={serviceId === s.serviceId} onPress={() => setServiceId(s.serviceId)} />
-              ))}
-            </View>
-            <Text style={styles.label}>Who does it</Text>
-            <View style={styles.pills}>
-              {(business?.staff ?? []).map((m) => (
-                <Pill key={m.staffId} label={m.staffId === booking.staffId ? `${m.name} (same)` : m.name} selected={staffId === m.staffId} onPress={() => setStaffId(m.staffId)} />
-              ))}
-            </View>
-            <Text style={styles.label}>When</Text>
-            <View style={styles.pills}>
-              <Pill label="Now, alongside" selected={start === 'now'} onPress={() => setStart('now')} />
-              <Pill label="Right after this" selected={start === 'after'} onPress={() => setStart('after')} />
-            </View>
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-          </ScrollView>
-          {nextFree ? <Button label={`Start at ${nextFree}`} variant="secondary" onPress={() => submit(nextFree)} disabled={saving} /> : null}
-          <Button label={saving ? 'Adding…' : 'Add to visit'} variant="accent" onPress={() => submit()} disabled={!serviceId || !staffId || saving} />
-        </Pressable>
-      </Pressable>
-    </Modal>
+    <SheetModal visible={visible} onRequestClose={onClose} onBackdropPress={onClose} overlayStyle={styles.overlay} sheetStyle={styles.sheet}>
+      <Text style={styles.sheetTitle}>Add a service</Text>
+      <Text style={styles.hint}>For {booking.customerName}, on the same visit: paid together at checkout.</Text>
+      <ScrollView style={styles.sheetScroll} contentContainerStyle={styles.sheetBody}>
+        <Text style={styles.label}>Service</Text>
+        <View style={styles.pills}>
+          {(business?.services ?? []).map((s) => (
+            <Pill key={s.serviceId} label={`${s.name} · ${money(s.price.amount)}`} selected={serviceId === s.serviceId} onPress={() => setServiceId(s.serviceId)} />
+          ))}
+        </View>
+        <Text style={styles.label}>Who does it</Text>
+        <View style={styles.pills}>
+          {(business?.staff ?? []).map((m) => (
+            <Pill key={m.staffId} label={m.staffId === booking.staffId ? `${m.name} (same)` : m.name} selected={staffId === m.staffId} onPress={() => setStaffId(m.staffId)} />
+          ))}
+        </View>
+        <Text style={styles.label}>When</Text>
+        <View style={styles.pills}>
+          <Pill label="Now, alongside" selected={start === 'now'} onPress={() => setStart('now')} />
+          <Pill label="Right after this" selected={start === 'after'} onPress={() => setStart('after')} />
+        </View>
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+      </ScrollView>
+      {nextFree ? <Button label={`Start at ${nextFree}`} variant="secondary" onPress={() => submit(nextFree)} disabled={saving} /> : null}
+      <Button label={saving ? 'Adding…' : 'Add to visit'} variant="accent" onPress={() => submit()} disabled={!serviceId || !staffId || saving} />
+    </SheetModal>
   );
 }
 
@@ -187,96 +184,92 @@ export function VisitCheckoutSheet({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={busy ? undefined : onClose}>
-      <Pressable style={styles.overlay} onPress={busy ? undefined : onClose}>
-        <Pressable style={styles.sheet} onPress={() => {}}>
-          <Text style={styles.sheetTitle}>Check out the visit</Text>
-          <ScrollView style={styles.sheetScroll} contentContainerStyle={styles.sheetBody} keyboardShouldPersistTaps="handled">
-            {charging.map((b) => (
-              <View key={b.bookingId} style={styles.lineRow}>
-                <Text style={[styles.partMeta, styles.flex1]} numberOfLines={1}>
-                  {b.services.map((s) => s.name).join(', ')} · {b.staffName}
-                </Text>
-                <Text style={styles.partAmount}>{money(b.balanceDue?.amount ?? b.totalAmount.amount)}</Text>
+    <SheetModal visible={visible} onRequestClose={busy ? undefined : onClose} onBackdropPress={busy ? undefined : onClose} overlayStyle={styles.overlay} sheetStyle={styles.sheet}>
+      <Text style={styles.sheetTitle}>Check out the visit</Text>
+      <ScrollView style={styles.sheetScroll} contentContainerStyle={styles.sheetBody} keyboardShouldPersistTaps="handled">
+        {charging.map((b) => (
+          <View key={b.bookingId} style={styles.lineRow}>
+            <Text style={[styles.partMeta, styles.flex1]} numberOfLines={1}>
+              {b.services.map((s) => s.name).join(', ')} · {b.staffName}
+            </Text>
+            <Text style={styles.partAmount}>{money(b.balanceDue?.amount ?? b.totalAmount.amount)}</Text>
+          </View>
+        ))}
+        {visit.notReady.length && !onlyReady ? (
+          <Pressable onPress={() => setOnlyReady(true)}>
+            <Text style={styles.warning}>
+              Not started: {visit.notReady.map((n) => n.staffName).join(', ')}. Tap to charge what's done now.
+            </Text>
+          </Pressable>
+        ) : null}
+
+        <Text style={styles.label}>Payment</Text>
+        <View style={styles.pills}>
+          <Pill label="M-Pesa" selected={method === 'mpesa'} onPress={() => setMethod('mpesa')} />
+          <Pill label="Cash" selected={method === 'cash'} onPress={() => setMethod('cash')} />
+        </View>
+        {method === 'mpesa' ? (
+          <TextInput style={styles.input} value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="0712 345 678" placeholderTextColor={colors.text.tertiary} />
+        ) : null}
+
+        {people.length ? (
+          <>
+            <Text style={styles.label}>Tip (optional)</Text>
+            <View style={styles.pills}>
+              <Pill label="Evenly" selected={mode === 'even'} onPress={() => setMode('even')} />
+              <Pill label="By service" selected={mode === 'value'} onPress={() => setMode('value')} />
+              <Pill label="Custom" selected={mode === 'custom'} onPress={() => setMode('custom')} />
+            </View>
+            {mode !== 'custom' ? (
+              <View style={styles.pills}>
+                {TIP_PRESETS.map((a) => (
+                  <Pill key={a} label={a === 0 ? 'None' : String(a)} selected={!tipOther && tipPreset === a} onPress={() => { setTipOther(''); setTipPreset(a); }} />
+                ))}
+                <TextInput
+                  style={[styles.input, styles.tipOther]}
+                  value={tipOther}
+                  onChangeText={(t) => setTipOther(t.replace(/\D/g, '').slice(0, 6))}
+                  keyboardType="number-pad"
+                  placeholder="Other"
+                  placeholderTextColor={colors.text.tertiary}
+                />
+              </View>
+            ) : null}
+            {people.map((p) => (
+              <View key={p.staffId} style={styles.lineRow}>
+                <Text style={[styles.partName, styles.flex1]}>{p.name}</Text>
+                {mode === 'custom' ? (
+                  <TextInput
+                    style={[styles.input, styles.tipInput]}
+                    value={custom[p.staffId] ?? ''}
+                    onChangeText={(t) => setCustom((c) => ({ ...c, [p.staffId]: t.replace(/\D/g, '').slice(0, 6) }))}
+                    keyboardType="number-pad"
+                    placeholder="0"
+                    placeholderTextColor={colors.text.tertiary}
+                  />
+                ) : (
+                  <Text style={styles.partAmount}>{money(shares[p.staffId] ?? 0)}</Text>
+                )}
               </View>
             ))}
-            {visit.notReady.length && !onlyReady ? (
-              <Pressable onPress={() => setOnlyReady(true)}>
-                <Text style={styles.warning}>
-                  Not started: {visit.notReady.map((n) => n.staffName).join(', ')}. Tap to charge what's done now.
-                </Text>
-              </Pressable>
-            ) : null}
-
-            <Text style={styles.label}>Payment</Text>
-            <View style={styles.pills}>
-              <Pill label="M-Pesa" selected={method === 'mpesa'} onPress={() => setMethod('mpesa')} />
-              <Pill label="Cash" selected={method === 'cash'} onPress={() => setMethod('cash')} />
-            </View>
-            {method === 'mpesa' ? (
-              <TextInput style={styles.input} value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="0712 345 678" placeholderTextColor={colors.text.tertiary} />
-            ) : null}
-
-            {people.length ? (
-              <>
-                <Text style={styles.label}>Tip (optional)</Text>
-                <View style={styles.pills}>
-                  <Pill label="Evenly" selected={mode === 'even'} onPress={() => setMode('even')} />
-                  <Pill label="By service" selected={mode === 'value'} onPress={() => setMode('value')} />
-                  <Pill label="Custom" selected={mode === 'custom'} onPress={() => setMode('custom')} />
-                </View>
-                {mode !== 'custom' ? (
-                  <View style={styles.pills}>
-                    {TIP_PRESETS.map((a) => (
-                      <Pill key={a} label={a === 0 ? 'None' : String(a)} selected={!tipOther && tipPreset === a} onPress={() => { setTipOther(''); setTipPreset(a); }} />
-                    ))}
-                    <TextInput
-                      style={[styles.input, styles.tipOther]}
-                      value={tipOther}
-                      onChangeText={(t) => setTipOther(t.replace(/\D/g, '').slice(0, 6))}
-                      keyboardType="number-pad"
-                      placeholder="Other"
-                      placeholderTextColor={colors.text.tertiary}
-                    />
-                  </View>
-                ) : null}
-                {people.map((p) => (
-                  <View key={p.staffId} style={styles.lineRow}>
-                    <Text style={[styles.partName, styles.flex1]}>{p.name}</Text>
-                    {mode === 'custom' ? (
-                      <TextInput
-                        style={[styles.input, styles.tipInput]}
-                        value={custom[p.staffId] ?? ''}
-                        onChangeText={(t) => setCustom((c) => ({ ...c, [p.staffId]: t.replace(/\D/g, '').slice(0, 6) }))}
-                        keyboardType="number-pad"
-                        placeholder="0"
-                        placeholderTextColor={colors.text.tertiary}
-                      />
-                    ) : (
-                      <Text style={styles.partAmount}>{money(shares[p.staffId] ?? 0)}</Text>
-                    )}
-                  </View>
-                ))}
-                <Text style={styles.hint}>Each share goes to that person's wallet.</Text>
-              </>
-            ) : null}
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-          </ScrollView>
-          {busy && method === 'mpesa' ? (
-            <View style={styles.waiting}>
-              <ActivityIndicator color={colors.brand.pink} />
-              <Text style={styles.hint}>One prompt sent. Waiting for their PIN…</Text>
-            </View>
-          ) : null}
-          <Button
-            label={busy ? 'Charging…' : method === 'mpesa' ? `Send one prompt · ${money(total)}` : `Record cash · ${money(total)}`}
-            variant="accent"
-            onPress={submit}
-            disabled={busy || charging.length === 0}
-          />
-        </Pressable>
-      </Pressable>
-    </Modal>
+            <Text style={styles.hint}>Each share goes to that person's wallet.</Text>
+          </>
+        ) : null}
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+      </ScrollView>
+      {busy && method === 'mpesa' ? (
+        <View style={styles.waiting}>
+          <ActivityIndicator color={colors.brand.pink} />
+          <Text style={styles.hint}>One prompt sent. Waiting for their PIN…</Text>
+        </View>
+      ) : null}
+      <Button
+        label={busy ? 'Charging…' : method === 'mpesa' ? `Send one prompt · ${money(total)}` : `Record cash · ${money(total)}`}
+        variant="accent"
+        onPress={submit}
+        disabled={busy || charging.length === 0}
+      />
+    </SheetModal>
   );
 }
 

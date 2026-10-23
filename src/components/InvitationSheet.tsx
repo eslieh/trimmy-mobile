@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Button } from './Button';
 import { listMyInvitations, respondToInvitation } from '../api/team';
@@ -13,6 +13,7 @@ import { switchMode } from '../utils/switchMode';
 import { TEAM_ROLE_LABEL } from '../utils/team';
 import { colors, radii, spacing, typography } from '../theme';
 import type { MyInvitation } from '../types/team';
+import { SheetModal } from './ui/SheetModal';
 
 // A team invitation, offered once in the app as a bottom sheet instead of a
 // stop on the way in at login. Only in the customer app (never in the middle
@@ -76,33 +77,29 @@ export function InvitationSheet() {
   const role = TEAM_ROLE_LABEL[invite.role].toLowerCase();
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={() => dismiss(invite.invitationId)}>
-      <Pressable style={styles.overlay} onPress={() => dismiss(invite.invitationId)}>
-        <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-          <View style={styles.grabber} />
-          <Text style={styles.eyebrow}>Team invitation</Text>
-          <Text style={styles.title}>Join {invite.businessName} on Trimmy</Text>
-          <Text style={styles.body}>
-            {invite.businessName} has invited you to join their team as {role}. You'll get your schedule
-            {invite.role === 'staff' ? ', earnings and payouts' : ', walk-ins and checkout'} right here in the app.
-          </Text>
-          <Button
-            label={busy === 'accept' ? 'Joining…' : 'Accept invitation'}
-            disabled={busy !== null}
-            onPress={() => respond('accept')}
-          />
-          <Button
-            label={busy === 'decline' ? 'Declining…' : 'Decline'}
-            variant="secondary"
-            disabled={busy !== null}
-            onPress={() => respond('decline')}
-          />
-          <Pressable onPress={() => dismiss(invite.invitationId)} hitSlop={8} style={styles.later}>
-            <Text style={styles.laterText}>Not now — it'll stay in your Profile</Text>
-          </Pressable>
-        </Pressable>
+    <SheetModal visible={visible} onRequestClose={() => dismiss(invite.invitationId)} onBackdropPress={() => dismiss(invite.invitationId)} overlayStyle={styles.overlay} sheetStyle={styles.sheet}>
+      <View style={styles.grabber} />
+      <Text style={styles.eyebrow}>Team invitation</Text>
+      <Text style={styles.title}>Join {invite.businessName} on Trimmy</Text>
+      <Text style={styles.body}>
+        {invite.businessName} has invited you to join their team as {role}. You'll get your schedule
+        {invite.role === 'staff' ? ', earnings and payouts' : ', walk-ins and checkout'} right here in the app.
+      </Text>
+      <Button
+        label={busy === 'accept' ? 'Joining…' : 'Accept invitation'}
+        disabled={busy !== null}
+        onPress={() => respond('accept')}
+      />
+      <Button
+        label={busy === 'decline' ? 'Declining…' : 'Decline'}
+        variant="secondary"
+        disabled={busy !== null}
+        onPress={() => respond('decline')}
+      />
+      <Pressable onPress={() => dismiss(invite.invitationId)} hitSlop={8} style={styles.later}>
+        <Text style={styles.laterText}>Not now — it'll stay in your Profile</Text>
       </Pressable>
-    </Modal>
+    </SheetModal>
   );
 }
 

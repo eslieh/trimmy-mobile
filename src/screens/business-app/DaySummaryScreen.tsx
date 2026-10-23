@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { BackButton } from '../../components/BackButton';
@@ -72,86 +72,89 @@ export function DaySummaryScreen() {
         <Text style={styles.headerTitle}>Day summary</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        <DatePickerField label="Day" value={date} onChange={setDate} maximumDate={new Date()} />
+      {/* Fields and the button below stay above the keyboard (Android is edge-to-edge). */}
+      <KeyboardAvoidingView behavior="padding" style={styles.flex}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <DatePickerField label="Day" value={date} onChange={setDate} maximumDate={new Date()} />
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        {!summary && !error ? <ActivityIndicator color={colors.text.secondary} /> : null}
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {!summary && !error ? <ActivityIndicator color={colors.text.secondary} /> : null}
 
-        {summary ? (
-          <>
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Visits</Text>
-              <Row label="Appointments" value={String(summary.appointments)} />
-              <Row label="Walk-ins" value={String(summary.walkIns)} />
-              <Row label="Completed" value={String(summary.completed)} />
-              <Row label="No-shows" value={String(summary.noShows)} />
-              <Row label="Cancelled" value={String(summary.cancelled)} />
-            </View>
-
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Collected</Text>
-              <Row label={`Cash (${summary.collected.cash.count})`} value={money(summary.collected.cash.amount)} />
-              <Row label={`M-Pesa (${summary.collected.mpesa.count})`} value={money(summary.collected.mpesa.amount)} />
-              <Text style={styles.hint}>Of which</Text>
-              <Row
-                label={`Deposits (${summary.collected.depositsCollected.count})`}
-                value={money(summary.collected.depositsCollected.amount)}
-              />
-              <Row
-                label={`Balance payments (${summary.collected.balancePayments.count})`}
-                value={money(summary.collected.balancePayments.amount)}
-              />
-              {summary.collected.tips && summary.collected.tips.amount > 0 ? (
-                // In the till, but the staff's: already credited to their wallets.
-                <Row
-                  label={`Tips for staff (${summary.collected.tips.count})`}
-                  value={money(summary.collected.tips.amount)}
-                />
-              ) : null}
-              {summary.refundsPaid.count > 0 ? (
-                <Row
-                  label={`Refunds paid back (${summary.refundsPaid.count})`}
-                  value={`− ${money(summary.refundsPaid.amount)}`}
-                />
-              ) : null}
-            </View>
-
-            {summary.unpaid.length > 0 ? (
+          {summary ? (
+            <>
               <View style={styles.card}>
-                <Text style={styles.cardTitle}>Not paid yet</Text>
-                {summary.unpaid.map((visit) => (
-                  <Pressable key={visit.bookingId} onPress={() => router.push(`/appointment/${visit.bookingId}`)}>
-                    <Row label={`${visit.time} · ${visit.customerName}`} value={money(visit.balanceDue.amount)} />
-                  </Pressable>
-                ))}
+                <Text style={styles.cardTitle}>Visits</Text>
+                <Row label="Appointments" value={String(summary.appointments)} />
+                <Row label="Walk-ins" value={String(summary.walkIns)} />
+                <Row label="Completed" value={String(summary.completed)} />
+                <Row label="No-shows" value={String(summary.noShows)} />
+                <Row label="Cancelled" value={String(summary.cancelled)} />
               </View>
-            ) : null}
 
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Submit to owner</Text>
-              {submitted ? (
-                <Text style={styles.hint}>
-                  Submitted {new Date(submitted).toLocaleString()}
-                  {summary.submission.submittedBy ? ` by ${summary.submission.submittedBy}` : ''}
-                </Text>
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>Collected</Text>
+                <Row label={`Cash (${summary.collected.cash.count})`} value={money(summary.collected.cash.amount)} />
+                <Row label={`M-Pesa (${summary.collected.mpesa.count})`} value={money(summary.collected.mpesa.amount)} />
+                <Text style={styles.hint}>Of which</Text>
+                <Row
+                  label={`Deposits (${summary.collected.depositsCollected.count})`}
+                  value={money(summary.collected.depositsCollected.amount)}
+                />
+                <Row
+                  label={`Balance payments (${summary.collected.balancePayments.count})`}
+                  value={money(summary.collected.balancePayments.amount)}
+                />
+                {summary.collected.tips && summary.collected.tips.amount > 0 ? (
+                  // In the till, but the staff's: already credited to their wallets.
+                  <Row
+                    label={`Tips for staff (${summary.collected.tips.count})`}
+                    value={money(summary.collected.tips.amount)}
+                  />
+                ) : null}
+                {summary.refundsPaid.count > 0 ? (
+                  <Row
+                    label={`Refunds paid back (${summary.refundsPaid.count})`}
+                    value={`− ${money(summary.refundsPaid.amount)}`}
+                  />
+                ) : null}
+              </View>
+
+              {summary.unpaid.length > 0 ? (
+                <View style={styles.card}>
+                  <Text style={styles.cardTitle}>Not paid yet</Text>
+                  {summary.unpaid.map((visit) => (
+                    <Pressable key={visit.bookingId} onPress={() => router.push(`/appointment/${visit.bookingId}`)}>
+                      <Row label={`${visit.time} · ${visit.customerName}`} value={money(visit.balanceDue.amount)} />
+                    </Pressable>
+                  ))}
+                </View>
               ) : null}
-              <Input
-                label="Notes (optional)"
-                value={notes}
-                onChangeText={setNotes}
-                placeholder="e.g. KSh 200 short due to change"
-                multiline
-              />
-              <Button
-                label={submitting ? 'Submitting…' : submitted ? 'Update submission' : 'Submit to owner'}
-                disabled={submitting}
-                onPress={handleSubmit}
-              />
-            </View>
-          </>
-        ) : null}
-      </ScrollView>
+
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>Submit to owner</Text>
+                {submitted ? (
+                  <Text style={styles.hint}>
+                    Submitted {new Date(submitted).toLocaleString()}
+                    {summary.submission.submittedBy ? ` by ${summary.submission.submittedBy}` : ''}
+                  </Text>
+                ) : null}
+                <Input
+                  label="Notes (optional)"
+                  value={notes}
+                  onChangeText={setNotes}
+                  placeholder="e.g. KSh 200 short due to change"
+                  multiline
+                />
+                <Button
+                  label={submitting ? 'Submitting…' : submitted ? 'Update submission' : 'Submit to owner'}
+                  disabled={submitting}
+                  onPress={handleSubmit}
+                />
+              </View>
+            </>
+          ) : null}
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

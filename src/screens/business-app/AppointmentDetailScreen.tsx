@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
@@ -38,6 +38,7 @@ import { useBusinessContext } from '../../hooks/useBusinessContext';
 import { getVisit } from '../../api/visits';
 import { AddServiceSheet, VisitCheckoutSheet, VisitPartsCard } from '../../components/visit/VisitSheets';
 import type { Visit } from '../../types/booking';
+import { SheetModal } from '../../components/ui/SheetModal';
 
 const DEFAULT_COUNTRY = countries.find((c) => c.iso2 === 'KE') ?? countries[0];
 // Quick picks for a tip at checkout (KSh); "Other amount" covers the rest.
@@ -518,43 +519,35 @@ export function AppointmentDetailScreen() {
         ) : null}
       </View>
 
-      <Modal visible={tipVisible} transparent animationType="slide" onRequestClose={() => setTipVisible(false)}>
-        <Pressable style={styles.overlay} onPress={() => setTipVisible(false)}>
-          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.sheetTitle}>Tip for {booking.staffName}</Text>
-            <Text style={styles.sheetSubtitle}>Goes into their wallet. Record it once you've received it (e.g. cash).</Text>
-            <Input label="Amount (KSh)" value={tipAmount} onChangeText={setTipAmount} keyboardType="number-pad" />
-            <Input label="Note (optional)" value={tipNote} onChangeText={setTipNote} placeholder={`From ${booking.customerName}`} />
-            {tipError ? <Text style={styles.assignError}>{tipError}</Text> : null}
-            <Button
-              label={savingTip ? 'Saving…' : 'Add tip'}
-              disabled={savingTip || !(parseInt(tipAmount, 10) > 0)}
-              onPress={handleAddTip}
-              style={styles.sheetButton}
-            />
-          </Pressable>
-        </Pressable>
-      </Modal>
+      <SheetModal visible={tipVisible} onRequestClose={() => setTipVisible(false)} onBackdropPress={() => setTipVisible(false)} overlayStyle={styles.overlay} sheetStyle={styles.sheet}>
+        <Text style={styles.sheetTitle}>Tip for {booking.staffName}</Text>
+        <Text style={styles.sheetSubtitle}>Goes into their wallet. Record it once you've received it (e.g. cash).</Text>
+        <Input label="Amount (KSh)" value={tipAmount} onChangeText={setTipAmount} keyboardType="number-pad" />
+        <Input label="Note (optional)" value={tipNote} onChangeText={setTipNote} placeholder={`From ${booking.customerName}`} />
+        {tipError ? <Text style={styles.assignError}>{tipError}</Text> : null}
+        <Button
+          label={savingTip ? 'Saving…' : 'Add tip'}
+          disabled={savingTip || !(parseInt(tipAmount, 10) > 0)}
+          onPress={handleAddTip}
+          style={styles.sheetButton}
+        />
+      </SheetModal>
 
-      <Modal visible={rescheduleVisible} transparent animationType="slide" onRequestClose={() => setRescheduleVisible(false)}>
-        <Pressable style={styles.overlay} onPress={() => setRescheduleVisible(false)}>
-          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.sheetTitle}>Reschedule</Text>
-            <Text style={styles.sheetSubtitle}>
-              Any time within working hours. The customer gets an SMS with the new time.
-            </Text>
-            <DatePickerField label="Date" value={newDate} onChange={setNewDate} minimumDate={new Date()} />
-            <TimePickerField label="Time" value={newTime} onChange={setNewTime} />
-            {rescheduleError ? <Text style={styles.assignError}>{rescheduleError}</Text> : null}
-            <Button
-              label={rescheduling ? 'Moving…' : 'Move appointment'}
-              disabled={rescheduling || !newDate || !newTime || (newDate === booking.date && newTime === booking.time)}
-              onPress={handleReschedule}
-              style={styles.sheetButton}
-            />
-          </Pressable>
-        </Pressable>
-      </Modal>
+      <SheetModal visible={rescheduleVisible} onRequestClose={() => setRescheduleVisible(false)} onBackdropPress={() => setRescheduleVisible(false)} overlayStyle={styles.overlay} sheetStyle={styles.sheet}>
+        <Text style={styles.sheetTitle}>Reschedule</Text>
+        <Text style={styles.sheetSubtitle}>
+          Any time within working hours. The customer gets an SMS with the new time.
+        </Text>
+        <DatePickerField label="Date" value={newDate} onChange={setNewDate} minimumDate={new Date()} />
+        <TimePickerField label="Time" value={newTime} onChange={setNewTime} />
+        {rescheduleError ? <Text style={styles.assignError}>{rescheduleError}</Text> : null}
+        <Button
+          label={rescheduling ? 'Moving…' : 'Move appointment'}
+          disabled={rescheduling || !newDate || !newTime || (newDate === booking.date && newTime === booking.time)}
+          onPress={handleReschedule}
+          style={styles.sheetButton}
+        />
+      </SheetModal>
 
       <AddServiceSheet
         visible={addServiceVisible}
@@ -582,146 +575,133 @@ export function AppointmentDetailScreen() {
         }}
       />
 
-      <Modal
-        visible={assignSheetVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setAssignSheetVisible(false)}
-      >
-        <Pressable style={styles.overlay} onPress={() => setAssignSheetVisible(false)}>
-          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.sheetTitle}>{booking.staffId ? 'Reassign booking' : 'Assign staff'}</Text>
-            {assignError ? <Text style={styles.assignError}>{assignError}</Text> : null}
-            {assignableStaff.map((member) => {
-              const name = member.name;
-              const current = member.staffId === booking.staffId;
-              return (
-                <Pressable
-                  key={member.staffId}
-                  style={styles.assignRow}
-                  disabled={current || assigningStaffId !== null}
-                  onPress={() => handleAssign(member.staffId, name)}
-                >
-                  <Text style={[styles.cardValue, current && styles.cardValueMuted]}>
-                    {name}
-                    {current ? ' (assigned)' : ''}
-                  </Text>
-                  {assigningStaffId === member.staffId ? <ActivityIndicator color={colors.text.secondary} /> : null}
-                </Pressable>
-              );
-            })}
-          </Pressable>
-        </Pressable>
-      </Modal>
+      <SheetModal visible={assignSheetVisible} onRequestClose={() => setAssignSheetVisible(false)} onBackdropPress={() => setAssignSheetVisible(false)} overlayStyle={styles.overlay} sheetStyle={styles.sheet}>
+        <Text style={styles.sheetTitle}>{booking.staffId ? 'Reassign booking' : 'Assign staff'}</Text>
+        {assignError ? <Text style={styles.assignError}>{assignError}</Text> : null}
+        {assignableStaff.map((member) => {
+          const name = member.name;
+          const current = member.staffId === booking.staffId;
+          return (
+            <Pressable
+              key={member.staffId}
+              style={styles.assignRow}
+              disabled={current || assigningStaffId !== null}
+              onPress={() => handleAssign(member.staffId, name)}
+            >
+              <Text style={[styles.cardValue, current && styles.cardValueMuted]}>
+                {name}
+                {current ? ' (assigned)' : ''}
+              </Text>
+              {assigningStaffId === member.staffId ? <ActivityIndicator color={colors.text.secondary} /> : null}
+            </Pressable>
+          );
+        })}
+      </SheetModal>
 
-      <Modal visible={chargeSheetVisible} transparent animationType="slide" onRequestClose={closeChargeSheet}>
-        <Pressable style={styles.overlay} onPress={closeChargeSheet}>
-          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-            {chargeStep === 'pending' ? (
-              <View style={styles.chargingState}>
-                <ActivityIndicator size="large" color={colors.brand.purple} />
-                {chargeMethod === 'mpesa' ? (
-                  <>
-                    <Text style={styles.chargingTitle}>Check their phone</Text>
-                    <Text style={styles.chargingSubtitle}>
-                      We sent an M-Pesa payment prompt to{' '}
-                      {rawPhone ? `+${country.dialCode}${rawPhone}` : 'their number'}. Waiting for them to enter
-                      their PIN.
-                    </Text>
-                  </>
-                ) : (
-                  <Text style={styles.chargingTitle}>Recording payment…</Text>
-                )}
-              </View>
-            ) : chargeStep === 'success' ? (
-              <ChargeSuccessState method={chargeMethod} amount={chargedAmount} />
-            ) : (
+      <SheetModal visible={chargeSheetVisible} onRequestClose={closeChargeSheet} onBackdropPress={closeChargeSheet} overlayStyle={styles.overlay} sheetStyle={styles.sheet}>
+        {chargeStep === 'pending' ? (
+          <View style={styles.chargingState}>
+            <ActivityIndicator size="large" color={colors.brand.purple} />
+            {chargeMethod === 'mpesa' ? (
               <>
-                <Text style={styles.sheetTitle}>Charge customer</Text>
-                <Text style={styles.sheetSubtitle}>
-                  {/* balanceDue = total minus any deposit paid. */}
-                  KSh {balance} for {booking.customerName}
-                  {chargeTip > 0 ? ` + KSh ${chargeTip} tip = KSh ${chargeTotal}` : ''}
+                <Text style={styles.chargingTitle}>Check their phone</Text>
+                <Text style={styles.chargingSubtitle}>
+                  We sent an M-Pesa payment prompt to{' '}
+                  {rawPhone ? `+${country.dialCode}${rawPhone}` : 'their number'}. Waiting for them to enter
+                  their PIN.
                 </Text>
-                {chargeError ? <Text style={styles.assignError}>{chargeError}</Text> : null}
+              </>
+            ) : (
+              <Text style={styles.chargingTitle}>Recording payment…</Text>
+            )}
+          </View>
+        ) : chargeStep === 'success' ? (
+          <ChargeSuccessState method={chargeMethod} amount={chargedAmount} />
+        ) : (
+          <>
+            <Text style={styles.sheetTitle}>Charge customer</Text>
+            <Text style={styles.sheetSubtitle}>
+              {/* balanceDue = total minus any deposit paid. */}
+              KSh {balance} for {booking.customerName}
+              {chargeTip > 0 ? ` + KSh ${chargeTip} tip = KSh ${chargeTotal}` : ''}
+            </Text>
+            {chargeError ? <Text style={styles.assignError}>{chargeError}</Text> : null}
 
-                {booking.staffId ? (
-                  // One payment for both: the tip goes to their wallet once it's paid.
-                  <View style={styles.tipBlock}>
-                    <Text style={styles.cardLabel}>Tip for {booking.staffName} (optional)</Text>
-                    <View style={styles.methodRow}>
-                      {TIP_PRESETS.map((amount) => {
-                        const selected = chargeTip === amount && !customTip;
-                        return (
-                          <Pressable
-                            key={amount}
-                            style={[styles.methodPill, selected && styles.methodPillSelected]}
-                            onPress={() => {
-                              setCustomTip('');
-                              setChargeTip(amount);
-                            }}
-                          >
-                            <Text style={[styles.methodPillText, selected && styles.methodPillTextSelected]}>
-                              {amount === 0 ? 'None' : amount}
-                            </Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                    <Input
-                      label="Other amount (KSh)"
-                      value={customTip}
-                      keyboardType="number-pad"
-                      onChangeText={(text) => {
-                        const digits = text.replace(/[^0-9]/g, '').slice(0, 6);
-                        setCustomTip(digits);
-                        setChargeTip(digits ? parseInt(digits, 10) : 0);
-                      }}
-                    />
-                  </View>
-                ) : null}
-
+            {booking.staffId ? (
+              // One payment for both: the tip goes to their wallet once it's paid.
+              <View style={styles.tipBlock}>
+                <Text style={styles.cardLabel}>Tip for {booking.staffName} (optional)</Text>
                 <View style={styles.methodRow}>
-                  {(['mpesa', 'cash'] as const).map((method) => {
-                    const selected = chargeMethod === method;
+                  {TIP_PRESETS.map((amount) => {
+                    const selected = chargeTip === amount && !customTip;
                     return (
                       <Pressable
-                        key={method}
+                        key={amount}
                         style={[styles.methodPill, selected && styles.methodPillSelected]}
-                        onPress={() => setChargeMethod(method)}
+                        onPress={() => {
+                          setCustomTip('');
+                          setChargeTip(amount);
+                        }}
                       >
                         <Text style={[styles.methodPillText, selected && styles.methodPillTextSelected]}>
-                          {PAYMENT_METHOD_LABEL[method]}
+                          {amount === 0 ? 'None' : amount}
                         </Text>
                       </Pressable>
                     );
                   })}
                 </View>
+                <Input
+                  label="Other amount (KSh)"
+                  value={customTip}
+                  keyboardType="number-pad"
+                  onChangeText={(text) => {
+                    const digits = text.replace(/[^0-9]/g, '').slice(0, 6);
+                    setCustomTip(digits);
+                    setChargeTip(digits ? parseInt(digits, 10) : 0);
+                  }}
+                />
+              </View>
+            ) : null}
 
-                {chargeMethod === 'mpesa' ? (
-                  <>
-                    <PhoneInput
-                      label="Customer phone"
-                      country={country}
-                      onCountryChange={setCountry}
-                      value={rawPhone}
-                      onChangeText={setRawPhone}
-                    />
-                    <Button
-                      label={`Send KSh ${chargeTotal} request`}
-                      disabled={rawPhone.length < 4}
-                      onPress={handleSendChargeRequest}
-                      style={styles.sheetButton}
-                    />
-                  </>
-                ) : (
-                  <Button label={`Mark KSh ${chargeTotal} paid (cash)`} onPress={handleChargeCash} style={styles.sheetButton} />
-                )}
+            <View style={styles.methodRow}>
+              {(['mpesa', 'cash'] as const).map((method) => {
+                const selected = chargeMethod === method;
+                return (
+                  <Pressable
+                    key={method}
+                    style={[styles.methodPill, selected && styles.methodPillSelected]}
+                    onPress={() => setChargeMethod(method)}
+                  >
+                    <Text style={[styles.methodPillText, selected && styles.methodPillTextSelected]}>
+                      {PAYMENT_METHOD_LABEL[method]}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {chargeMethod === 'mpesa' ? (
+              <>
+                <PhoneInput
+                  label="Customer phone"
+                  country={country}
+                  onCountryChange={setCountry}
+                  value={rawPhone}
+                  onChangeText={setRawPhone}
+                />
+                <Button
+                  label={`Send KSh ${chargeTotal} request`}
+                  disabled={rawPhone.length < 4}
+                  onPress={handleSendChargeRequest}
+                  style={styles.sheetButton}
+                />
               </>
+            ) : (
+              <Button label={`Mark KSh ${chargeTotal} paid (cash)`} onPress={handleChargeCash} style={styles.sheetButton} />
             )}
-          </Pressable>
-        </Pressable>
-      </Modal>
+          </>
+        )}
+      </SheetModal>
     </SafeAreaView>
   );
 }

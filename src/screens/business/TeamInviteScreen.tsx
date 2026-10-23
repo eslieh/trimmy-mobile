@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { AuthScreenLayout } from '../../components/AuthScreenLayout';
 import { Input } from '../../components/Input';
@@ -8,6 +8,7 @@ import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingSto
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import type { TeamRole } from '../../types/team';
 import { showApiError } from '../../utils/showApiError';
+import { SheetModal } from '../../components/ui/SheetModal';
 
 const TOTAL_STEPS = 11;
 
@@ -96,68 +97,64 @@ function AddInviteSheet({ visible, onClose }: AddInviteSheetProps) {
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-          <Text style={styles.sheetTitle}>Invite a team member</Text>
+    <SheetModal visible={visible} onRequestClose={onClose} onBackdropPress={onClose} overlayStyle={styles.overlay} sheetStyle={styles.sheet}>
+      <Text style={styles.sheetTitle}>Invite a team member</Text>
 
-          <View style={styles.pillRow}>
-            <Pressable
-              onPress={() => {
-                setContactMethod('email');
-                setContactValue('');
-              }}
-              style={[styles.pill, contactMethod === 'email' && styles.pillSelected]}
-            >
-              <Text style={[styles.pillText, contactMethod === 'email' && styles.pillTextSelected]}>Email</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => {
-                setContactMethod('phone');
-                setContactValue('');
-              }}
-              style={[styles.pill, contactMethod === 'phone' && styles.pillSelected]}
-            >
-              <Text style={[styles.pillText, contactMethod === 'phone' && styles.pillTextSelected]}>Phone</Text>
-            </Pressable>
-          </View>
-
-          <Input
-            label={contactMethod === 'email' ? 'Email address' : 'Phone number'}
-            value={contactValue}
-            onChangeText={setContactValue}
-            placeholder={contactMethod === 'email' ? 'jane@example.com' : '+254712345678'}
-            keyboardType={contactMethod === 'email' ? 'email-address' : 'phone-pad'}
-            autoCapitalize="none"
-            autoFocus
-          />
-
-          <View>
-            <Text style={styles.fieldLabel}>Role</Text>
-            <View style={styles.pillRow}>
-              {(Object.keys(ROLE_LABEL) as TeamRole[]).map((option) => (
-                <Pressable
-                  key={option}
-                  onPress={() => setRole(option)}
-                  style={[styles.pill, role === option && styles.pillSelected]}
-                >
-                  <Text style={[styles.pillText, role === option && styles.pillTextSelected]}>
-                    {ROLE_LABEL[option]}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-
-          <Button
-            label={isSubmitting ? 'Sending…' : 'Send invite'}
-            disabled={!canSubmit || isSubmitting}
-            onPress={handleSend}
-            style={styles.sheetButton}
-          />
+      <View style={styles.pillRow}>
+        <Pressable
+          onPress={() => {
+            setContactMethod('email');
+            setContactValue('');
+          }}
+          style={[styles.pill, contactMethod === 'email' && styles.pillSelected]}
+        >
+          <Text style={[styles.pillText, contactMethod === 'email' && styles.pillTextSelected]}>Email</Text>
         </Pressable>
-      </Pressable>
-    </Modal>
+        <Pressable
+          onPress={() => {
+            setContactMethod('phone');
+            setContactValue('');
+          }}
+          style={[styles.pill, contactMethod === 'phone' && styles.pillSelected]}
+        >
+          <Text style={[styles.pillText, contactMethod === 'phone' && styles.pillTextSelected]}>Phone</Text>
+        </Pressable>
+      </View>
+
+      <Input
+        label={contactMethod === 'email' ? 'Email address' : 'Phone number'}
+        value={contactValue}
+        onChangeText={setContactValue}
+        placeholder={contactMethod === 'email' ? 'jane@example.com' : '+254712345678'}
+        keyboardType={contactMethod === 'email' ? 'email-address' : 'phone-pad'}
+        autoCapitalize="none"
+        autoFocus
+      />
+
+      <View>
+        <Text style={styles.fieldLabel}>Role</Text>
+        <View style={styles.pillRow}>
+          {(Object.keys(ROLE_LABEL) as TeamRole[]).map((option) => (
+            <Pressable
+              key={option}
+              onPress={() => setRole(option)}
+              style={[styles.pill, role === option && styles.pillSelected]}
+            >
+              <Text style={[styles.pillText, role === option && styles.pillTextSelected]}>
+                {ROLE_LABEL[option]}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+
+      <Button
+        label={isSubmitting ? 'Sending…' : 'Send invite'}
+        disabled={!canSubmit || isSubmitting}
+        onPress={handleSend}
+        style={styles.sheetButton}
+      />
+    </SheetModal>
   );
 }
 

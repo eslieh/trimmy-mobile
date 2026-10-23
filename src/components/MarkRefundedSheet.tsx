@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text } from 'react-native';
 import { Button } from './Button';
 import { Input } from './Input';
 import { markBookingRefunded } from '../api/booking';
 import { getApiErrorMessage } from '../api/client';
 import { colors, radii, spacing, typography } from '../theme';
 import type { Booking } from '../types/booking';
+import { SheetModal } from './ui/SheetModal';
 
 interface MarkRefundedSheetProps {
   booking: Booking | null; // null = hidden
@@ -45,26 +46,22 @@ export function MarkRefundedSheet({ booking, onClose, onRefunded }: MarkRefunded
   const amount = booking?.refund?.amount.amount;
 
   return (
-    <Modal visible={booking !== null} transparent animationType="slide" onRequestClose={close}>
-      <Pressable style={styles.overlay} onPress={close}>
-        <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-          <Text style={styles.title}>Mark refunded</Text>
-          <Text style={styles.body}>
-            {booking ? `Confirm you've sent KES ${amount ?? 0} back to ${booking.customerName}.` : ''}
-          </Text>
-          <Input
-            label="M-Pesa code of the refund (optional)"
-            value={reference}
-            onChangeText={setReference}
-            placeholder="SJK4R2T8QX"
-            autoCapitalize="characters"
-            autoCorrect={false}
-          />
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          <Button label={saving ? 'Saving…' : 'Mark refunded'} disabled={saving} onPress={handleConfirm} />
-        </Pressable>
-      </Pressable>
-    </Modal>
+    <SheetModal visible={booking !== null} onRequestClose={close} onBackdropPress={close} overlayStyle={styles.overlay} sheetStyle={styles.sheet}>
+      <Text style={styles.title}>Mark refunded</Text>
+      <Text style={styles.body}>
+        {booking ? `Confirm you've sent KES ${amount ?? 0} back to ${booking.customerName}.` : ''}
+      </Text>
+      <Input
+        label="M-Pesa code of the refund (optional)"
+        value={reference}
+        onChangeText={setReference}
+        placeholder="SJK4R2T8QX"
+        autoCapitalize="characters"
+        autoCorrect={false}
+      />
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      <Button label={saving ? 'Saving…' : 'Mark refunded'} disabled={saving} onPress={handleConfirm} />
+    </SheetModal>
   );
 }
 

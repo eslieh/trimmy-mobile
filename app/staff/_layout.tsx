@@ -1,11 +1,10 @@
-import { StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
-import { BlurView } from 'expo-blur';
 import { CalendarIcon } from '../../src/components/icons/CalendarIcon';
 import { ChartIcon } from '../../src/components/icons/ChartIcon';
 import { ListIcon } from '../../src/components/icons/ListIcon';
 import { UserIcon } from '../../src/components/icons/UserIcon';
-import { colors, spacing } from '../../src/theme';
+import { tabBarChrome } from '../../src/components/tabBarChrome';
+import { colors } from '../../src/theme';
 
 // Staff session's tab shell — same docked, blurred tab bar as the customer
 // (tabs) and business-owner (business-app) shells, per explicit request to
@@ -35,9 +34,7 @@ export default function StaffAppLayout() {
         tabBarActiveTintColor: colors.tab.active,
         tabBarInactiveTintColor: colors.tab.inactive,
         tabBarShowLabel: true,
-        tabBarStyle: styles.tabBar,
-        tabBarItemStyle: styles.tabBarItem,
-        tabBarBackground: () => <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />,
+        ...tabBarChrome, // solid on Android, frosted on iOS
       }}
     >
       <Tabs.Screen
@@ -72,13 +69,3 @@ export default function StaffAppLayout() {
   );
 }
 
-const styles = StyleSheet.create({
-  tabBar: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(0,0,0,0.08)',
-    backgroundColor: 'transparent',
-  },
-  tabBarItem: {
-    paddingTop: spacing.sm,
-  },
-});
