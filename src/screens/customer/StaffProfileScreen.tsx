@@ -15,9 +15,11 @@ import { useCartStore } from '../../store/useCartStore';
 import { groupServicesByCategory } from '../../utils/services';
 import { colors, radii, spacing, typography } from '../../theme';
 import type { BookingServiceLine } from '../../types/booking';
-import type { BusinessProfile, BusinessProfileStaffMember } from '../../types/discovery';
+import type { BusinessProfile, BusinessProfileReview, BusinessProfileStaffMember } from '../../types/discovery';
 import { HeartIcon } from '../../components/icons/HeartIcon';
 import { useFavoritesStore } from '../../store/useFavoritesStore';
+import { ReviewCard } from '../../components/ReviewCard';
+import { listBusinessReviews } from '../../api/reviews';
 
 type StaffTab = 'profile' | 'portfolio' | 'reviews';
 
@@ -34,6 +36,13 @@ export function StaffProfileScreen() {
   const toggleStaffFavorite = useFavoritesStore((s) => s.toggleStaffFavorite);
   const [profile, setProfile] = useState<BusinessProfile | null>(null);
   const [tab, setTab] = useState<StaffTab>('profile');
+  // This person's reviews only (filtered by who did the service).
+  const [staffReviews, setStaffReviews] = useState<BusinessProfileReview[] | null>(null);
+  useEffect(() => {
+    listBusinessReviews(businessId, { staffId, limit: 50 })
+      .then((page) => setStaffReviews(page.reviews))
+      .catch(() => setStaffReviews([]));
+  }, [businessId, staffId]);
   const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
 
   const cartBusinessId = useCartStore((s) => s.businessId);
@@ -110,7 +119,7 @@ export function StaffProfileScreen() {
           options={[
             { key: 'profile', label: 'Profile' },
             { key: 'portfolio', label: 'Portfolio' },
-            { key: 'reviews', label: 'Reviews', badge: profile.reviews.length },
+            { key: 'reviews', label: 'Reviews', badge: staffReviews?.length || undefined },
           ]}
           value={tab}
           onChange={setTab}
@@ -157,17 +166,13 @@ export function StaffProfileScreen() {
 
         {tab === 'reviews' ? (
           <View style={styles.tabContent}>
-            {profile.reviews.length === 0 ? (
-              <Text style={styles.emptyText}>No reviews yet.</Text>
+            {staffReviews === null ? (
+              <ActivityIndicator color={colors.text.secondary} />
+            ) : staffReviews.length === 0 ? (
+              <Text style={styles.emptyText}>No reviews of {member.name}'s work yet.</Text>
             ) : (
-              profile.reviews.map((review) => (
-                <View key={review.reviewId} style={styles.reviewCard}>
-                  <View style={styles.reviewHeader}>
-                    <Text style={styles.reviewAuthor}>{review.authorName}</Text>
-                    <RatingLabel rating={review.rating} size={12} />
-                  </View>
-                  <Text style={styles.reviewText}>{review.text}</Text>
-                </View>
+              staffReviews.map((review) => (
+                <ReviewCard key={review.reviewId} review={review} />
               ))
             )}
           </View>

@@ -301,6 +301,12 @@ export function BookingDetailScreen() {
               <Text style={styles.cardLabel}>Your review</Text>
               <Text style={styles.stars}>{'★'.repeat(booking.review.rating)}{'☆'.repeat(5 - booking.review.rating)}</Text>
               {booking.review.text ? <Text style={styles.notes}>{booking.review.text}</Text> : null}
+              {booking.review.replyText ? (
+                <View style={styles.replyBox}>
+                  <Text style={styles.replyLabel}>Reply from {booking.businessName}</Text>
+                  <Text style={styles.notes}>{booking.review.replyText}</Text>
+                </View>
+              ) : null}
             </View>
           ) : (
             <Button label="Leave a review" onPress={() => setReviewVisible(true)} style={styles.actionButton} />
@@ -415,6 +421,17 @@ export function BookingDetailScreen() {
 }
 
 const styles = StyleSheet.create({
+  replyBox: {
+    marginTop: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radii.lg,
+    backgroundColor: colors.background.tertiary,
+    gap: 2,
+  },
+  replyLabel: {
+    ...typography.caption,
+    color: colors.text.secondary,
+  },
   flex: {
     flex: 1,
     backgroundColor: colors.background.primary,

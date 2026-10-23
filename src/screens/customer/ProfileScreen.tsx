@@ -16,6 +16,7 @@ import Svg, { Path } from 'react-native-svg';
 import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
 import { nextSetupRoute } from '../../utils/restoreOwnedBusiness';
 import { switchMode } from '../../utils/switchMode';
+import { StarIcon } from '../../components/icons/StarIcon';
 
 export function ProfileScreen() {
   const router = useRouter();
@@ -67,11 +68,18 @@ export function ProfileScreen() {
 
           {user ? (
             <View style={styles.group}>
-              <Pressable style={[styles.row, styles.rowLast]} onPress={() => router.push('/activity')}>
+              <Pressable style={styles.row} onPress={() => router.push('/activity')}>
                 <IconBubble size={36}>
                   <CalendarIcon size={17} color={colors.brand.pink} />
                 </IconBubble>
                 <Text style={styles.rowLabel}>My appointments</Text>
+                <ChevronRightIcon size={16} color={colors.text.tertiary} />
+              </Pressable>
+              <Pressable style={[styles.row, styles.rowLast]} onPress={() => router.push('/account/reviews')}>
+                <IconBubble size={36}>
+                  <StarIcon size={17} color={colors.brand.pink} />
+                </IconBubble>
+                <Text style={styles.rowLabel}>My reviews</Text>
                 <ChevronRightIcon size={16} color={colors.text.tertiary} />
               </Pressable>
             </View>

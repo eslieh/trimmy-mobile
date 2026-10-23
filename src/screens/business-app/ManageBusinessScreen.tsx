@@ -17,6 +17,7 @@ import { colors, radii, shadows, spacing, typography } from '../../theme';
 import { Button } from '../../components/Button';
 import { restoreOwnedBusiness } from '../../utils/restoreOwnedBusiness';
 import { showApiError } from '../../utils/showApiError';
+import { StarIcon } from '../../components/icons/StarIcon';
 
 function categoryLabel(value: string): string {
   return BUSINESS_CATEGORIES.find((c) => c.value === value)?.label ?? value;
@@ -81,6 +82,12 @@ export function ManageBusinessScreen() {
       label: 'Unassigned bookings',
       icon: <UsersIcon size={20} color={colors.text.secondary} />,
       onPress: () => router.push('/manage-business/unassigned'),
+    },
+    {
+      key: 'reviews',
+      label: 'Reviews',
+      icon: <StarIcon size={20} color={colors.text.secondary} />,
+      onPress: () => router.push('/manage-business/reviews'),
     },
     {
       key: 'day-summary',

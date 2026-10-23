@@ -40,6 +40,7 @@ import { groupServicesByCategory } from '../../utils/services';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import type { BookingServiceLine } from '../../types/booking';
 import type { BusinessProfile } from '../../types/discovery';
+import { ReviewCard } from '../../components/ReviewCard';
 
 function categoryLabel(value: string): string {
   return BUSINESS_CATEGORIES.find((c) => c.value === value)?.label ?? value;
@@ -242,15 +243,17 @@ export function BusinessProfileScreen() {
           ))}
 
           <Text style={styles.sectionTitle}>Reviews</Text>
+          {profile.reviews.length === 0 ? <Text style={styles.reviewText}>No reviews yet.</Text> : null}
           {profile.reviews.map((review) => (
-            <View key={review.reviewId} style={styles.reviewCard}>
-              <View style={styles.ratingRow}>
-                <Text style={styles.reviewAuthor}>{review.authorName} ·</Text>
-                <RatingLabel rating={review.rating} textStyle={styles.reviewAuthor} />
-              </View>
-              <Text style={styles.reviewText}>{review.text}</Text>
-            </View>
+            <ReviewCard key={review.reviewId} review={review} />
           ))}
+          {profile.reviewCount > profile.reviews.length ? (
+            <Button
+              label={`See all ${profile.reviewCount} reviews`}
+              variant="secondary"
+              onPress={() => router.push({ pathname: '/business/[businessId]/reviews', params: { businessId, name: profile.name } })}
+            />
+          ) : null}
         </View>
       </Animated.ScrollView>
 

@@ -93,6 +93,8 @@ export function routeForNotification(data: Record<string, unknown>): Href | null
       return typeof data.payoutId === 'string' ? `/payouts/${data.payoutId}` : '/payouts';
     case 'team_invitation':
       return '/profile'; // PendingInvitations lists it there
+    case 'review_replied':
+      return '/account/reviews'; // the business answered their review
     case 'payout_responded':
     case 'wallet_adjusted': // a tip / bonus / deduction / advance from the owner
       return '/staff/earnings';
