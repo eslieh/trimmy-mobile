@@ -1,12 +1,21 @@
 import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
+import type { ReactNode } from 'react';
 import { ChevronRightIcon } from './icons/ChevronRightIcon';
+import { BellIcon } from './icons/BellIcon';
+import { InfoIcon } from './icons/InfoIcon';
+import { ListIcon } from './icons/ListIcon';
+import { ShieldIcon } from './icons/ShieldIcon';
+import { UserIcon } from './icons/UserIcon';
+import { IconBubble } from './ui/IconBubble';
 import { LEGAL } from '../config/env';
 import { useAuth } from '../contexts/AuthContext';
-import { colors, radii, shadows, spacing, typography } from '../theme';
+import { colors, radii, spacing, typography } from '../theme';
 
-type Row = { key: string; label: string; onPress: () => void; danger?: boolean };
+type Row = { key: string; label: string; onPress: () => void; danger?: boolean; icon?: ReactNode };
+
+const ICON = { size: 17, color: colors.brand.pink };
 
 // The account part of every mode's Profile / Menu (customer, business, staff,
 // front desk), so managing your account never depends on which app you're
@@ -45,26 +54,34 @@ export function AccountSection() {
 
   const account: Row[] = user
     ? [
-        { key: 'profile', label: 'Personal details', onPress: go('/account/edit-profile') },
-        { key: 'password', label: 'Password & security', onPress: go('/account/change-password') },
-        { key: 'notifications', label: 'Notifications', onPress: go('/account/notifications') },
+        { key: 'profile', label: 'Personal details', onPress: go('/account/edit-profile'), icon: <UserIcon {...ICON} /> },
+        { key: 'password', label: 'Password & security', onPress: go('/account/change-password'), icon: <ShieldIcon {...ICON} /> },
+        { key: 'notifications', label: 'Notifications', onPress: go('/account/notifications'), icon: <BellIcon {...ICON} /> },
       ]
     : [];
   const support: Row[] = [
-    { key: 'help', label: 'Help & support', onPress: contactSupport },
-    { key: 'privacy', label: 'Privacy policy', onPress: () => openLink(LEGAL.privacyPolicyUrl) },
-    { key: 'terms', label: 'Terms of service', onPress: () => openLink(LEGAL.termsUrl) },
+    { key: 'help', label: 'Help & support', onPress: contactSupport, icon: <InfoIcon {...ICON} /> },
+    { key: 'privacy', label: 'Privacy policy', onPress: () => openLink(LEGAL.privacyPolicyUrl), icon: <ShieldIcon {...ICON} /> },
+    { key: 'terms', label: 'Terms of service', onPress: () => openLink(LEGAL.termsUrl), icon: <ListIcon {...ICON} /> },
   ];
-  const session: Row[] = [
-    { key: 'logout', label: 'Log out', onPress: handleLogout, danger: true },
-    ...(user ? [{ key: 'delete', label: 'Delete account', onPress: go('/account/delete-account'), danger: true }] : []),
-  ];
+  const session: Row[] = [{ key: 'logout', label: 'Log out', onPress: handleLogout, danger: true }];
 
   return (
     <View style={styles.section}>
       {account.length ? <Group title="Account" rows={account} /> : null}
       <Group title="Support & legal" rows={support} />
       <Group rows={session} />
+      {/* Well clear of Log out so it's never hit by mistake. */}
+      {user ? (
+        <Pressable
+          style={({ pressed }) => [styles.deleteLink, pressed && styles.deleteLinkPressed]}
+          onPress={go('/account/delete-account')}
+          accessibilityRole="button"
+          hitSlop={8}
+        >
+          <Text style={styles.deleteLabel}>Delete account</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -81,6 +98,7 @@ function Group({ title, rows }: { title?: string; rows: Row[] }) {
             onPress={row.onPress}
             accessibilityRole="button"
           >
+            {row.icon ? <IconBubble size={36}>{row.icon}</IconBubble> : null}
             <Text style={[styles.rowLabel, row.danger && styles.danger]}>{row.label}</Text>
             {row.danger ? null : <ChevronRightIcon size={16} color={colors.text.tertiary} />}
           </Pressable>
@@ -99,20 +117,23 @@ const styles = StyleSheet.create({
   },
   groupTitle: {
     ...typography.label,
-    color: colors.text.tertiary,
+    color: colors.text.secondary,
     marginLeft: spacing.xs,
   },
   group: {
-    borderRadius: radii.lg,
-    backgroundColor: colors.background.secondary,
-    ...shadows.card,
+    borderRadius: radii.xxl,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    overflow: 'hidden',
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: spacing.md,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
+    paddingVertical: spacing.md,
+    minHeight: 60,
     borderBottomWidth: 1,
     borderBottomColor: colors.border.subtle,
   },
@@ -120,13 +141,28 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
   },
   rowPressed: {
-    backgroundColor: colors.background.tertiary,
+    backgroundColor: colors.brand.accentSoft,
   },
   rowLabel: {
     ...typography.bodyMedium,
     color: colors.text.primary,
+    flex: 1,
   },
   danger: {
     color: colors.feedback.danger,
+  },
+  deleteLink: {
+    alignSelf: 'center',
+    marginTop: spacing.xxxl,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+  },
+  deleteLinkPressed: {
+    opacity: 0.5,
+  },
+  deleteLabel: {
+    ...typography.caption,
+    color: colors.text.tertiary,
+    textDecorationLine: 'underline',
   },
 });

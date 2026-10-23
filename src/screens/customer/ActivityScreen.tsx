@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { CalendarIcon } from '../../components/icons/CalendarIcon';
+import { IconBubble } from '../../components/ui/IconBubble';
 import { Button } from '../../components/Button';
 import { SegmentedTabs } from '../../components/SegmentedTabs';
 import { listMyBookings, type MyBookingsFilter } from '../../api/booking';
@@ -108,7 +109,9 @@ export function ActivityScreen() {
 
       {!user ? (
         <View style={styles.empty}>
-          <CalendarIcon size={40} color={colors.text.tertiary} />
+          <IconBubble size={80}>
+            <CalendarIcon size={34} color={colors.brand.pink} />
+          </IconBubble>
           <Text style={styles.emptyTitle}>Log in to see your appointments</Text>
           <Button label="Log in" onPress={() => router.push('/login')} style={styles.emptyButton} />
         </View>
@@ -121,7 +124,9 @@ export function ActivityScreen() {
         </View>
       ) : visible.length === 0 ? (
         <Animated.View key={tab} entering={FadeIn.duration(durations.base)} style={styles.empty}>
-          <CalendarIcon size={40} color={colors.text.tertiary} />
+          <IconBubble size={80}>
+            <CalendarIcon size={34} color={colors.brand.pink} />
+          </IconBubble>
           <Text style={styles.emptyTitle}>{EMPTY_COPY[tab].title}</Text>
           <Text style={styles.emptyBody}>{EMPTY_COPY[tab].body}</Text>
           {tab === 'upcoming' ? (

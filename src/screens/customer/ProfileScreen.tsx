@@ -4,26 +4,22 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { CalendarIcon } from '../../components/icons/CalendarIcon';
 import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
-import { seedOwnedBusinessForTesting, seedSelfAsStaffForTesting } from '../../utils/devSeed';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import { PendingInvitations } from '../../components/PendingInvitations';
 import { AccountSection } from '../../components/AccountSection';
 import { Button } from '../../components/Button';
 import { Avatar } from '../../components/Avatar';
+import { IconBubble } from '../../components/ui/IconBubble';
+import { ChevronRightIcon } from '../../components/icons/ChevronRightIcon';
 import { NotificationBell } from '../../components/NotificationBell';
 import Svg, { Path } from 'react-native-svg';
 import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
 import { nextSetupRoute } from '../../utils/restoreOwnedBusiness';
 import { switchMode } from '../../utils/switchMode';
-import { sendTestNotification } from '../../api/notifications';
-import { receiveNotification } from '../../realtime/incoming';
-import { showApiError } from '../../utils/showApiError';
 
 export function ProfileScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const setOwnedBusiness = useOwnedBusinessStore((s) => s.setOwnedBusiness);
-  const setStaffSession = useOwnedBusinessStore((s) => s.setStaffSession);
   const ownedBusiness = useOwnedBusinessStore((s) => s.business);
   const staffSession = useOwnedBusinessStore((s) => s.staffSession);
   // An unfinished business setup, restored from the server after login.
@@ -31,27 +27,6 @@ export function ProfileScreen() {
   const draft = !ownedBusiness && setupBusiness?.status === 'draft' ? setupBusiness : null;
 
   const displayName = user ? [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Guest' : 'Guest';
-
-  // Arrives like a real one: toast, buzz, bell. Live, the stream delivers it
-  // (receiveNotification ignores the repeat); in mock mode this is the only path.
-  const handleTestNotification = async () => {
-    try {
-      receiveNotification(await sendTestNotification());
-    } catch (err) {
-      showApiError("Couldn't send a test notification", err);
-    }
-  };
-
-  // Development builds only: seeded mock businesses, so every mode can be
-  // tried without the setup wizard (see utils/devSeed.ts).
-  const handleTestBusiness = (teamMode: 'solo' | 'team') => {
-    setOwnedBusiness(seedOwnedBusinessForTesting(teamMode === 'solo' ? 0 : 1, teamMode));
-    switchMode(router, 'business');
-  };
-  const handleTestStaff = () => {
-    setStaffSession(seedSelfAsStaffForTesting(1, displayName));
-    switchMode(router, 'staff');
-  };
 
   // The floating switch: their own business first, else where they work.
   const workspace = ownedBusiness
@@ -87,35 +62,15 @@ export function ProfileScreen() {
         </View>
 
         <View style={styles.content}>
-          {__DEV__ ? (
-            <View style={styles.testingSection}>
-              <Text style={styles.testingLabel}>Testing: switch mode</Text>
-              <View style={styles.testingButtonRow}>
-                <Pressable style={styles.switchButton} onPress={() => handleTestBusiness('solo')}>
-                  <Text style={styles.switchButtonText}>Business (solo)</Text>
-                </Pressable>
-                <Pressable style={styles.switchButton} onPress={() => handleTestBusiness('team')}>
-                  <Text style={styles.switchButtonText}>Business (team)</Text>
-                </Pressable>
-                <Pressable style={styles.switchButton} onPress={handleTestStaff}>
-                  <Text style={styles.switchButtonText}>Staff</Text>
-                </Pressable>
-              </View>
-              {user ? (
-                <Pressable style={styles.testNotificationButton} onPress={handleTestNotification}>
-                  <Text style={styles.testNotificationText}>Send test notification</Text>
-                </Pressable>
-              ) : null}
-              <Text style={styles.testingHint}>Development builds only — uses seeded mock data.</Text>
-            </View>
-          ) : null}
-
           {/* Invitations from businesses; the invitation sheet also offers them once. */}
           <PendingInvitations />
 
           {user && !ownedBusiness ? (
             <View style={styles.businessCard}>
-              <Text style={styles.businessEyebrow}>Trimmy for business</Text>
+              <View style={styles.businessEyebrowRow}>
+                <View style={styles.eyebrowDot} />
+                <Text style={styles.businessEyebrow}>TRIMMY FOR BUSINESS</Text>
+              </View>
               {draft ? (
                 <>
                   <Text style={styles.businessTitle}>Finish setting up {draft.name}</Text>
@@ -140,8 +95,11 @@ export function ProfileScreen() {
           {user ? (
             <View style={styles.group}>
               <Pressable style={[styles.row, styles.rowLast]} onPress={() => router.push('/activity')}>
-                <CalendarIcon size={20} />
+                <IconBubble size={36}>
+                  <CalendarIcon size={17} color={colors.brand.pink} />
+                </IconBubble>
                 <Text style={styles.rowLabel}>My appointments</Text>
+                <ChevronRightIcon size={16} color={colors.text.tertiary} />
               </Pressable>
             </View>
           ) : null}
@@ -193,21 +151,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  // The landing's soft pink card: tinted, no border or shadow.
   businessCard: {
-    borderRadius: radii.lg,
-    padding: spacing.lg,
+    borderRadius: 28,
+    padding: spacing.xl,
     gap: spacing.sm,
-    backgroundColor: colors.background.primary,
-    borderWidth: 1,
-    borderColor: colors.border.subtle,
-    ...shadows.card,
+    backgroundColor: colors.brand.accentSoft,
+  },
+  businessEyebrowRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  eyebrowDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.brand.pink,
   },
   businessEyebrow: {
     ...typography.label,
-    color: colors.brand.purple,
+    fontSize: 12,
+    letterSpacing: 0.6,
+    color: colors.brand.accentForeground,
   },
   businessTitle: {
-    ...typography.h3,
+    ...typography.h2,
     color: colors.text.primary,
   },
   businessBody: {
@@ -262,58 +231,20 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
     gap: spacing.lg,
   },
-  testingSection: {
-    gap: spacing.sm,
-  },
-  testingLabel: {
-    ...typography.label,
-    color: colors.text.tertiary,
-    textAlign: 'center',
-  },
-  testingButtonRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: spacing.md,
-  },
-  switchButton: {
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    borderRadius: radii.pill,
-    backgroundColor: colors.button.primaryBg,
-    ...shadows.raised,
-  },
-  switchButtonText: {
-    ...typography.button,
-    color: colors.button.primaryText,
-  },
-  testNotificationButton: {
-    alignSelf: 'center',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    borderRadius: radii.pill,
-    backgroundColor: colors.background.secondary,
-  },
-  testNotificationText: {
-    ...typography.button,
-    color: colors.text.primary,
-  },
-  testingHint: {
-    ...typography.caption,
-    color: colors.text.tertiary,
-    textAlign: 'center',
-  },
   group: {
-    borderRadius: radii.lg,
-    backgroundColor: colors.background.secondary,
-    ...shadows.card,
+    borderRadius: radii.xxl,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    overflow: 'hidden',
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
+    paddingVertical: spacing.md,
+    minHeight: 60,
     borderBottomWidth: 1,
     borderBottomColor: colors.border.subtle,
   },
@@ -323,6 +254,7 @@ const styles = StyleSheet.create({
   rowLabel: {
     ...typography.bodyMedium,
     color: colors.text.primary,
+    flex: 1,
   },
   logoutLabel: {
     color: colors.feedback.danger,

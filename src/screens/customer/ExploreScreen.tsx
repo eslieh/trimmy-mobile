@@ -10,6 +10,9 @@ import { FilterIcon } from '../../components/icons/FilterIcon';
 import { LocationPinIcon } from '../../components/icons/LocationPinIcon';
 import { SearchIcon } from '../../components/icons/SearchIcon';
 import { NotificationBell } from '../../components/NotificationBell';
+import { CategoryIcon } from '../../components/icons/CategoryIcon';
+import { IconBubble } from '../../components/ui/IconBubble';
+import { SectionHeader } from '../../components/ui/SectionHeader';
 import { EMPTY_FILTERS, FilterSheet, activeFilterCount, type SearchFilters } from './FilterSheet';
 import { SearchResultsMap } from './SearchResultsMap';
 import { SearchSheet } from './SearchSheet';
@@ -58,11 +61,13 @@ export function ExploreScreen() {
   const [sortBy, setSortBy] = useState<SortOption>('distance');
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [results, setResults] = useState<BusinessSummary[] | null>(null);
+  // "See all" on Recommended: the full nearby list (sortable, with the map) without a query.
+  const [browseAll, setBrowseAll] = useState(false);
   const [recommended, setRecommended] = useState<BusinessSummary[] | null>(null);
   const [recentlyViewed, setRecentlyViewed] = useState<BusinessSummary[] | null>(null);
   const recentlyViewedIds = useRecentlyViewedStore((s) => s.businessIds);
 
-  const isActiveSearch = query.trim().length > 0 || category !== null || activeFilterCount(filters) > 0;
+  const isActiveSearch = browseAll || query.trim().length > 0 || category !== null || activeFilterCount(filters) > 0;
 
   useEffect(() => {
     searchBusinesses({ lat: coords.lat, lng: coords.lng }).then(setRecommended);
@@ -110,6 +115,7 @@ export function ExploreScreen() {
   };
 
   const clearSearch = () => {
+    setBrowseAll(false);
     setQuery('');
     setCategory(null);
     setFilters(EMPTY_FILTERS);
@@ -122,7 +128,7 @@ export function ExploreScreen() {
       <View style={styles.header}>
         <View style={styles.topRow}>
           <Pressable style={styles.locationChip} onPress={handleUseCurrentLocation} hitSlop={4}>
-            <LocationPinIcon size={14} color={colors.text.secondary} />
+            <LocationPinIcon size={14} color={colors.brand.pink} />
             <Text style={styles.locationChipText}>{locationLabel}</Text>
           </Pressable>
           <NotificationBell />
@@ -130,9 +136,9 @@ export function ExploreScreen() {
 
         <View style={styles.searchPillRow}>
           <Pressable style={styles.searchPill} onPress={() => setSearchSheetVisible(true)}>
-            <SearchIcon size={18} color={colors.text.tertiary} />
+            <SearchIcon size={18} color={colors.brand.pink} />
             <Text style={[styles.searchPillText, isActiveSearch && styles.searchPillTextActive]} numberOfLines={1}>
-              {query.trim() || 'Start your search'}
+              {query.trim() || (browseAll ? 'Everything near you' : 'Start your search')}
             </Text>
           </Pressable>
           {isActiveSearch ? (
@@ -145,7 +151,7 @@ export function ExploreScreen() {
             onPress={() => setFilterSheetVisible(true)}
             hitSlop={4}
           >
-            <FilterIcon size={18} color={filterCount > 0 ? colors.white : colors.text.primary} />
+            <FilterIcon size={18} color={filterCount > 0 ? colors.white : colors.brand.pink} />
             {filterCount > 0 ? (
               <View style={styles.iconButtonBadge}>
                 <Text style={styles.iconButtonBadgeText}>{filterCount}</Text>
@@ -163,11 +169,13 @@ export function ExploreScreen() {
           renderItem={({ item }) => {
             const selected = category === item.value;
             return (
-              <Pressable
-                onPress={() => toggleCategory(item.value)}
-                style={[styles.filterPill, selected && styles.filterPillSelected]}
-              >
-                <Text style={[styles.filterPillText, selected && styles.filterPillTextSelected]}>{item.label}</Text>
+              <Pressable onPress={() => toggleCategory(item.value)} style={styles.category} hitSlop={4}>
+                <IconBubble size={56} selected={selected}>
+                  <CategoryIcon category={item.value} size={26} color={selected ? colors.white : colors.brand.pink} />
+                </IconBubble>
+                <Text style={[styles.categoryLabel, selected && styles.categoryLabelSelected]} numberOfLines={1}>
+                  {item.label}
+                </Text>
               </Pressable>
             );
           }}
@@ -235,7 +243,7 @@ export function ExploreScreen() {
         <ScrollView contentContainerStyle={styles.sectionsList}>
           {recentlyViewed && recentlyViewed.length > 0 ? (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Recently viewed</Text>
+              <SectionHeader title="Recently viewed" style={styles.sectionHeader} />
               <FlatList
                 data={recentlyViewed}
                 keyExtractor={(item) => item.businessId}
@@ -251,7 +259,11 @@ export function ExploreScreen() {
           ) : null}
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Recommended</Text>
+            <SectionHeader
+              title="Recommended"
+              action={recommended && recommended.length > 0 ? { label: 'See all', onPress: () => setBrowseAll(true) } : undefined}
+              style={styles.sectionHeader}
+            />
             {recommended === null ? (
               <ActivityIndicator color={colors.text.secondary} style={styles.loading} />
             ) : recommended.length === 0 ? (
@@ -318,13 +330,14 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     alignSelf: 'flex-start',
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+    paddingVertical: 6,
     borderRadius: radii.pill,
-    backgroundColor: colors.background.secondary,
+    backgroundColor: colors.brand.accentSoft,
   },
   locationChipText: {
-    ...typography.caption,
-    color: colors.text.secondary,
+    ...typography.label,
+    fontSize: 13,
+    color: colors.brand.accentForeground,
   },
   searchPillRow: {
     flexDirection: 'row',
@@ -360,36 +373,35 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.secondary,
   },
   filterRow: {
-    gap: spacing.sm,
-    paddingVertical: spacing.sm,
+    gap: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
   },
-  filterPill: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: radii.pill,
-    backgroundColor: colors.pill.unselectedBg,
+  category: {
+    alignItems: 'center',
+    gap: 6,
+    width: 76,
   },
-  filterPillSelected: {
-    backgroundColor: colors.pill.selectedBg,
+  categoryLabel: {
+    ...typography.caption,
+    fontSize: 12,
+    color: colors.text.secondary,
   },
-  filterPillText: {
-    ...typography.bodyMedium,
-    color: colors.pill.unselectedText,
-  },
-  filterPillTextSelected: {
-    color: colors.pill.selectedText,
+  categoryLabelSelected: {
+    ...typography.label,
+    fontSize: 12,
+    color: colors.text.primary,
   },
   iconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background.primary,
-    ...shadows.card,
+    backgroundColor: colors.brand.accentSoft,
   },
   iconButtonActive: {
-    backgroundColor: colors.button.primaryBg,
+    backgroundColor: colors.brand.pink,
   },
   iconButtonBadge: {
     position: 'absolute',
@@ -399,7 +411,7 @@ const styles = StyleSheet.create({
     height: 16,
     borderRadius: 8,
     paddingHorizontal: 3,
-    backgroundColor: colors.brand.pink,
+    backgroundColor: colors.text.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -463,16 +475,14 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.huge + spacing.xxl,
   },
   sectionsList: {
-    paddingTop: spacing.sm,
+    paddingTop: spacing.md,
     paddingBottom: spacing.xxl,
-    gap: spacing.lg,
+    gap: spacing.xxl,
   },
   section: {
     gap: spacing.md,
   },
-  sectionTitle: {
-    ...typography.h3,
-    color: colors.text.primary,
+  sectionHeader: {
     paddingHorizontal: spacing.xxl,
   },
   grid: {

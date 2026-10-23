@@ -372,7 +372,9 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   name: {
-    ...typography.h1,
+    ...typography.display,
+    fontSize: 30,
+    lineHeight: 36,
     color: colors.text.primary,
   },
   meta: {
@@ -397,13 +399,14 @@ const styles = StyleSheet.create({
   },
   amenityPill: {
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+    paddingVertical: 6,
     borderRadius: radii.pill,
-    backgroundColor: colors.background.secondary,
+    backgroundColor: colors.brand.accentSoft,
   },
   amenityPillText: {
-    ...typography.caption,
-    color: colors.text.primary,
+    ...typography.label,
+    fontSize: 12,
+    color: colors.brand.accentForeground,
   },
   locationRow: {
     flexDirection: 'row',
@@ -416,20 +419,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   policyCard: {
-    borderRadius: radii.lg,
+    borderRadius: radii.xxl,
     backgroundColor: colors.background.secondary,
     padding: spacing.lg,
     gap: spacing.xs,
-    ...shadows.card,
   },
   policyText: {
     ...typography.caption,
     color: colors.text.secondary,
   },
   sectionTitle: {
-    ...typography.h3,
+    ...typography.h2,
     color: colors.text.primary,
-    marginTop: spacing.sm,
+    marginTop: spacing.md,
   },
   aboutText: {
     ...typography.body,
