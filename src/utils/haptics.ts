@@ -40,3 +40,15 @@ function fallback(): void {
     // No vibrator: nothing to do.
   }
 }
+
+// A light tick for gestures (a row swiped open, a long press, a pull to
+// refresh). Nothing without the native module: a full vibration for a swipe
+// would be worse than none.
+export function tapHaptic(): void {
+  loadHaptics()?.impactAsync(loadHaptics()!.ImpactFeedbackStyle.Light).catch(() => {});
+}
+
+// A quick action went through (checked in, marked done, removed).
+export function successHaptic(): void {
+  loadHaptics()?.notificationAsync(loadHaptics()!.NotificationFeedbackType.Success).catch(() => {});
+}

@@ -5,6 +5,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { BackButton } from '../../components/BackButton';
 import { Button } from '../../components/Button';
 import { MarkRefundedSheet } from '../../components/MarkRefundedSheet';
+import { SwipeRow } from '../../components/ui/SwipeRow';
 import { listBusinessBookings } from '../../api/booking';
 import { getApiErrorMessage } from '../../api/client';
 import { useBusinessOnboardingStore } from '../../store/useBusinessOnboardingStore';
@@ -13,6 +14,7 @@ import { formatBookingDate } from '../../utils/date';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import type { Booking } from '../../types/booking';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
+import { useRefreshControl } from '../../hooks/useRefreshControl';
 
 type QueueMode = 'unassigned' | 'refunds';
 
@@ -38,6 +40,7 @@ const COPY: Record<QueueMode, { title: string; empty: string }> = {
 //                staff; tap through to Assign staff (BK-26).
 //   refunds    — every booking with a refund owed (refund=due), with Mark
 //                refunded right in the list (BK-60).
+// Swipe a row for the same (Assign / Refunded); pull down to reload.
 export function BookingQueueScreen({ mode }: { mode: QueueMode }) {
   const router = useRouter();
   const business = useBusinessContext();
@@ -47,7 +50,7 @@ export function BookingQueueScreen({ mode }: { mode: QueueMode }) {
   const [refunding, setRefunding] = useState<Booking | null>(null);
 
   const businessId = business?.businessId;
-  const load = useCallback(() => {
+  const load = useCallback(async () => {
     if (!businessId) return;
     setError('');
     const today = new Date();
@@ -62,7 +65,7 @@ export function BookingQueueScreen({ mode }: { mode: QueueMode }) {
             unassigned: true,
             status: ['pending_payment', 'confirmed', 'in_progress'],
           });
-    request
+    await request
       .then((list) => {
         setBookings(list);
         list.forEach(upsertBooking);
@@ -70,7 +73,12 @@ export function BookingQueueScreen({ mode }: { mode: QueueMode }) {
       .catch((err) => setError(getApiErrorMessage(err, "Couldn't load bookings.")));
   }, [businessId, mode, upsertBooking]);
 
-  useFocusEffect(load);
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
+  const refreshControl = useRefreshControl(load);
 
   return (
     <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
@@ -79,7 +87,7 @@ export function BookingQueueScreen({ mode }: { mode: QueueMode }) {
         <Text style={styles.headerTitle}>{COPY[mode].title}</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} refreshControl={refreshControl}>
         {error ? (
           <View style={styles.center}>
             <Text style={styles.muted}>{error}</Text>
@@ -91,24 +99,36 @@ export function BookingQueueScreen({ mode }: { mode: QueueMode }) {
           <Text style={[styles.muted, styles.center]}>{COPY[mode].empty}</Text>
         ) : (
           bookings.map((booking) => (
-            <Pressable
-              key={booking.bookingId}
-              style={styles.card}
-              onPress={() => router.push(`/appointment/${booking.bookingId}`)}
-            >
-              <Text style={styles.name}>{booking.customerName}</Text>
-              <Text style={styles.muted}>
-                {formatBookingDate(booking.date)} · {booking.time}
-                {booking.reference ? ` · ${booking.reference}` : ''}
-              </Text>
-              <Text style={styles.muted}>{booking.services.map((service) => service.name).join(', ')}</Text>
-              {mode === 'refunds' && booking.refund ? (
-                <View style={styles.refundRow}>
-                  <Text style={styles.amount}>KES {booking.refund.amount.amount} owed</Text>
-                  <Button label="Mark refunded" variant="secondary" onPress={() => setRefunding(booking)} />
-                </View>
-              ) : null}
-            </Pressable>
+            <View key={booking.bookingId} style={styles.shadow}>
+              <SwipeRow
+                actions={[
+                  mode === 'refunds'
+                    ? { key: 'refunded', label: 'Refunded', color: colors.feedback.success, onPress: () => setRefunding(booking) }
+                    : {
+                        key: 'assign',
+                        label: 'Assign',
+                        color: colors.brand.pink,
+                        onPress: () =>
+                          router.push({ pathname: '/appointment/[bookingId]', params: { bookingId: booking.bookingId, assign: '1' } }),
+                      },
+                ]}
+              >
+                <Pressable style={styles.card} onPress={() => router.push(`/appointment/${booking.bookingId}`)}>
+                  <Text style={styles.name}>{booking.customerName}</Text>
+                  <Text style={styles.muted}>
+                    {formatBookingDate(booking.date)} · {booking.time}
+                    {booking.reference ? ` · ${booking.reference}` : ''}
+                  </Text>
+                  <Text style={styles.muted}>{booking.services.map((service) => service.name).join(', ')}</Text>
+                  {mode === 'refunds' && booking.refund ? (
+                    <View style={styles.refundRow}>
+                      <Text style={styles.amount}>KES {booking.refund.amount.amount} owed</Text>
+                      <Button label="Mark refunded" variant="secondary" onPress={() => setRefunding(booking)} />
+                    </View>
+                  ) : null}
+                </Pressable>
+              </SwipeRow>
+            </View>
           ))
         )}
       </ScrollView>
@@ -152,12 +172,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     gap: spacing.md,
   },
+  // The shadow sits outside the swipeable, which clips its contents.
+  shadow: {
+    borderRadius: radii.lg,
+    backgroundColor: colors.background.secondary,
+    ...shadows.card,
+  },
   card: {
     backgroundColor: colors.background.secondary,
     borderRadius: radii.lg,
     padding: spacing.lg,
     gap: spacing.xs,
-    ...shadows.card,
   },
   name: {
     ...typography.bodyMedium,

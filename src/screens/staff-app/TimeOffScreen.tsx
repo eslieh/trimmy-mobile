@@ -14,6 +14,8 @@ import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { showApiError } from '../../utils/showApiError';
 import { colors, radii, spacing, typography } from '../../theme';
 import { SheetModal } from '../../components/ui/SheetModal';
+import { useRefreshControl } from '../../hooks/useRefreshControl';
+import { SwipeRow } from '../../components/ui/SwipeRow';
 
 const LOOK_AHEAD_DAYS = 60; // the API allows 62 per call
 
@@ -60,7 +62,7 @@ export function TimeOffScreen() {
     if (!businessId || !staffId) return;
     const last = new Date();
     last.setDate(last.getDate() + LOOK_AHEAD_DAYS);
-    listTimeOff(businessId, today, toKey(last), staffId)
+    return listTimeOff(businessId, today, toKey(last), staffId)
       .then((list) => {
         setBlocks(list);
         setLoadError('');
@@ -68,7 +70,12 @@ export function TimeOffScreen() {
       .catch((err) => setLoadError(getApiErrorMessage(err, "Couldn't load time off.")));
   }, [businessId, staffId, today]);
 
-  useFocusEffect(load);
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
+  const refreshControl = useRefreshControl(load);
 
   const openSheet = () => {
     setDate(today);
@@ -133,7 +140,7 @@ export function TimeOffScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} refreshControl={refreshControl}>
         <Text style={styles.intro}>
           {forSomeoneElse ? "They won't" : "You won't"} be offered to customers or booked during time off.
         </Text>
@@ -148,20 +155,27 @@ export function TimeOffScreen() {
         ) : (
           <View style={styles.group}>
             {blocks.map((block, index) => (
-              <View key={block.timeOffId} style={[styles.row, index === blocks.length - 1 && styles.rowLast]}>
-                <View style={styles.rowText}>
-                  <Text style={styles.rowLabel}>{describe(block)}</Text>
-                  <Text style={styles.rowMeta}>{block.reason || (block.allDay ? 'All day' : 'Time off')}</Text>
+              // Swipe a row to remove it (same confirm as the ×).
+              <SwipeRow
+                key={block.timeOffId}
+                radius={0}
+                actions={[{ key: 'remove', label: 'Remove', color: colors.feedback.danger, onPress: () => handleRemove(block) }]}
+              >
+                <View style={[styles.row, index === blocks.length - 1 && styles.rowLast]}>
+                  <View style={styles.rowText}>
+                    <Text style={styles.rowLabel}>{describe(block)}</Text>
+                    <Text style={styles.rowMeta}>{block.reason || (block.allDay ? 'All day' : 'Time off')}</Text>
+                  </View>
+                  <Pressable
+                    style={styles.removeButton}
+                    onPress={() => handleRemove(block)}
+                    hitSlop={6}
+                    accessibilityLabel={`Remove time off, ${describe(block)}`}
+                  >
+                    <CloseIcon size={14} />
+                  </Pressable>
                 </View>
-                <Pressable
-                  style={styles.removeButton}
-                  onPress={() => handleRemove(block)}
-                  hitSlop={6}
-                  accessibilityLabel={`Remove time off, ${describe(block)}`}
-                >
-                  <CloseIcon size={14} />
-                </Pressable>
-              </View>
+              </SwipeRow>
             ))}
           </View>
         )}
@@ -251,6 +265,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   row: {
+    backgroundColor: colors.background.secondary, // covers the swipe actions
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,

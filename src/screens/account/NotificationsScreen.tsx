@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, RefreshControl, SectionList, StyleSheet, 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { BackButton } from '../../components/BackButton';
+import { SwipeRow } from '../../components/ui/SwipeRow';
 import { SegmentedTabs } from '../../components/SegmentedTabs';
 import { BellIcon } from '../../components/icons/BellIcon';
 import { SettingsIcon } from '../../components/icons/SettingsIcon';
@@ -66,6 +67,7 @@ export function NotificationsScreen() {
   const loadMoreNotifications = useNotificationsStore((s) => s.loadMoreNotifications);
   const markReadNow = useNotificationsStore((s) => s.markReadNow);
   const markAllReadNow = useNotificationsStore((s) => s.markAllReadNow);
+  const removeNow = useNotificationsStore((s) => s.removeNow);
 
   const [filter, setFilter] = useState<Filter>('all');
   const [isLoading, setIsLoading] = useState(true);
@@ -182,7 +184,24 @@ export function NotificationsScreen() {
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.4}
           renderSectionHeader={({ section }) => <Text style={styles.sectionTitle}>{section.title}</Text>}
-          renderItem={({ item }) => <NotificationRow notification={item} onPress={() => handleOpen(item)} />}
+          renderItem={({ item }) => (
+            // Swipe for Read / Delete.
+            <SwipeRow
+              actions={[
+                ...(item.readAt
+                  ? []
+                  : [{ key: 'read', label: 'Read', color: colors.text.secondary, onPress: () => markReadNow(item.notificationId) }]),
+                {
+                  key: 'delete',
+                  label: 'Delete',
+                  color: colors.feedback.danger,
+                  onPress: () => removeNow(item.notificationId).catch((err) => showApiError("Couldn't delete it", err)),
+                },
+              ]}
+            >
+              <NotificationRow notification={item} onPress={() => handleOpen(item)} />
+            </SwipeRow>
+          )}
           ListFooterComponent={isLoadingMore ? <ActivityIndicator style={styles.footerLoading} /> : null}
           ListEmptyComponent={
             <View style={styles.empty}>
@@ -293,6 +312,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
   },
   row: {
+    backgroundColor: colors.background.primary, // covers the swipe actions
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.md,

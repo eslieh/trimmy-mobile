@@ -13,7 +13,7 @@ export function useWalletStatement(fetchPage: ((offset: number) => Promise<Walle
     (offset: number) => {
       if (!fetchPage) return;
       setLoading(true);
-      fetchPage(offset)
+      return fetchPage(offset)
         .then((page) => {
           setEntries((current) => (offset === 0 ? page.entries : [...current, ...page.entries]));
           setNextOffset(page.nextOffset);
@@ -25,7 +25,11 @@ export function useWalletStatement(fetchPage: ((offset: number) => Promise<Walle
   );
 
   const reload = useCallback(() => load(0), [load]);
-  useFocusEffect(reload);
+  useFocusEffect(
+    useCallback(() => {
+      reload();
+    }, [reload]),
+  );
 
   return {
     entries,

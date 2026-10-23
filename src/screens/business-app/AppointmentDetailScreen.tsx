@@ -66,7 +66,8 @@ type ChargeStep = 'form' | 'pending' | 'success';
 // (once in_progress) the charge-customer flow.
 export function AppointmentDetailScreen() {
   const router = useRouter();
-  const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
+  // charge=1 / assign=1: opened from a row's quick action; that sheet comes up by itself.
+  const { bookingId, charge, assign } = useLocalSearchParams<{ bookingId: string; charge?: string; assign?: string }>();
   const booking = useBookingsStore((s) => s.bookings.find((b) => b.bookingId === bookingId));
   const updateBooking = useBookingsStore((s) => s.updateBooking);
   const upsertBooking = useBookingsStore((s) => s.upsertBooking);
@@ -129,6 +130,24 @@ export function AppointmentDetailScreen() {
     setVisit(v);
     v.bookings.forEach(upsertBooking);
   };
+  const autoCharged = useRef(false);
+  useEffect(() => {
+    if (charge !== '1' || autoCharged.current || !booking || isStaffView) return;
+    if (booking.visitId) {
+      if (!visit) return; // wait for the visit: it's checked out as a whole
+      autoCharged.current = true;
+      if (visit.balanceDue.amount > 0) setVisitCheckoutVisible(true);
+      return;
+    }
+    autoCharged.current = true;
+    if (booking.paymentStatus !== 'paid') setChargeSheetVisible(true);
+  }, [charge, booking, visit, isStaffView]);
+  const autoAssigned = useRef(false);
+  useEffect(() => {
+    if (assign !== '1' || autoAssigned.current || !booking || isStaffView) return;
+    autoAssigned.current = true;
+    setAssignSheetVisible(true);
+  }, [assign, booking, isStaffView]);
 
   useEffect(() => {
     return () => {

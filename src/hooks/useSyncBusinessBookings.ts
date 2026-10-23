@@ -45,11 +45,12 @@ export function useSyncBusinessBookings(businessId: string | undefined, from: st
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const refresh = useCallback(() => {
+  // Resolves when the store is updated (pull to refresh waits on it).
+  const refresh = useCallback(async () => {
     if (!businessId) return;
     setLoading(true);
     setError('');
-    Promise.all(
+    await Promise.all(
       chunkRange(from, to).map(([chunkFrom, chunkTo]) =>
         chunkFrom === chunkTo
           ? listBusinessBookings(businessId, { date: chunkFrom })
@@ -61,7 +62,11 @@ export function useSyncBusinessBookings(businessId: string | undefined, from: st
       .finally(() => setLoading(false));
   }, [businessId, from, to, replaceBusinessRange]);
 
-  useFocusEffect(refresh);
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh]),
+  );
   // New, cancelled, moved or assigned bookings show up without leaving the screen.
   useRealtimeRefresh((type) => type.startsWith('booking_'), refresh);
 

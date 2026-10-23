@@ -16,6 +16,9 @@ import { formatBookingDate } from '../../utils/date';
 import type { Booking } from '../../types/booking';
 import { useRealtimeRefresh } from '../../realtime/events';
 import { StarIcon } from '../../components/icons/StarIcon';
+import { SwipeRow } from '../../components/ui/SwipeRow';
+import { useRefreshControl } from '../../hooks/useRefreshControl';
+import { useBookingDraftStore } from '../../store/useBookingDraftStore';
 
 type ActivityTab = MyBookingsFilter;
 
@@ -39,6 +42,7 @@ const EMPTY_COPY: Record<ActivityTab, { title: string; body: string }> = {
 // cancelled newest first). Refreshes whenever the tab comes into focus and
 // loads the next page as you near the bottom. Airbnb Trips-inspired: a pill
 // tab switch, a connecting-line timeline, tap through to a detail screen.
+// Pull down to reload; swipe a past or cancelled visit to book it again.
 export function ActivityScreen() {
   const router = useRouter();
   const { user } = useAuth();
@@ -53,7 +57,7 @@ export function ActivityScreen() {
     (filter: ActivityTab, cursor: string | null) => {
       if (!user) return;
       setTabs((current) => ({ ...current, [filter]: { ...current[filter], loading: true, error: '' } }));
-      listMyBookings(filter, cursor)
+      return listMyBookings(filter, cursor)
         .then((page) =>
           setTabs((current) => ({
             ...current,
@@ -82,6 +86,16 @@ export function ActivityScreen() {
   );
   // A business cancelling or confirming shows up without leaving the screen.
   useRealtimeRefresh((type) => type.startsWith('booking_'), () => load(tab, null));
+
+  const refreshControl = useRefreshControl(useCallback(() => load(tab, null), [load, tab]));
+
+  const startBookingDraft = useBookingDraftStore((s) => s.startDraft);
+  const setDraftStaff = useBookingDraftStore((s) => s.setStaff);
+  const rebook = (booking: Booking) => {
+    startBookingDraft(booking.businessId, booking.businessName, booking.services.map((service) => ({ ...service })));
+    setDraftStaff(booking.staffId, booking.staffName);
+    router.push(`/business/${booking.businessId}/book/datetime`);
+  };
 
   const current = tabs[tab];
   const visible = current.bookings;
@@ -123,18 +137,26 @@ export function ActivityScreen() {
           <Button label="Try again" variant="secondary" onPress={() => load(tab, null)} style={styles.emptyButton} />
         </View>
       ) : visible.length === 0 ? (
-        <Animated.View key={tab} entering={FadeIn.duration(durations.base)} style={styles.empty}>
-          <IconBubble size={80}>
-            <CalendarIcon size={34} color={colors.brand.pink} />
-          </IconBubble>
-          <Text style={styles.emptyTitle}>{EMPTY_COPY[tab].title}</Text>
-          <Text style={styles.emptyBody}>{EMPTY_COPY[tab].body}</Text>
-          {tab === 'upcoming' ? (
-            <Button label="Find a business" onPress={() => router.push('/explore')} style={styles.emptyButton} />
-          ) : null}
-        </Animated.View>
+        <ScrollView key={tab} contentContainerStyle={styles.grow} refreshControl={refreshControl}>
+          <Animated.View entering={FadeIn.duration(durations.base)} style={styles.empty}>
+            <IconBubble size={80}>
+              <CalendarIcon size={34} color={colors.brand.pink} />
+            </IconBubble>
+            <Text style={styles.emptyTitle}>{EMPTY_COPY[tab].title}</Text>
+            <Text style={styles.emptyBody}>{EMPTY_COPY[tab].body}</Text>
+            {tab === 'upcoming' ? (
+              <Button label="Find a business" onPress={() => router.push('/explore')} style={styles.emptyButton} />
+            ) : null}
+          </Animated.View>
+        </ScrollView>
       ) : (
-        <ScrollView key={tab} contentContainerStyle={styles.list} onScroll={handleScroll} scrollEventThrottle={200}>
+        <ScrollView
+          key={tab}
+          contentContainerStyle={styles.list}
+          onScroll={handleScroll}
+          scrollEventThrottle={200}
+          refreshControl={refreshControl}
+        >
           <Animated.View entering={FadeIn.duration(durations.base)}>
             {visible.map((booking, index) => (
               <View key={booking.bookingId} style={styles.timelineRow}>
@@ -146,31 +168,41 @@ export function ActivityScreen() {
                   {index < visible.length - 1 ? <View style={styles.timelineLine} /> : null}
                 </View>
 
-                <Pressable style={styles.card} onPress={() => router.push(`/booking/${booking.bookingId}`)}>
-                  <View style={styles.cardHeader}>
-                    <Text style={styles.businessName}>{booking.businessName}</Text>
-                    <Text style={[styles.status, { color: BOOKING_STATUS_COLOR[booking.status] }]}>
-                      {BOOKING_STATUS_LABEL[booking.status]}
-                    </Text>
-                  </View>
-                  <Text style={styles.metaLine}>{booking.staffName}</Text>
-                  {booking.services.map((service) => (
-                    <Text key={service.serviceId} style={styles.metaLine}>
-                      {service.quantity > 1 ? `${service.quantity}× ` : ''}
-                      {service.name}
-                    </Text>
-                  ))}
-                  <Text style={styles.metaLine}>{booking.time}</Text>
-                  {/* The review lives on the detail screen; nudge toward it here. */}
-                  {booking.status === 'completed' ? (
-                    <View style={styles.reviewRow}>
-                      <StarIcon size={13} color={booking.review ? undefined : colors.brand.pink} />
-                      <Text style={[styles.reviewText, !booking.review && styles.reviewPrompt]}>
-                        {booking.review ? `You rated it ${booking.review.rating}/5` : 'Leave a review'}
-                      </Text>
-                    </View>
-                  ) : null}
-                </Pressable>
+                <View style={styles.cardShadow}>
+                  <SwipeRow
+                    actions={
+                      tab === 'upcoming'
+                        ? []
+                        : [{ key: 'rebook', label: 'Book again', color: colors.brand.pink, onPress: () => rebook(booking) }]
+                    }
+                  >
+                    <Pressable style={styles.card} onPress={() => router.push(`/booking/${booking.bookingId}`)}>
+                      <View style={styles.cardHeader}>
+                        <Text style={styles.businessName}>{booking.businessName}</Text>
+                        <Text style={[styles.status, { color: BOOKING_STATUS_COLOR[booking.status] }]}>
+                          {BOOKING_STATUS_LABEL[booking.status]}
+                        </Text>
+                      </View>
+                      <Text style={styles.metaLine}>{booking.staffName}</Text>
+                      {booking.services.map((service) => (
+                        <Text key={service.serviceId} style={styles.metaLine}>
+                          {service.quantity > 1 ? `${service.quantity}× ` : ''}
+                          {service.name}
+                        </Text>
+                      ))}
+                      <Text style={styles.metaLine}>{booking.time}</Text>
+                      {/* The review lives on the detail screen; nudge toward it here. */}
+                      {booking.status === 'completed' ? (
+                        <View style={styles.reviewRow}>
+                          <StarIcon size={13} color={booking.review ? undefined : colors.brand.pink} />
+                          <Text style={[styles.reviewText, !booking.review && styles.reviewPrompt]}>
+                            {booking.review ? `You rated it ${booking.review.rating}/5` : 'Leave a review'}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </Pressable>
+                  </SwipeRow>
+                </View>
               </View>
             ))}
           </Animated.View>
@@ -185,6 +217,9 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
     backgroundColor: colors.background.primary,
+  },
+  grow: {
+    flexGrow: 1,
   },
   header: {
     paddingHorizontal: spacing.xxl,
@@ -256,14 +291,19 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     marginBottom: spacing.xs,
   },
-  card: {
+  // The shadow sits outside the swipeable, which clips its contents.
+  cardShadow: {
     flex: 1,
+    borderRadius: radii.lg,
+    backgroundColor: colors.background.secondary,
+    marginBottom: spacing.lg,
+    ...shadows.card,
+  },
+  card: {
     borderRadius: radii.lg,
     backgroundColor: colors.background.secondary,
     padding: spacing.lg,
     gap: spacing.xs,
-    marginBottom: spacing.lg,
-    ...shadows.card,
   },
   cardHeader: {
     flexDirection: 'row',

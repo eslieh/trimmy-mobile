@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useEffect, useMemo, useState, type ReactElement } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type RefreshControlProps } from 'react-native';
 import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { Avatar } from './Avatar';
 import { BOOKING_STATUS_COLOR } from '../utils/bookingStatus';
@@ -78,8 +78,10 @@ export function StaffDayGrid({
   closeTime,
   isToday,
   onPressBooking,
+  onLongPressBooking,
   onPressSlot,
   onPressStaff,
+  refreshControl,
 }: {
   columns: GridColumn[];
   bookings: Booking[];
@@ -88,8 +90,10 @@ export function StaffDayGrid({
   closeTime: string | null;
   isToday: boolean;
   onPressBooking: (booking: Booking) => void;
+  onLongPressBooking?: (booking: Booking) => void; // quick actions
   onPressSlot: (staffId: string | null, time: string) => void;
   onPressStaff?: (column: GridColumn) => void; // e.g. their time off
+  refreshControl?: ReactElement<RefreshControlProps>; // pull to refresh
 }) {
   const { width } = useWindowDimensions();
   const scrollX = useSharedValue(0);
@@ -150,7 +154,7 @@ export function StaffDayGrid({
   };
 
   return (
-    <ScrollView stickyHeaderIndices={[0]} contentContainerStyle={styles.scrollContent}>
+    <ScrollView stickyHeaderIndices={[0]} contentContainerStyle={styles.scrollContent} refreshControl={refreshControl}>
       {/* Staff names: sticky at the top, following the sideways scroll. */}
       <View style={styles.headerRow}>
         <View style={styles.gutterHeader} />
@@ -235,6 +239,8 @@ export function StaffDayGrid({
                       <Pressable
                         key={booking.bookingId}
                         onPress={() => onPressBooking(booking)}
+                        onLongPress={onLongPressBooking && (() => onLongPressBooking(booking))}
+                        delayLongPress={350}
                         style={[
                           styles.block,
                           {

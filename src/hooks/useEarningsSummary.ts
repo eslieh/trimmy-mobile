@@ -19,15 +19,19 @@ export function useEarningsSummary(
   const [from, to] = dateRangeKeys(range);
   const { staffId, allTransactions } = options;
 
-  const load = useCallback(() => {
+  const load = useCallback(async () => {
     if (!businessId) return;
     setError('');
-    getEarningsSummary(businessId, { from, to, staffId, transactionsLimit: allTransactions ? undefined : 10 })
+    await getEarningsSummary(businessId, { from, to, staffId, transactionsLimit: allTransactions ? undefined : 10 })
       .then(setSummary)
       .catch((err) => setError(getApiErrorMessage(err, "Couldn't load earnings.")));
   }, [businessId, from, to, staffId, allTransactions]);
 
-  useFocusEffect(load);
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
 
   return { summary, error, refresh: load };
 }

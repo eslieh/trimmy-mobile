@@ -8,6 +8,7 @@ import type { BusinessSummary } from '../types/discovery';
 interface BusinessResultCardProps {
   business: BusinessSummary;
   onPress: () => void;
+  onLongPress?: () => void; // e.g. the Wishlist's "Remove"
 }
 
 // Flexible width (fills whatever grid cell it's placed in — see
@@ -15,12 +16,12 @@ interface BusinessResultCardProps {
 // image (reduced height, not a square), minimal text underneath (name,
 // rating + distance, price) for a clean look rather than every field
 // crammed in.
-export function BusinessResultCard({ business, onPress }: BusinessResultCardProps) {
+export function BusinessResultCard({ business, onPress, onLongPress }: BusinessResultCardProps) {
   const isFavorite = useFavoritesStore((s) => s.isFavorite(business.businessId));
   const toggleFavorite = useFavoritesStore((s) => s.toggleFavorite);
 
   return (
-    <Pressable style={styles.card} onPress={onPress}>
+    <Pressable style={styles.card} onPress={onPress} onLongPress={onLongPress} delayLongPress={350}>
       <View style={styles.thumbWrapper}>
         <Image source={{ uri: business.thumbnailUrl }} style={styles.thumb} />
         <Pressable

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -12,6 +12,7 @@ import { usePayoutsStore } from '../../store/usePayoutsStore';
 import { INVITATION_STATUS_COLOR, INVITATION_STATUS_LABEL, TEAM_ROLE_LABEL, teamMemberDisplayName } from '../../utils/team';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import { useRealtimeRefresh } from '../../realtime/events';
+import { useRefreshControl } from '../../hooks/useRefreshControl';
 
 function formatMoney(amount: number): string {
   return `KSh ${amount.toLocaleString('en-US')}`;
@@ -61,6 +62,20 @@ export function TeamScreen() {
     },
   );
 
+  // Pull down: roster and payout queue.
+  const refreshControl = useRefreshControl(
+    useCallback(
+      () =>
+        businessId
+          ? Promise.all([
+              loadTeamMembers(businessId).catch((err) => showApiError("Couldn't load your team", err)),
+              loadPayouts(businessId, { status: 'pending' }).catch(() => {}),
+            ])
+          : undefined,
+      [businessId, loadTeamMembers, loadPayouts],
+    ),
+  );
+
   const pendingPayouts = useMemo(
     () =>
       business
@@ -80,7 +95,6 @@ export function TeamScreen() {
     return a.status === 'pending' ? -1 : b.status === 'pending' ? 1 : 0;
   });
 
-
   return (
     <SafeAreaView style={styles.flex} edges={['top']}>
       <View style={styles.header}>
@@ -90,7 +104,7 @@ export function TeamScreen() {
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={styles.list}>
+      <ScrollView contentContainerStyle={styles.list} refreshControl={refreshControl}>
         <View style={styles.payoutsCard}>
           <View style={styles.payoutsHeader}>
             <Text style={styles.payoutsTitle}>Payouts</Text>

@@ -20,6 +20,7 @@ import { useWalletStatement } from '../../hooks/useWalletStatement';
 import { showApiError } from '../../utils/showApiError';
 import type { Wallet } from '../../types/payout';
 import { SheetModal } from '../../components/ui/SheetModal';
+import { useRefreshControl } from '../../hooks/useRefreshControl';
 
 const RANGE_OPTIONS: { value: EarningsRange; label: string }[] = [
   { value: 'today', label: 'Today' },
@@ -106,23 +107,38 @@ export function StaffEarningsScreen() {
     [range, customStart, customEnd],
   );
   // The server scopes this to the signed-in staff member (get-earnings-summary).
-  const { summary } = useEarningsSummary(staffSession?.businessId, dateRange, { allTransactions: range === 'custom' });
+  const { summary, refresh: refreshSummary } = useEarningsSummary(staffSession?.businessId, dateRange, {
+    allTransactions: range === 'custom',
+  });
   const { buckets, paymentBreakdown, servicesBreakdown, stats, transactions } = earningsViews(summary);
 
   const businessId = staffSession?.businessId;
   const staffId = staffSession?.staffId;
   const refreshWallet = useCallback(() => {
     if (!businessId) return;
-    getMyWallet()
-      .then(setWallet)
-      .catch((err) => showApiError("Couldn't load your wallet", err));
-    loadPayouts(businessId, { staffId }).catch(() => {});
+    return Promise.all([
+      getMyWallet()
+        .then(setWallet)
+        .catch((err) => showApiError("Couldn't load your wallet", err)),
+      loadPayouts(businessId, { staffId }).catch(() => {}),
+    ]);
   }, [businessId, staffId, loadPayouts]);
-  useFocusEffect(refreshWallet);
+  useFocusEffect(
+    useCallback(() => {
+      refreshWallet();
+    }, [refreshWallet]),
+  );
 
   // The statement across all their businesses, newest first.
   const fetchStatement = useCallback((offset: number) => getMyWalletStatement({ offset }), []);
   const statement = useWalletStatement(fetchStatement);
+  // Pull down: wallet, payouts, the statement and the earnings summary.
+  const refreshControl = useRefreshControl(
+    useCallback(
+      () => Promise.all([refreshWallet(), statement.reload(), refreshSummary()]),
+      [refreshWallet, statement.reload, refreshSummary],
+    ),
+  );
 
   const multiBusiness = (wallet?.businesses.length ?? 0) > 1;
   const thisBusiness = wallet?.businesses.find((b) => b.businessId === businessId);
@@ -177,7 +193,7 @@ export function StaffEarningsScreen() {
         <Text style={styles.title}>Earnings</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} refreshControl={refreshControl}>
         <View style={styles.payoutCard}>
           <Text style={styles.payoutLabel}>Wallet balance</Text>
           <Text style={[styles.payoutValue, totalAvailable < 0 && styles.negativeValue]}>

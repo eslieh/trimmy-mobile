@@ -10,6 +10,7 @@ import { usePayoutsStore } from '../../store/usePayoutsStore';
 import { PAYOUT_STATUS_COLOR, PAYOUT_STATUS_LABEL } from '../../utils/payout';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import { showApiError } from '../../utils/showApiError';
+import { useRefreshControl } from '../../hooks/useRefreshControl';
 
 function formatMoney(amount: number): string {
   return `KSh ${amount.toLocaleString('en-US')}`;
@@ -31,11 +32,16 @@ export function PayoutHistoryScreen() {
 
   // Every payout for the business, from the server.
   const businessId = ownedBusiness?.businessId;
+  const load = useCallback(
+    () => (businessId ? loadPayouts(businessId).catch((err) => showApiError("Couldn't load payouts", err)) : undefined),
+    [businessId, loadPayouts],
+  );
   useFocusEffect(
     useCallback(() => {
-      if (businessId) loadPayouts(businessId).catch((err) => showApiError("Couldn't load payouts", err));
-    }, [businessId, loadPayouts]),
+      load();
+    }, [load]),
   );
+  const refreshControl = useRefreshControl(load);
 
   const businessPayouts = useMemo(
     () =>
@@ -61,7 +67,7 @@ export function PayoutHistoryScreen() {
           <Text style={styles.emptyBody}>Requests your team makes from their earnings will show up here.</Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.list}>
+        <ScrollView contentContainerStyle={styles.list} refreshControl={refreshControl}>
           {businessPayouts.map((payout) => {
             const displayName = payout.staffName || 'Team member';
             return (

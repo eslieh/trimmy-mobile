@@ -104,6 +104,15 @@ export function markNotificationRead(notificationId: string): Promise<{ unreadCo
   return apiRequest(`/me/notifications/${notificationId}/read`, { method: 'POST' });
 }
 
+// Clears one from the inbox (swipe to delete); returns the new unread count.
+export function deleteNotification(notificationId: string): Promise<{ unreadCount: number }> {
+  if (USE_MOCK_NOTIFICATIONS) {
+    mockInbox = mockInbox.filter((n) => n.notificationId !== notificationId);
+    return mockDelay({ unreadCount: mockUnreadCount() }, 150);
+  }
+  return apiRequest(`/me/notifications/${notificationId}`, { method: 'DELETE' });
+}
+
 // Sends the signed-in user a test notification through the whole pipeline
 // (inbox, live stream, push when on) — POST /me/notifications/test. In mock
 // mode it just makes one up; the caller feeds it to receiveNotification.

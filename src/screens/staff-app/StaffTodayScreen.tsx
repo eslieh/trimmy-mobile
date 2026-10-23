@@ -11,6 +11,8 @@ import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { colors, radii, spacing, typography } from '../../theme';
 import type { Booking } from '../../types/booking';
 import { useSyncBusinessBookings } from '../../hooks/useSyncBusinessBookings';
+import { useAppointmentActions } from '../../hooks/useAppointmentActions';
+import { useRefreshControl } from '../../hooks/useRefreshControl';
 
 const RESOLVED_STATUSES: Booking['status'][] = ['completed', 'no_show', 'cancelled'];
 
@@ -45,7 +47,10 @@ export function StaffTodayScreen() {
 
   const dateKey = dateKeyForOffset(dayOffset);
   // Staff only get their own bookings from the server.
-  useSyncBusinessBookings(staffSession?.businessId, dateKey, dateKey);
+  const { refresh } = useSyncBusinessBookings(staffSession?.businessId, dateKey, dateKey);
+  const refreshControl = useRefreshControl(refresh);
+  // Swipe (or long-press) a card to start or finish it.
+  const { actionsFor, openMenu, menu } = useAppointmentActions();
 
   const dayBookings = useMemo(() => {
     if (!staffSession) return [];
@@ -108,13 +113,15 @@ export function StaffTodayScreen() {
       </View>
 
       {dayBookings.length === 0 ? (
-        <View style={styles.empty}>
-          <CalendarIcon size={40} color={colors.text.tertiary} />
-          <Text style={styles.emptyTitle}>Nothing scheduled</Text>
-          <Text style={styles.emptyBody}>Appointments assigned to you will show up here.</Text>
-        </View>
+        <ScrollView contentContainerStyle={styles.grow} refreshControl={refreshControl}>
+          <View style={styles.empty}>
+            <CalendarIcon size={40} color={colors.text.tertiary} />
+            <Text style={styles.emptyTitle}>Nothing scheduled</Text>
+            <Text style={styles.emptyBody}>Appointments assigned to you will show up here.</Text>
+          </View>
+        </ScrollView>
       ) : (
-        <ScrollView contentContainerStyle={styles.list}>
+        <ScrollView contentContainerStyle={styles.list} refreshControl={refreshControl}>
           {upcomingBookings.length > 0 ? (
             upcomingBookings.map((booking, index) => (
               <View key={booking.bookingId} style={styles.timelineRow}>
@@ -129,6 +136,8 @@ export function StaffTodayScreen() {
                     booking={booking}
                     showTime={false}
                     onPress={() => router.push(`/appointment/${booking.bookingId}`)}
+                    actions={actionsFor(booking)}
+                    onLongPress={() => openMenu(booking)}
                   />
                 </View>
               </View>
@@ -158,6 +167,7 @@ export function StaffTodayScreen() {
           ) : null}
         </ScrollView>
       )}
+      {menu}
     </SafeAreaView>
   );
 }
@@ -166,6 +176,9 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
     backgroundColor: colors.background.primary,
+  },
+  grow: {
+    flexGrow: 1,
   },
   header: {
     flexDirection: 'row',

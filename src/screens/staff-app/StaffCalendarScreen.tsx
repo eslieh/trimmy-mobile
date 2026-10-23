@@ -9,6 +9,8 @@ import { useBookingsStore } from '../../store/useBookingsStore';
 import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { colors, spacing, typography } from '../../theme';
 import { useSyncBusinessBookings } from '../../hooks/useSyncBusinessBookings';
+import { useAppointmentActions } from '../../hooks/useAppointmentActions';
+import { useRefreshControl } from '../../hooks/useRefreshControl';
 
 function toDateKey(date: Date): string {
   const year = date.getFullYear();
@@ -38,11 +40,13 @@ export function StaffCalendarScreen() {
   const today = useMemo(() => new Date(), []);
   const [month, setMonth] = useState(today);
   const [selectedDate, setSelectedDate] = useState(toDateKey(today));
-  useSyncBusinessBookings(
+  const { refresh } = useSyncBusinessBookings(
     staffSession?.businessId,
     toDateKey(new Date(month.getFullYear(), month.getMonth(), 1)),
     toDateKey(new Date(month.getFullYear(), month.getMonth() + 1, 0)),
   );
+  const refreshControl = useRefreshControl(refresh);
+  const { actionsFor, openMenu, menu } = useAppointmentActions();
 
   const myBookings = useMemo(
     () =>
@@ -69,7 +73,7 @@ export function StaffCalendarScreen() {
         <Text style={styles.headerTitle}>Calendar</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} refreshControl={refreshControl}>
         <MonthCalendar
           month={month}
           onChangeMonth={setMonth}
@@ -92,11 +96,14 @@ export function StaffCalendarScreen() {
                 key={booking.bookingId}
                 booking={booking}
                 onPress={() => router.push(`/appointment/${booking.bookingId}`)}
+                actions={actionsFor(booking)}
+                onLongPress={() => openMenu(booking)}
               />
             ))}
           </View>
         )}
       </ScrollView>
+      {menu}
     </SafeAreaView>
   );
 }

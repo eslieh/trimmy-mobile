@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import {
+  deleteNotification,
   getUnreadNotificationCount,
   listNotifications,
   markAllNotificationsRead,
@@ -21,6 +22,8 @@ type NotificationsState = {
   receive: (notification: AppNotification) => boolean;
   markReadNow: (notificationId: string) => Promise<void>;
   markAllReadNow: () => Promise<void>;
+  // Optimistic: gone from the list at once, put back if the server refuses.
+  removeNow: (notificationId: string) => Promise<void>;
   // On logout, so the next account doesn't see a stale badge.
   reset: () => void;
 };
@@ -82,6 +85,22 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
       notifications: state.notifications.map((n) => (n.readAt ? n : { ...n, readAt: now })),
       unreadCount,
     }));
+  },
+  removeNow: async (notificationId) => {
+    const before = get();
+    const target = before.notifications.find((n) => n.notificationId === notificationId);
+    if (!target) return;
+    set((state) => ({
+      notifications: state.notifications.filter((n) => n.notificationId !== notificationId),
+      unreadCount: target.readAt ? state.unreadCount : Math.max(0, state.unreadCount - 1),
+    }));
+    try {
+      const { unreadCount } = await deleteNotification(notificationId);
+      set({ unreadCount });
+    } catch (err) {
+      set({ notifications: before.notifications, unreadCount: before.unreadCount });
+      throw err;
+    }
   },
   reset: () => set({ notifications: [], unreadCount: 0, nextCursor: null }),
 }));

@@ -10,6 +10,8 @@ import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { getTimeSlots } from '../../utils/availability';
 import { colors, radii, spacing, typography } from '../../theme';
 import { useSyncBusinessBookings } from '../../hooks/useSyncBusinessBookings';
+import { useAppointmentActions } from '../../hooks/useAppointmentActions';
+import { useRefreshControl } from '../../hooks/useRefreshControl';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 
 // Just for browsing what's open on a day before any services are picked —
@@ -51,7 +53,9 @@ export function CalendarScreen() {
   // Load the visible month from the server.
   const monthStart = toDateKey(new Date(month.getFullYear(), month.getMonth(), 1));
   const monthEnd = toDateKey(new Date(month.getFullYear(), month.getMonth() + 1, 0));
-  useSyncBusinessBookings(ownedBusiness?.businessId, monthStart, monthEnd);
+  const { refresh } = useSyncBusinessBookings(ownedBusiness?.businessId, monthStart, monthEnd);
+  const refreshControl = useRefreshControl(refresh);
+  const { actionsFor, openMenu, menu } = useAppointmentActions();
 
   const businessBookings = useMemo(
     () => (ownedBusiness ? bookings.filter((b) => b.businessId === ownedBusiness.businessId) : []),
@@ -87,7 +91,7 @@ export function CalendarScreen() {
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} refreshControl={refreshControl}>
         <MonthCalendar
           month={month}
           onChangeMonth={setMonth}
@@ -105,6 +109,8 @@ export function CalendarScreen() {
                 key={booking.bookingId}
                 booking={booking}
                 onPress={() => router.push(`/appointment/${booking.bookingId}`)}
+                actions={actionsFor(booking)}
+                onLongPress={() => openMenu(booking)}
               />
             ))}
           </View>
@@ -131,6 +137,7 @@ export function CalendarScreen() {
           )}
         </View>
       </ScrollView>
+      {menu}
     </SafeAreaView>
   );
 }

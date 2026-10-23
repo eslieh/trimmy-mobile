@@ -11,6 +11,7 @@ import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { buildCustomDateRange, getPresetDateRange, type EarningsRange } from '../../utils/earnings';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import { earningsViews, useEarningsSummary } from '../../hooks/useEarningsSummary';
+import { useRefreshControl } from '../../hooks/useRefreshControl';
 
 const RANGE_OPTIONS: { value: EarningsRange; label: string }[] = [
   { value: 'today', label: 'Today' },
@@ -60,9 +61,10 @@ export function EarningsScreen() {
     [range, customStart, customEnd],
   );
   // Computed on the server from paid bookings (get-earnings-summary).
-  const { summary } = useEarningsSummary(ownedBusiness?.businessId, dateRange, {
+  const { summary, refresh } = useEarningsSummary(ownedBusiness?.businessId, dateRange, {
     allTransactions: range === 'custom',
   });
+  const refreshControl = useRefreshControl(refresh);
   const { buckets, paymentBreakdown, servicesBreakdown, stats, transactions } = earningsViews(summary);
 
   if (!ownedBusiness) {
@@ -84,7 +86,7 @@ export function EarningsScreen() {
         <NotificationBell />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} refreshControl={refreshControl}>
         <View style={styles.rangeRow}>
           {RANGE_OPTIONS.map((option) => {
             const selected = option.value === range;

@@ -12,6 +12,7 @@ import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import { Avatar } from '../../components/Avatar';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
+import { useRefreshControl } from '../../hooks/useRefreshControl';
 
 // Reached from Manage Business's "Customers" row. Browse/search the
 // business's customers from the server (list-customers), which fills itself
@@ -32,7 +33,7 @@ export function CustomersScreen() {
     (q: string) => {
       if (!businessId) return;
       setError('');
-      loadCustomers(businessId, q.trim() || undefined).catch((err) =>
+      return loadCustomers(businessId, q.trim() || undefined).catch((err) =>
         setError(getApiErrorMessage(err, "Couldn't load customers.")),
       );
     },
@@ -42,7 +43,12 @@ export function CustomersScreen() {
   // Refresh on focus (new bookings add customers)…
   const queryRef = useRef(query);
   queryRef.current = query;
-  useFocusEffect(useCallback(() => load(queryRef.current), [load]));
+  useFocusEffect(
+    useCallback(() => {
+      load(queryRef.current);
+    }, [load]),
+  );
+  const refreshControl = useRefreshControl(useCallback(() => load(queryRef.current), [load]));
 
   // …and search as you type (skipping the first run — focus already loaded).
   const typedRef = useRef(false);
@@ -97,7 +103,7 @@ export function CustomersScreen() {
           <Text style={styles.emptyBody}>No customers match "{query}".</Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.list}>
+        <ScrollView contentContainerStyle={styles.list} refreshControl={refreshControl}>
           {sorted.map((customer) => (
             <Pressable
               key={customer.customerId}

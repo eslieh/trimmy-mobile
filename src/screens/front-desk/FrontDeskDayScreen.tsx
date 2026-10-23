@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -10,6 +10,8 @@ import { ChevronRightIcon } from '../../components/icons/ChevronRightIcon';
 import { PlusIcon } from '../../components/icons/PlusIcon';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import { useSyncBusinessBookings } from '../../hooks/useSyncBusinessBookings';
+import { useAppointmentActions } from '../../hooks/useAppointmentActions';
+import { useRefreshControl } from '../../hooks/useRefreshControl';
 import { useBookingsStore } from '../../store/useBookingsStore';
 import { useFrontDeskStore } from '../../store/useFrontDeskStore';
 import type { WeeklyHours } from '../../types/business';
@@ -40,7 +42,7 @@ export function FrontDeskDayScreen() {
 
   const dateKey = toKey(day);
   const isToday = dateKey === toKey(new Date());
-  useSyncBusinessBookings(business?.businessId, dateKey, dateKey);
+  const { refresh } = useSyncBusinessBookings(business?.businessId, dateKey, dateKey);
 
   // Staff time off that day, drawn as greyed-out blocks (S4).
   const businessId = business?.businessId;
@@ -52,29 +54,50 @@ export function FrontDeskDayScreen() {
     }, [businessId]),
   );
 
+  // Reloads that day's time off; the latest call wins if the day changes mid-flight.
+  const timeOffRun = useRef(0);
+  const loadBlocked = useCallback(async () => {
+    if (!businessId) return;
+    const run = ++timeOffRun.current;
+    try {
+      const list = await listTimeOff(businessId, dateKey, dateKey);
+      if (run !== timeOffRun.current) return;
+      setBlocked(
+        list.map((t) => ({
+          staffId: t.staffId,
+          // A block from an earlier day runs from midnight; one ending later runs to midnight.
+          start: t.date < dateKey ? '00:00' : t.start,
+          end: t.until > dateKey ? '24:00' : t.end,
+          label: t.reason || 'Time off',
+        })),
+      );
+    } catch {
+      if (run === timeOffRun.current) setBlocked([]);
+    }
+  }, [businessId, dateKey]);
   useFocusEffect(
     useCallback(() => {
-      if (!businessId) return;
-      let current = true;
-      listTimeOff(businessId, dateKey, dateKey)
-        .then((list) => {
-          if (!current) return;
-          setBlocked(
-            list.map((t) => ({
-              staffId: t.staffId,
-              // A block from an earlier day runs from midnight; one ending later runs to midnight.
-              start: t.date < dateKey ? '00:00' : t.start,
-              end: t.until > dateKey ? '24:00' : t.end,
-              label: t.reason || 'Time off',
-            })),
-          );
-        })
-        .catch(() => current && setBlocked([]));
+      loadBlocked();
       return () => {
-        current = false;
+        timeOffRun.current += 1;
       };
-    }, [businessId, dateKey]),
+    }, [loadBlocked]),
   );
+
+  // Pull down: bookings, time off, and the business's staff and hours.
+  const refreshControl = useRefreshControl(
+    useCallback(
+      () =>
+        Promise.all([
+          refresh(),
+          loadBlocked(),
+          businessId ? useFrontDeskStore.getState().load(businessId).catch(() => {}) : null,
+        ]),
+      [refresh, loadBlocked, businessId],
+    ),
+  );
+  // Long-press a booking for check in / charge / no-show / cancel.
+  const { openMenu, menu } = useAppointmentActions();
 
   const dayBookings = useMemo(
     () =>
@@ -155,6 +178,8 @@ export function FrontDeskDayScreen() {
           closeTime={hours?.close ?? null}
           isToday={isToday}
           onPressBooking={(booking) => router.push(`/appointment/${booking.bookingId}`)}
+          onLongPressBooking={openMenu}
+          refreshControl={refreshControl}
           onPressStaff={(column) =>
             column.staffId && router.push({
               pathname: '/time-off',
@@ -166,6 +191,7 @@ export function FrontDeskDayScreen() {
           }
         />
       )}
+      {menu}
     </SafeAreaView>
   );
 }
