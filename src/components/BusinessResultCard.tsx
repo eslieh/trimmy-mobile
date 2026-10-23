@@ -1,8 +1,8 @@
-import { Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { AnimatedFavoriteHeart } from './AnimatedFavoriteHeart';
 import { RatingLabel } from './RatingLabel';
 import { useFavoritesStore } from '../store/useFavoritesStore';
-import { colors, radii, spacing, typography } from '../theme';
+import { colors, radii, shadows, spacing, typography } from '../theme';
 import type { BusinessSummary } from '../types/discovery';
 
 interface BusinessResultCardProps {
@@ -18,13 +18,9 @@ interface BusinessResultCardProps {
 export function BusinessResultCard({ business, onPress }: BusinessResultCardProps) {
   const isFavorite = useFavoritesStore((s) => s.isFavorite(business.businessId));
   const toggleFavorite = useFavoritesStore((s) => s.toggleFavorite);
-  // One cell of the 2-column grids (screen padding xxl, gap md): a card alone
-  // on its row keeps half width instead of stretching across.
-  const { width } = useWindowDimensions();
-  const maxWidth = (width - spacing.xxl * 2 - spacing.md) / 2;
 
   return (
-    <Pressable style={[styles.card, { maxWidth }]} onPress={onPress}>
+    <Pressable style={styles.card} onPress={onPress}>
       <View style={styles.thumbWrapper}>
         <Image source={{ uri: business.thumbnailUrl }} style={styles.thumb} />
         <Pressable
@@ -46,7 +42,7 @@ export function BusinessResultCard({ business, onPress }: BusinessResultCardProp
         <RatingLabel rating={business.rating} size={11} textStyle={styles.metaText} />
         <Text style={styles.metaText}>· {business.distanceKm.toFixed(1)} km</Text>
       </View>
-      <Text style={styles.price}>From KSh {business.startingPrice.amount.toLocaleString('en-US')}</Text>
+      <Text style={styles.price}>From KSh {business.startingPrice.amount}</Text>
     </Pressable>
   );
 }
@@ -57,10 +53,11 @@ const styles = StyleSheet.create({
   },
   thumbWrapper: {
     width: '100%',
-    aspectRatio: 1.1,
-    borderRadius: radii.xl,
+    aspectRatio: 1.3,
+    borderRadius: radii.lg,
     overflow: 'hidden',
-    backgroundColor: colors.brand.accentSoft,
+    backgroundColor: colors.background.tertiary,
+    ...shadows.card,
   },
   thumb: {
     width: '100%',
@@ -79,10 +76,8 @@ const styles = StyleSheet.create({
   },
   name: {
     ...typography.label,
-    fontFamily: typography.h3.fontFamily,
-    fontSize: 15,
     color: colors.text.primary,
-    marginTop: spacing.sm + 2,
+    marginTop: spacing.sm,
   },
   address: {
     ...typography.caption,
@@ -100,9 +95,8 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
   },
   price: {
-    ...typography.label,
-    fontSize: 13,
-    color: colors.brand.pink,
-    marginTop: 4,
+    ...typography.caption,
+    color: colors.brand.purple,
+    marginTop: 2,
   },
 });

@@ -41,7 +41,7 @@ export function NotificationBell() {
       accessibilityRole="button"
       accessibilityLabel={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
     >
-      <BellIcon size={18} color={colors.brand.pink} />
+      <BellIcon size={18} />
       {unreadCount > 0 ? (
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{label}</Text>
@@ -53,12 +53,12 @@ export function NotificationBell() {
 
 const styles = StyleSheet.create({
   button: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.brand.accentSoft,
+    backgroundColor: colors.background.secondary,
   },
   badge: {
     position: 'absolute',
@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.text.primary,
+    backgroundColor: colors.brand.pink,
     borderWidth: 2,
     borderColor: colors.background.primary,
   },
