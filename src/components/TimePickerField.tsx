@@ -8,6 +8,8 @@ interface TimePickerFieldProps {
   label: string;
   value: string; // "HH:mm"
   onChange: (value: string) => void;
+  // Stretch to share a row (Opens / Closes). Off by default; see DatePickerField.
+  grow?: boolean;
 }
 
 function parseTime(value: string): Date {
@@ -26,7 +28,7 @@ function formatTime(date: Date): string {
 // iOS renders the picker inline inside a bottom sheet with an explicit
 // "Done" (spinner mode has no natural dismiss event). Android's picker is
 // already a native modal dialog, so it's shown/hidden imperatively instead.
-export function TimePickerField({ label, value, onChange }: TimePickerFieldProps) {
+export function TimePickerField({ label, value, onChange, grow }: TimePickerFieldProps) {
   const [visible, setVisible] = useState(false);
   const [draft, setDraft] = useState(() => parseTime(value));
 
@@ -48,20 +50,28 @@ export function TimePickerField({ label, value, onChange }: TimePickerFieldProps
 
   return (
     <>
-      <Pressable style={styles.field} onPress={handleOpen} hitSlop={4}>
+      <Pressable style={[styles.field, grow && styles.grow]} onPress={handleOpen} hitSlop={4}>
         <Text style={styles.label}>{label}</Text>
         <Text style={styles.value}>{value}</Text>
       </Pressable>
 
       {visible && Platform.OS === 'android' && (
-        <DateTimePicker value={draft} mode="time" display="default" onChange={handleAndroidChange} />
+        <DateTimePicker value={draft} mode="time" display="default" title={label} onChange={handleAndroidChange} />
       )}
 
       {Platform.OS === 'ios' && (
         <Modal visible={visible} transparent animationType="slide" onRequestClose={() => setVisible(false)}>
           <Pressable style={styles.overlay} onPress={() => setVisible(false)}>
             <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-              <DateTimePicker value={draft} mode="time" display="spinner" onChange={handleIosChange} />
+              <Text style={styles.sheetTitle}>{label}</Text>
+              <DateTimePicker
+                value={draft}
+                mode="time"
+                display="spinner"
+                themeVariant="light"
+                textColor={colors.text.primary}
+                onChange={handleIosChange}
+              />
               <Button
                 label="Done"
                 onPress={() => {
@@ -80,13 +90,21 @@ export function TimePickerField({ label, value, onChange }: TimePickerFieldProps
 
 const styles = StyleSheet.create({
   field: {
-    flex: 1,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border.default,
     backgroundColor: colors.background.primary,
+  },
+  grow: {
+    flex: 1,
+  },
+  sheetTitle: {
+    ...typography.h3,
+    color: colors.text.primary,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
   },
   label: {
     ...typography.caption,

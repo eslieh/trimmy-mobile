@@ -110,11 +110,13 @@ export function WorkingHoursScreen() {
             {day ? (
               <View style={styles.timeRow}>
                 <TimePickerField
+                  grow
                   label="Opens"
                   value={day.open}
                   onChange={(value) => updateDayField(key, 'open', value)}
                 />
                 <TimePickerField
+                  grow
                   label="Closes"
                   value={day.close}
                   onChange={(value) => updateDayField(key, 'close', value)}

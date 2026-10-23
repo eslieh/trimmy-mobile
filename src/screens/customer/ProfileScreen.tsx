@@ -7,9 +7,9 @@ import { useOwnedBusinessStore } from '../../store/useOwnedBusinessStore';
 import { colors, radii, shadows, spacing, typography } from '../../theme';
 import { PendingInvitations } from '../../components/PendingInvitations';
 import { AccountSection } from '../../components/AccountSection';
-import { Button } from '../../components/Button';
 import { Avatar } from '../../components/Avatar';
 import { IconBubble } from '../../components/ui/IconBubble';
+import { BusinessIcon } from '../../components/icons/BusinessIcon';
 import { ChevronRightIcon } from '../../components/icons/ChevronRightIcon';
 import { NotificationBell } from '../../components/NotificationBell';
 import Svg, { Path } from 'react-native-svg';
@@ -65,33 +65,6 @@ export function ProfileScreen() {
           {/* Invitations from businesses; the invitation sheet also offers them once. */}
           <PendingInvitations />
 
-          {user && !ownedBusiness ? (
-            <View style={styles.businessCard}>
-              <View style={styles.businessEyebrowRow}>
-                <View style={styles.eyebrowDot} />
-                <Text style={styles.businessEyebrow}>TRIMMY FOR BUSINESS</Text>
-              </View>
-              {draft ? (
-                <>
-                  <Text style={styles.businessTitle}>Finish setting up {draft.name}</Text>
-                  <Text style={styles.businessBody}>Your progress is saved. Pick up where you left off.</Text>
-                  <Button
-                    label="Continue setup"
-                    onPress={() => router.push(nextSetupRoute(draft.onboardingStep, draft.teamMode))}
-                  />
-                </>
-              ) : (
-                <>
-                  <Text style={styles.businessTitle}>Run your salon or barbershop on Trimmy</Text>
-                  <Text style={styles.businessBody}>
-                    Take bookings and M-Pesa payments, manage your team and see your earnings, all in one place.
-                  </Text>
-                  <Button label="Set up your business" onPress={() => router.push('/business-name')} />
-                </>
-              )}
-            </View>
-          ) : null}
-
           {user ? (
             <View style={styles.group}>
               <Pressable style={[styles.row, styles.rowLast]} onPress={() => router.push('/activity')}>
@@ -104,7 +77,26 @@ export function ProfileScreen() {
             </View>
           ) : null}
 
-          <AccountSection />
+          {/* Low-key, near the bottom: most people here are customers. */}
+          <AccountSection
+            extra={
+              user && !ownedBusiness
+                ? draft
+                  ? {
+                      label: `Finish setting up ${draft.name}`,
+                      hint: 'Your progress is saved',
+                      icon: <BusinessIcon size={17} color={colors.brand.pink} />,
+                      onPress: () => router.push(nextSetupRoute(draft.onboardingStep, draft.teamMode)),
+                    }
+                  : {
+                      label: 'List your business',
+                      hint: 'Take bookings and M-Pesa payments on Trimmy',
+                      icon: <BusinessIcon size={17} color={colors.brand.pink} />,
+                      onPress: () => router.push('/business-name'),
+                    }
+                : undefined
+            }
+          />
         </View>
       </ScrollView>
 
@@ -150,39 +142,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  // The landing's soft pink card: tinted, no border or shadow.
-  businessCard: {
-    borderRadius: 28,
-    padding: spacing.xl,
-    gap: spacing.sm,
-    backgroundColor: colors.brand.accentSoft,
-  },
-  businessEyebrowRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  eyebrowDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.brand.pink,
-  },
-  businessEyebrow: {
-    ...typography.label,
-    fontSize: 12,
-    letterSpacing: 0.6,
-    color: colors.brand.accentForeground,
-  },
-  businessTitle: {
-    ...typography.h2,
-    color: colors.text.primary,
-  },
-  businessBody: {
-    ...typography.body,
-    color: colors.text.secondary,
-    marginBottom: spacing.sm,
   },
   pillWrap: {
     position: 'absolute',

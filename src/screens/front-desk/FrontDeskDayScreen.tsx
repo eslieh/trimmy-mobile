@@ -11,6 +11,7 @@ import { PlusIcon } from '../../components/icons/PlusIcon';
 import { useBusinessContext } from '../../hooks/useBusinessContext';
 import { useSyncBusinessBookings } from '../../hooks/useSyncBusinessBookings';
 import { useBookingsStore } from '../../store/useBookingsStore';
+import { useFrontDeskStore } from '../../store/useFrontDeskStore';
 import type { WeeklyHours } from '../../types/business';
 import { colors, radii, spacing, typography } from '../../theme';
 
@@ -43,6 +44,14 @@ export function FrontDeskDayScreen() {
 
   // Staff time off that day, drawn as greyed-out blocks (S4).
   const businessId = business?.businessId;
+  // The business's hours, staff and services can change on the owner's side: refresh them
+  // each time the day view comes back (one small request).
+  useFocusEffect(
+    useCallback(() => {
+      if (businessId) useFrontDeskStore.getState().load(businessId).catch(() => {});
+    }, [businessId]),
+  );
+
   useFocusEffect(
     useCallback(() => {
       if (!businessId) return;

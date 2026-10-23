@@ -10,6 +10,9 @@ interface DatePickerFieldProps {
   onChange: (value: string) => void;
   maximumDate?: Date;
   minimumDate?: Date;
+  // Stretch to share a row with another field (the From / To pairs). Off by default:
+  // flex: 1 in a column (a sheet, a form) collapses the field.
+  grow?: boolean;
 }
 
 function parseDateKey(value: string): Date {
@@ -30,7 +33,7 @@ function formatDisplay(value: string): string {
 
 // Same iOS/Android split as TimePickerField, mode="date" instead of "time"
 // — used by EarningsScreen's custom From/To range pickers.
-export function DatePickerField({ label, value, onChange, maximumDate, minimumDate }: DatePickerFieldProps) {
+export function DatePickerField({ label, value, onChange, maximumDate, minimumDate, grow }: DatePickerFieldProps) {
   const [visible, setVisible] = useState(false);
   const [draft, setDraft] = useState(() => parseDateKey(value));
 
@@ -52,7 +55,7 @@ export function DatePickerField({ label, value, onChange, maximumDate, minimumDa
 
   return (
     <>
-      <Pressable style={styles.field} onPress={handleOpen} hitSlop={4}>
+      <Pressable style={[styles.field, grow && styles.grow]} onPress={handleOpen} hitSlop={4}>
         <Text style={styles.label}>{label}</Text>
         <Text style={styles.value}>{formatDisplay(value)}</Text>
       </Pressable>
@@ -62,6 +65,7 @@ export function DatePickerField({ label, value, onChange, maximumDate, minimumDa
           value={draft}
           mode="date"
           display="default"
+          title={label}
           maximumDate={maximumDate}
           minimumDate={minimumDate}
           onChange={handleAndroidChange}
@@ -72,10 +76,14 @@ export function DatePickerField({ label, value, onChange, maximumDate, minimumDa
         <Modal visible={visible} transparent animationType="slide" onRequestClose={() => setVisible(false)}>
           <Pressable style={styles.overlay} onPress={() => setVisible(false)}>
             <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+              <Text style={styles.sheetTitle}>{label}</Text>
               <DateTimePicker
                 value={draft}
                 mode="date"
                 display="spinner"
+                // Light, dark text: readable whatever the phone's theme (Expo Go ignores the app's).
+                themeVariant="light"
+                textColor={colors.text.primary}
                 maximumDate={maximumDate}
                 minimumDate={minimumDate}
                 onChange={handleIosChange}
@@ -98,13 +106,21 @@ export function DatePickerField({ label, value, onChange, maximumDate, minimumDa
 
 const styles = StyleSheet.create({
   field: {
-    flex: 1,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border.default,
     backgroundColor: colors.background.primary,
+  },
+  grow: {
+    flex: 1,
+  },
+  sheetTitle: {
+    ...typography.h3,
+    color: colors.text.primary,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
   },
   label: {
     ...typography.caption,

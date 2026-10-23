@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { AppState } from 'react-native';
 import axios from 'axios';
 import { authApi } from '../api/auth';
 import { AuthResponse, UpdateMeRequest, User } from '../api/types';
@@ -95,6 +96,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     restoreOwnedBusiness().catch(() => {});
     useFavoritesStore.getState().load().catch(() => {});
     registerForPushNotifications();
+  }, [restoreForUserId]);
+
+  // Back in the app after a while: pick up changes made elsewhere (the owner renamed the
+  // business or changed its hours on the web, say). At most once a minute.
+  useEffect(() => {
+    if (!restoreForUserId) return;
+    let lastSync = Date.now();
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'active' || Date.now() - lastSync < 60_000) return;
+      lastSync = Date.now();
+      restoreOwnedBusiness().catch(() => {});
+      const { profile, load } = useFrontDeskStore.getState();
+      if (profile) load(profile.businessId).catch(() => {});
+    });
+    return () => subscription.remove();
   }, [restoreForUserId]);
 
   async function loadUser() {

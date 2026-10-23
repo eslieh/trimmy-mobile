@@ -13,7 +13,10 @@ import { LEGAL } from '../config/env';
 import { useAuth } from '../contexts/AuthContext';
 import { colors, radii, spacing, typography } from '../theme';
 
-type Row = { key: string; label: string; onPress: () => void; danger?: boolean; icon?: ReactNode };
+type Row = { key: string; label: string; hint?: string; onPress: () => void; danger?: boolean; icon?: ReactNode };
+
+// An extra, low-key row near the bottom (the customer Profile's "List your business").
+export type AccountExtraRow = { label: string; hint?: string; icon?: ReactNode; onPress: () => void };
 
 const ICON = { size: 17, color: colors.brand.pink };
 
@@ -21,7 +24,7 @@ const ICON = { size: 17, color: colors.brand.pink };
 // front desk), so managing your account never depends on which app you're
 // in: your details, password, notifications, help, the legal documents the
 // stores require, logging out and deleting the account.
-export function AccountSection() {
+export function AccountSection({ extra }: { extra?: AccountExtraRow } = {}) {
   const router = useRouter();
   const { user, logout } = useAuth();
 
@@ -70,6 +73,7 @@ export function AccountSection() {
     <View style={styles.section}>
       {account.length ? <Group title="Account" rows={account} /> : null}
       <Group title="Support & legal" rows={support} />
+      {extra ? <Group rows={[{ key: 'extra', ...extra }]} /> : null}
       <Group rows={session} />
       {/* Well clear of Log out so it's never hit by mistake. */}
       {user ? (
@@ -99,7 +103,10 @@ function Group({ title, rows }: { title?: string; rows: Row[] }) {
             accessibilityRole="button"
           >
             {row.icon ? <IconBubble size={36}>{row.icon}</IconBubble> : null}
-            <Text style={[styles.rowLabel, row.danger && styles.danger]}>{row.label}</Text>
+            <View style={styles.rowText}>
+              <Text style={[styles.rowLabel, row.danger && styles.danger]}>{row.label}</Text>
+              {row.hint ? <Text style={styles.rowHint}>{row.hint}</Text> : null}
+            </View>
             {row.danger ? null : <ChevronRightIcon size={16} color={colors.text.tertiary} />}
           </Pressable>
         ))}
@@ -143,10 +150,17 @@ const styles = StyleSheet.create({
   rowPressed: {
     backgroundColor: colors.brand.accentSoft,
   },
+  rowText: {
+    flex: 1,
+    gap: 1,
+  },
   rowLabel: {
     ...typography.bodyMedium,
     color: colors.text.primary,
-    flex: 1,
+  },
+  rowHint: {
+    ...typography.caption,
+    color: colors.text.secondary,
   },
   danger: {
     color: colors.feedback.danger,

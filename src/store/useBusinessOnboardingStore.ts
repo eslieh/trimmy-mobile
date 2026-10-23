@@ -207,6 +207,11 @@ export const useBusinessOnboardingStore = create<BusinessOnboardingState>((set, 
       const saved = await updateBusinessInfoApi(businessId, input);
       const updated: Business = { ...business, ...saved };
       set({ business: updated, isSubmitting: false });
+      // The business-app screens (Today, menu, Profile's switch) read the owned slot, not this store.
+      const owned = useOwnedBusinessStore.getState().business;
+      if (owned?.businessId === businessId && updated.name) {
+        useOwnedBusinessStore.getState().setOwnedBusiness({ ...owned, name: updated.name });
+      }
       return updated;
     } catch (err) {
       set({ isSubmitting: false, error: err instanceof Error ? err.message : 'Something went wrong' });
@@ -282,6 +287,11 @@ export const useBusinessOnboardingStore = create<BusinessOnboardingState>((set, 
         business: { ...business, workingHours: saved, onboardingStep: 'working_hours' },
         isSubmitting: false,
       });
+      // The calendars read hours from the owned slot (useBusinessContext): keep it in step.
+      const owned = useOwnedBusinessStore.getState().business;
+      if (owned?.businessId === business.businessId) {
+        useOwnedBusinessStore.getState().setOwnedBusiness({ ...owned, workingHours: saved });
+      }
       return saved;
     } catch (err) {
       set({ isSubmitting: false, error: err instanceof Error ? err.message : 'Something went wrong' });

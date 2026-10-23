@@ -316,8 +316,8 @@ export function TeamMemberDetailScreen() {
 
           {range === 'custom' ? (
             <View style={styles.customRow}>
-              <DatePickerField label="From" value={customStart} onChange={setCustomStart} maximumDate={new Date()} />
-              <DatePickerField label="To" value={customEnd} onChange={setCustomEnd} maximumDate={new Date()} />
+              <DatePickerField grow label="From" value={customStart} onChange={setCustomStart} maximumDate={new Date()} />
+              <DatePickerField grow label="To" value={customEnd} onChange={setCustomEnd} maximumDate={new Date()} />
             </View>
           ) : null}
         </View>
